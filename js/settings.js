@@ -20,6 +20,8 @@ const Settings = {
               <label>Sonno ideale (ore)<input name="sleep" type="number" min="4" max="12" step="0.25" value="${cfg.sleepTarget}"></label>
             </div>
             <label>Peso obiettivo (kg, facoltativo)<input name="weight" type="number" min="20" max="300" step="0.1" value="${cfg.weightTarget ?? ""}"></label>
+            <label class="check"><input name="strict" type="checkbox" ${cfg.focusStrict ? "checked" : ""}>
+              <span><b>Modalità severa nel focus</b><small>Se esci dall'app per più di 10 secondi lo yokai scappa e perdi HP. Spenta: puoi bloccare lo schermo senza conseguenze.</small></span></label>
             <label>Evidenziazioni da ripassare al giorno<input name="recall" type="number" min="1" max="15" step="1" value="${cfg.recallPerDay}"></label>
             <button class="btn primary" type="submit">Salva</button>
           </form>
@@ -99,7 +101,8 @@ Actions["settings-save"] = (form) => {
     focusWeeklyMin: Math.round((Number(f.get("focus")) || 10) * 60),
     sleepTarget: Number(f.get("sleep")) || 8,
     weightTarget: f.get("weight") ? Number(f.get("weight")) : null,
-    recallPerDay: U.clamp(Math.round(Number(f.get("recall")) || 5), 1, 15)
+    recallPerDay: U.clamp(Math.round(Number(f.get("recall")) || 5), 1, 15),
+    focusStrict: f.get("strict") === "on"
   });
   U.toast("Impostazioni salvate");
 };

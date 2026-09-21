@@ -112,8 +112,10 @@ Su iPhone: Safari → Condividi → *Aggiungi alla schermata Home*.
 - **Punteggio 0-100** (ultimi 7 giorni): abitudini 35%, obiettivi 25%, benessere 25%,
   focus 15%; le voci senza dati non contano. Si aggiorna in tempo reale.
 - **Focus = caccia allo yokai**: lo yokai si indebolisce mentre resti concentrato; a fine
-  timer viene sigillato (1 XP al minuto, 1 ryo ogni 5 minuti). Se esci dall'app per più di
-  10 secondi scappa e ti colpisce (**−12 HP**) e la serie riparte. Ogni yokai sigillato di
+  timer viene sigillato (1 XP al minuto, 1 ryo ogni 5 minuti). Se rinunci scappa e ti colpisce
+  (**−12 HP**) e la serie riparte. Puoi **bloccare lo schermo**: il timer usa l'orario di inizio,
+  quindi va avanti e sigilla lo yokai anche a telefono bloccato. Nelle impostazioni c'è una
+  *modalità severa* (spenta di default): uscire dall'app per più di 10 secondi fa scappare lo yokai. Ogni yokai sigillato di
   fila aggiunge +20% a XP e ryo (fino a ×2). Puoi collegare la sfida a un obiettivo, o a
   un'abitudine in minuti (li aggiunge da sola).
 - **Gioco (stile Habitica)**: XP e ryo (両) arrivano da abitudini (+10 XP, +5 両), tappe

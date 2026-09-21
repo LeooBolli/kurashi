@@ -44,7 +44,7 @@ const Dojo = {
           <li>Yokai sigillato: <b>+1 XP al minuto · +1 両 ogni 5 minuti</b>, con bonus a catena fino a ×2</li>
           <li>Evidenziazione ripassata: <b>+${Game.CFG.xpReview} XP · +${Game.CFG.ryoReview} 両</b></li>
           <li>Tappa completata: <b>+${Game.CFG.xpMilestone} XP · +${Game.CFG.ryoMilestone} 両</b> · obiettivo completato: <b>+${Game.CFG.xpGoal} XP · +${Game.CFG.ryoGoal} 両</b></li>
-          <li>Ferite (si curano da sole in ${Game.CFG.windowDays} giorni): yokai scappato <b>−${Game.CFG.dmgFail} HP</b> · abitudine prevista e saltata <b>−${Game.CFG.dmgMissed} HP</b> (max ${Game.CFG.dmgMissedCap} al giorno)</li>
+          <li>Ferite (si curano da sole in ${Game.CFG.windowDays} giorni): yokai scappato (rinuncia, o uscita in modalità severa) <b>−${Game.CFG.dmgFail} HP</b> · abitudine prevista e saltata <b>−${Game.CFG.dmgMissed} HP</b> (max ${Game.CFG.dmgMissedCap} al giorno)</li>
         </ul>
       </details>`;
   },

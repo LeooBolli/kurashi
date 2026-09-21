@@ -626,3 +626,9 @@ select { min-height: 40px; }
   .quote-list { grid-template-columns: 1fr 1fr; align-items: start; }
   .tabs2 { max-width: 360px; }
 }
+
+.form label.check { display: flex; gap: 12px; align-items: flex-start; font-weight: 400; }
+.form label.check input { width: 22px; height: 22px; min-height: 0; flex: none; margin-top: 2px; accent-color: var(--blue-strong); }
+.form label.check span { display: grid; gap: 2px; }
+.form label.check b { font-weight: 700; color: var(--ink); }
+.form label.check small { color: var(--ink-3); font-size: 12.5px; line-height: 1.4; }

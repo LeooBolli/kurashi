@@ -1,7 +1,9 @@
 // ============================================================
 // Focus: caccia allo yokai. Mentre resti concentrato lo yokai si
-// indebolisce; a fine timer viene sigillato (XP + ryo). Se esci
-// dall'app per più di 10 secondi scappa e ti colpisce (-HP).
+// indebolisce; a fine timer viene sigillato (XP + ryo). Il tempo si
+// calcola dall'orario di inizio: bloccare lo schermo non ha conseguenze.
+// Se rinunci scappa e ti colpisce (-HP); in modalità severa (opzionale)
+// anche uscire dall'app per più di 10 secondi lo fa scappare.
 // Più yokai sigillati di fila = bonus a catena (fino a ×2).
 // ============================================================
 const Focus = {
@@ -19,20 +21,25 @@ const Focus = {
   wake: null,
   lastStage: -1,
 
+  // Modalità severa (opzionale): uscire dall'app fa scappare lo yokai. Di default no,
+  // così puoi bloccare lo schermo senza conseguenze.
+  strict() { return !!Store.cfg().focusStrict; },
+
   init() {
     try { this.run = JSON.parse(localStorage.getItem(this.KEY)); } catch { this.run = null; }
     if (this.run) {
-      // Ripresa dopo un ricaricamento: se l'app è rimasta chiusa troppo a lungo, lo yokai è scappato
-      if (Date.now() - this.run.lastSeen > this.STALE_MS) this.finish(false);
+      // Ripresa dopo blocco schermo o ricaricamento. Il tempo si calcola dall'orario di inizio,
+      // quindi il timer è sempre corretto. Solo in modalità severa un'assenza lunga fa scappare lo yokai.
+      if (this.strict() && Date.now() - this.run.lastSeen > this.STALE_MS) this.finish(false, "left");
       else this.startTicker();
     }
     document.addEventListener("visibilitychange", () => {
       if (!this.run) return;
       if (document.hidden) this.hiddenAt = Date.now();
       else {
-        if (this.hiddenAt && Date.now() - this.hiddenAt > this.GRACE_MS) this.finish(false);
+        if (this.strict() && this.hiddenAt && Date.now() - this.hiddenAt > this.GRACE_MS) this.finish(false, "left");
         this.hiddenAt = null;
-        if (this.run) this.requestWake();
+        if (this.run) { this.requestWake(); this.tick(); }   // aggiorna subito (o sigilla se il tempo è scaduto)
       }
     });
   },
@@ -92,7 +99,7 @@ const Focus = {
     }
   },
 
-  finish(success) {
+  finish(success, reason = "giveup") {
     const run = this.run;
     if (!run) return;
     clearInterval(this.timer);
@@ -119,7 +126,7 @@ const Focus = {
       if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
     } else if (elapsed >= 15) {
       Store.insert("focus_sessions", { ...base, completed: false, xp: 0, ryo: 0 });
-      this.result = { ok: false, dmg: Game.CFG.dmgFail, kind: run.kind, fresh: true };
+      this.result = { ok: false, dmg: Game.CFG.dmgFail, kind: run.kind, fresh: true, reason };
     }
     App.render();
   },
@@ -136,7 +143,7 @@ const Focus = {
   resultHTML() {
     const r = this.result;
     if (r.ok) return `<div class="result ok"><b>Yokai sigillato!</b><span>+${r.xp} XP · +${r.ryo} 両${r.mult > 1 ? ` · bonus ×${r.mult.toFixed(1)}` : ""} · ${r.chain} di fila${r.tired ? " · ryo dimezzati: eri a terra" : ""}</span></div>`;
-    return `<div class="result bad"><b>Lo yokai è scappato!</b><span>Sei uscito dall'app e ti ha colpito: −${r.dmg} HP. La serie riparte da zero.</span></div>`;
+    return `<div class="result bad"><b>Lo yokai è scappato!</b><span>${r.reason === "left" ? "Sei uscito dall'app (modalità severa) e ti ha colpito" : "Hai rinunciato e ti ha colpito"}: −${r.dmg} HP. La serie riparte da zero.</span></div>`;
   },
 
   render(el) {
@@ -178,7 +185,9 @@ const Focus = {
           </div>
 
           ${running ? `
-            <p class="timer-note">Resta su questa schermata: lo yokai si indebolisce. Se esci per più di 10 secondi scappa e ti colpisce.</p>
+            <p class="timer-note">${this.strict()
+              ? "Modalità severa: resta su questa schermata. Se esci per più di 10 secondi lo yokai scappa e ti colpisce."
+              : "Puoi bloccare lo schermo: il timer va avanti e lo yokai viene sigillato anche se l'app è in background."}</p>
             <button class="btn ghost" data-act="focus-giveup">Rinuncia</button>
           ` : `
             ${this.result ? this.resultHTML() : ""}
@@ -211,7 +220,7 @@ const Focus = {
           </section>
           <section class="card how">
             <h3>Come funziona</h3>
-            <p>Ogni sfida completata sigilla uno yokai: 1 XP al minuto e 1 ryo (両) ogni 5 minuti. Più yokai sigillati di fila, senza uscire, più il bonus cresce: +20% a ogni vittoria, fino a ×2. Se esci lo yokai scappa e perdi ${Game.CFG.dmgFail} HP. Con XP e ryo sali di livello, sblocchi yokai più forti e compri equipaggiamento nel Dojo.</p>
+            <p>Ogni sfida completata sigilla uno yokai: 1 XP al minuto e 1 ryo (両) ogni 5 minuti. Più yokai sigillati di fila, senza uscire, più il bonus cresce: +20% a ogni vittoria, fino a ×2. Se rinunci lo yokai scappa e perdi ${Game.CFG.dmgFail} HP (in modalità severa, attivabile dalle impostazioni, anche se esci dall'app). Puoi bloccare lo schermo senza conseguenze. Con XP e ryo sali di livello, sblocchi yokai più forti e compri equipaggiamento nel Dojo.</p>
           </section>
         </div>
       </div>
@@ -226,7 +235,7 @@ const Focus = {
 };
 
 Actions["focus-start"] = () => Focus.start();
-Actions["focus-giveup"] = () => { if (confirm("Rinunciare? Lo yokai scapperà e perderai HP.")) Focus.finish(false); };
+Actions["focus-giveup"] = () => { if (confirm("Rinunciare? Lo yokai scapperà e perderai HP.")) Focus.finish(false, "giveup"); };
 Actions["focus-min"] = (el) => { Focus.minutes = Number(el.dataset.id); App.render(); };
 Actions["focus-step"] = (el) => { Focus.minutes = U.clamp(Focus.minutes + Number(el.dataset.id), 5, 180); App.render(); };
 Actions["focus-kind"] = (el) => { Focus.kind = el.dataset.id; App.render(); };
