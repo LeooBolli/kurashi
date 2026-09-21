@@ -32,8 +32,15 @@ const App = {
         await Store.loadAll();
       } catch (e) {
         console.error(e);
+        const raw = String((e && (e.message || e.details)) || e || "");
+        const hint = /JWT|expired|401|invalid.*token|not authenticated/i.test(raw) ? "La sessione è scaduta: esci e rientra."
+          : /Failed to fetch|NetworkError|Load failed|network|timeout/i.test(raw) ? "Connessione assente o bloccata (rete, VPN o blocco pubblicità)."
+          : /column|relation|schema cache|does not exist|PGRST/i.test(raw) ? "Manca un aggiornamento del database: esegui supabase/schema.sql su Supabase."
+          : /paused|not found|404/i.test(raw) ? "Il progetto Supabase potrebbe essere in pausa o l'URL in js/config.js non è corretto."
+          : "Controlla la connessione e che URL e chiave in js/config.js siano corretti.";
         document.getElementById("view").innerHTML = UI.empty("gear", "Non riesco a caricare i dati",
-          "Controlla di aver eseguito supabase/schema.sql e che URL e chiave in js/config.js siano corretti.");
+          `${hint}<br><small class="muted">Dettaglio: ${U.esc(raw.slice(0, 160) || "sconosciuto")}${e && e.table ? " · tabella " + U.esc(e.table) : ""}</small>`,
+          `<div class="btn-row center-row"><button class="btn primary" data-act="reload">Riprova</button><button class="btn ghost" data-act="logout">Esci e rientra</button></div>`);
         return;
       }
       this.loaded = true;
@@ -120,6 +127,8 @@ const App = {
     });
   }
 };
+
+Actions["reload"] = () => location.reload();
 
 Actions["quick-add"] = () => {
   const items = [

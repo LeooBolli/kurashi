@@ -22,7 +22,7 @@ const Goals = {
       <h3>${U.esc(g.title)}</h3>
       <div class="goal-prog">
         ${Charts.bar({ value: pace.progress, color: a.color, mark: g.status === "done" ? null : pace.expected, h: 8 })}
-        <div class="goal-nums"><b>${Math.round(pace.progress)}%</b><span>${ms.length ? `${ms.filter((m) => Calc.msPct(m) === 100).length}/${ms.length} tappe · ` : ""}${leftTxt}</span></div>
+        <div class="goal-nums"><b>${Math.round(pace.progress)}%</b><span>${ms.length ? `${ms.filter((m) => Calc.msPct(m) === 100).length}/${ms.length} tappe · ` : ""}${Calc.goalBooks(g) ? `${Calc.goalBooks(g).count}/${Calc.goalBooks(g).target} libri · ` : ""}${leftTxt}</span></div>
       </div>
     </article>`;
   },
@@ -88,7 +88,8 @@ const Goals = {
     const a = AREAS[g.area] || AREAS.progetti;
     const free = Calc.activeHabits().filter((h) => h.goal_id !== g.id);
     const focusMin = U.sum(Calc.focusDone().filter((s) => s.goal_id === g.id).map((s) => s.duration_min));
-    const usesManual = !ms.length && !habits.length;
+    const bk = Calc.goalBooks(g);
+    const usesManual = !ms.length && !habits.length && !bk;
     const cfg = Store.cfg();
     return `<div class="detail">
       <div class="chips-row">${UI.areaChip(g.area)}<span class="chip">${HORIZONS[g.horizon].label} · ${HORIZONS[g.horizon].sub}</span>
@@ -110,6 +111,14 @@ const Goals = {
         <form id="ms-form" class="inline-add"><input placeholder="Aggiungi una tappa…" maxlength="120"><button class="btn ghost sm" type="submit">Aggiungi</button></form>
         ${ms.length ? `<p class="muted small step-hint">Tocca ${Icon.svg("plus", 12)} su una tappa per dividerla in sottotappe: la sua percentuale sale a ogni sottotappa completata.</p>` : ""}
       </div>
+
+      ${bk ? `<div class="block">
+        <div class="block-head"><h3>Libri letti</h3><span class="muted small">${bk.count}/${bk.target}</span></div>
+        ${Charts.bar({ value: bk.pct, color: "var(--orange-500)", h: 8 })}
+        ${bk.done.length ? `<ul class="book-mini">${bk.done.slice(0, 8).map((r) => `<li>${Reading.cover(r)}<span><b>${U.esc(r.title)}</b><small>${U.esc(r.author || "")}${r.author ? " · " : ""}finito il ${U.fmtShort(U.dateOf(r.done_at))}</small></span></li>`).join("")}</ul>`
+          : `<p class="muted small">Nessun libro finito dal ${U.fmtShort(g.start_date)}. Quando finisci un libro in Lettura viene contato qui e fa avanzare l'obiettivo.</p>`}
+        <div class="btn-row"><button class="btn ghost sm" data-act="go" data-id="reading" data-close="1">${Icon.svg("book", 14)} Vai a Lettura</button></div>
+      </div>` : ""}
 
       <div class="block">
         <div class="block-head"><h3>Abitudini collegate</h3></div>
@@ -133,6 +142,12 @@ const Goals = {
         <button class="btn ghost danger" data-act="goal-delete" data-id="${g.id}">${Icon.svg("trash", 16)}</button>
       </div>
     </div>`;
+  },
+
+  setBooks(id, n) {
+    const map = { ...(Store.cfg().goalBooks || {}) };
+    if (n > 0) map[id] = n; else delete map[id];
+    Store.setSettings({ goalBooks: map });
   },
 
   // Una tappa con le sue sottotappe e la percentuale di completamento
@@ -182,6 +197,8 @@ const Goals = {
           <label>Inizio<input type="date" name="start_date" required value="${start}"></label>
           <label>Scadenza<input type="date" name="due_date" required value="${due}"></label>
         </div>
+        <label>Libri da leggere (collega la Lettura)<input name="books" type="number" min="0" max="500" inputmode="numeric" placeholder="Es. 12 (lascia vuoto se non serve)" value="${g && Calc.booksTarget(g) ? Calc.booksTarget(g) : ""}">
+          <small class="muted">Ogni libro che finisci in Lettura dentro il periodo dell'obiettivo fa avanzare la percentuale.</small></label>
         <label>Note<textarea name="description" rows="2" maxlength="300" placeholder="Perché è importante? Come capirai di esserci?">${U.esc(g ? g.description || "" : "")}</textarea></label>
         <button class="btn primary wide" type="submit">${g ? "Salva" : "Crea obiettivo"}</button>
       </form>`,
@@ -204,9 +221,11 @@ const Goals = {
             start_date: f.get("start_date"), due_date: f.get("due_date"), description: (f.get("description") || "").trim() || null
           };
           if (!row.title) return;
-          if (g) { Store.update("goals", g.id, row); Sheet.close(); }
+          const books = Math.max(0, Math.round(Number(f.get("books")) || 0));
+          if (g) { Store.update("goals", g.id, row); this.setBooks(g.id, books); Sheet.close(); }
           else {
             const created = Store.insert("goals", { ...row, manual_progress: 0, status: "active", notion_page_id: null, done_at: null });
+            this.setBooks(created.id, books);
             this.tab = row.horizon;
             Goals.openDetail(created.id);
             U.toast("Obiettivo creato: aggiungi le prime tappe");
@@ -231,6 +250,7 @@ Actions["goal-delete"] = (el) => {
   const g = Store.d.goals.find((x) => x.id === el.dataset.id);
   if (!confirm(`Eliminare "${g.title}"? Le abitudini collegate restano, ma vengono scollegate.`)) return;
   Store.remove("goals", g.id);
+  Goals.setBooks(g.id, 0);
   Sheet.close();
 };
 Actions["ms-toggle"] = (el) => {

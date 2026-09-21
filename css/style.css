@@ -687,3 +687,14 @@ select { min-height: 40px; }
 }
 
 .heal-link { justify-self: start; padding: 2px 0; }
+
+/* ---------- Obiettivo collegato alla Lettura ---------- */
+.goal-banner { background: var(--orange-100); border-radius: 20px; padding: 12px 16px 14px; margin-bottom: 14px; display: grid; gap: 8px; cursor: pointer; }
+.goal-banner > div { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+.goal-banner span { color: var(--ink-2); font-size: 12.5px; white-space: nowrap; }
+.goal-banner .bar { background: rgba(255, 255, 255, .7); }
+.book-mini { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.book-mini li { display: flex; gap: 12px; align-items: center; }
+.book-mini .cover { width: 34px; height: 50px; border-radius: 6px; }
+.book-mini span { display: grid; min-width: 0; font-size: 13.5px; }
+.book-mini small { color: var(--ink-3); }

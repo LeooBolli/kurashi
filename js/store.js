@@ -119,7 +119,9 @@ const Store = {
   },
 
   async loadAll() {
-    await Promise.all(TABLES.map(async (t) => { this.d[t] = await this.backend.fetchAll(t); }));
+    await Promise.all(TABLES.map(async (t) => {
+      try { this.d[t] = await this.backend.fetchAll(t); } catch (e) { e.table = t; throw e; }
+    }));
     this.settings = await this.backend.getSettings();
     this.emit();
     this.backend.subscribe((t) => this.reloadTable(t));
@@ -199,6 +201,6 @@ const Store = {
 
   // Impostazioni con valori di default
   cfg() {
-    return { focusWeeklyMin: 600, sleepTarget: 8, weightTarget: null, raindropCollection: 0, notionDb: "", recallPerDay: 5, focusStrict: true, name: window.APP_CONFIG.USER_NAME, ...this.settings };
+    return { focusWeeklyMin: 600, sleepTarget: 8, weightTarget: null, raindropCollection: 0, notionDb: "", goalBooks: {}, recallPerDay: 5, focusStrict: true, name: window.APP_CONFIG.USER_NAME, ...this.settings };
   }
 };

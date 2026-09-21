@@ -96,8 +96,23 @@ const Calc = {
       }
       if (planned) parts.push((credit / planned) * 100);
     }
+    const bk = this.goalBooks(g, asOf);
+    if (bk) parts.push(bk.pct);
     if (!parts.length) return Number(g.manual_progress) || 0;
     return U.clamp(U.avg(parts), 0, 100);
+  },
+
+  // Obiettivo collegato alla Lettura ("leggi N libri"): conta i libri finiti nel periodo dell'obiettivo.
+  // Il collegamento vive nelle impostazioni ({ idObiettivo: N }), quindi non serve altro nel database.
+  booksTarget(g) { const n = Number((Store.cfg().goalBooks || {})[g.id]); return n > 0 ? n : 0; },
+  goalBooks(g, asOf = U.today()) {
+    const target = this.booksTarget(g);
+    if (!target) return null;
+    const end = asOf < g.due_date ? asOf : g.due_date;
+    const done = Store.d.reading_items
+      .filter((r) => r.kind === "book" && r.status === "done" && r.done_at && U.dateOf(r.done_at) >= g.start_date && U.dateOf(r.done_at) <= end)
+      .sort((a, b) => b.done_at.localeCompare(a.done_at));
+    return { target, done, count: done.length, pct: Math.min(100, (done.length / target) * 100) };
   },
 
   // Quanto dovremmo essere avanti in base al tempo trascorso

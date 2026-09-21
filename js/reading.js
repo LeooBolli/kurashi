@@ -83,6 +83,8 @@ const Reading = {
           <button class="btn primary" data-act="book-add">${Icon.svg("book", 16)}<span>Libro</span></button>
         </div>
       </div>
+      ${Calc.activeGoals().filter((g) => Calc.goalBooks(g)).map((g) => { const b = Calc.goalBooks(g); return `<div class="goal-banner" data-act="goal-open" data-id="${g.id}" role="button">
+        <div><b>${U.esc(g.title)}</b><span>${b.count} di ${b.target} libri · ${Math.round(b.pct)}%</span></div>${Charts.bar({ value: b.pct, color: "var(--orange-500)", h: 6 })}</div>`; }).join("")}
       ${this.tab === "todo" && nowBooks.length ? `<section class="now-reading"><h2 class="mini-h">Sto leggendo</h2>${nowBooks.map((r) => this.currentHTML(r)).join("")}</section>` : ""}
       <div class="seg tabs2">
         <button class="${this.tab === "todo" ? "on" : ""}" data-act="read-tab" data-id="todo">Da leggere<small>${counts.todo + counts.reading - nowBooks.length}</small></button>
@@ -275,6 +277,17 @@ const Reading = {
   },
 
   // ---------- avanzamento ----------
+  // Messaggio quando finisci un libro: dice anche come avanzano gli obiettivi collegati
+  finishedMsg(r) {
+    let msg = "Libro finito! Bravo.";
+    for (const g of Calc.activeGoals()) {
+      const b = Calc.goalBooks(g);
+      if (!b || !b.done.some((x) => x.id === r.id)) continue;
+      msg += b.count >= b.target ? ` · «${g.title}»: obiettivo raggiunto!` : ` · «${g.title}»: ${b.count}/${b.target}`;
+    }
+    return msg;
+  },
+
   setPage(id, page) {
     const r = Store.d.reading_items.find((x) => x.id === id);
     if (!r) return;
@@ -282,7 +295,7 @@ const Reading = {
     page = U.clamp(Math.round(page), 0, max);
     if (r.pages && page >= r.pages) {
       Store.update("reading_items", id, { current_page: r.pages, status: "done", done_at: new Date().toISOString() });
-      U.toast("Libro finito! Bravo.");
+      U.toast(this.finishedMsg(r));
     } else Store.update("reading_items", id, { current_page: page, status: page > 0 && r.status === "todo" ? "reading" : r.status });
   },
 
@@ -354,7 +367,7 @@ Actions["read-status"] = (el) => {
   const patch = { status: v, done_at: v === "done" ? new Date().toISOString() : null };
   if (r.kind === "book" && r.pages) { if (v === "done") patch.current_page = r.pages; if (v === "todo") patch.current_page = 0; }
   Store.update("reading_items", r.id, patch);
-  if (v === "done" && r.kind === "book") U.toast("Libro finito! Bravo.");
+  if (v === "done" && r.kind === "book") U.toast(Reading.finishedMsg(r));
 };
 Actions["read-delete"] = (el) => { if (confirm("Rimuovere dalla lista?")) Store.remove("reading_items", el.dataset.id); };
 Actions["read-open"] = (el) => {
