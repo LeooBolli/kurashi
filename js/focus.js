@@ -1,9 +1,9 @@
 // ============================================================
 // Focus: caccia allo yokai. Mentre resti concentrato lo yokai si
 // indebolisce; a fine timer viene sigillato (XP + ryo). Il tempo si
-// calcola dall'orario di inizio: bloccare lo schermo non ha conseguenze.
-// Se rinunci scappa e ti colpisce (-HP); in modalità severa (opzionale)
-// anche uscire dall'app per più di 10 secondi lo fa scappare.
+// calcola dall'orario di inizio. Cambio app: 10 secondi per tornare,
+// altrimenti lo yokai scappa e ti colpisce (-HP). Schermo bloccato
+// (dopo aver toccato «Blocco lo schermo»): il timer prosegue, nessun danno.
 // Più yokai sigillati di fila = bonus a catena (fino a ×2).
 // ============================================================
 const Focus = {
@@ -21,27 +21,62 @@ const Focus = {
   wake: null,
   lastStage: -1,
 
-  // Modalità severa (opzionale): uscire dall'app fa scappare lo yokai. Di default no,
-  // così puoi bloccare lo schermo senza conseguenze.
-  strict() { return !!Store.cfg().focusStrict; },
+  // Se lo yokai scappa quando esci dall'app (di default sì; disattivabile dalle impostazioni)
+  strict() { return Store.cfg().focusStrict !== false; },
+
+  // Il browser non dice se l'utente ha bloccato lo schermo o cambiato app: per una pagina web
+  // sono lo stesso evento. Quindi si dichiara: «Blocco lo schermo» valida la prossima uscita
+  // (entro LOCK_WINDOW_MS); ogni altra uscita oltre GRACE_MS fa scappare lo yokai.
+  LOCK_WINDOW_MS: 60000,
+  lockOverlay: false,
 
   init() {
     try { this.run = JSON.parse(localStorage.getItem(this.KEY)); } catch { this.run = null; }
     if (this.run) {
-      // Ripresa dopo blocco schermo o ricaricamento. Il tempo si calcola dall'orario di inizio,
-      // quindi il timer è sempre corretto. Solo in modalità severa un'assenza lunga fa scappare lo yokai.
-      if (this.strict() && Date.now() - this.run.lastSeen > this.STALE_MS) this.finish(false, "left");
-      else this.startTicker();
+      // Ripresa dopo blocco, cambio app o ricaricamento: si valuta com'è stata l'assenza
+      if (this.run.hiddenAt) this.settleAbsence();
+      else if (this.strict() && Date.now() - this.run.lastSeen > this.STALE_MS) this.finish(false, "left");
+      if (this.run) this.startTicker();
     }
-    document.addEventListener("visibilitychange", () => {
-      if (!this.run) return;
-      if (document.hidden) this.hiddenAt = Date.now();
-      else {
-        if (this.strict() && this.hiddenAt && Date.now() - this.hiddenAt > this.GRACE_MS) this.finish(false, "left");
-        this.hiddenAt = null;
-        if (this.run) { this.requestWake(); this.tick(); }   // aggiorna subito (o sigilla se il tempo è scaduto)
-      }
-    });
+    document.addEventListener("visibilitychange", () => (document.hidden ? this.onHide() : this.settleAbsence()));
+    window.addEventListener("pagehide", () => this.onHide());
+  },
+
+  onHide() {
+    const r = this.run;
+    if (!r || r.hiddenAt) return;
+    r.hiddenAt = Date.now();
+    r.lockAbsence = !!(r.lockIntentAt && Date.now() - r.lockIntentAt < this.LOCK_WINDOW_MS);
+    this.save();
+  },
+
+  // Al ritorno: assenza da schermo bloccato = nessuna conseguenza; cambio app oltre 10 secondi = danno
+  settleAbsence() {
+    const r = this.run;
+    if (!r) return;
+    if (r.hiddenAt) {
+      const away = Date.now() - r.hiddenAt, locked = r.lockAbsence;
+      r.hiddenAt = null; r.lockAbsence = false; r.lockIntentAt = null;
+      this.lockOverlay = false;
+      this.save();
+      if (this.strict() && !locked && away > this.GRACE_MS) return this.finish(false, "left");
+      if (this.run) App.render();
+    }
+    this.requestWake();
+    this.tick();
+  },
+
+  lockNow() {
+    if (!this.run) return;
+    this.run.lockIntentAt = Date.now();
+    this.lockOverlay = true;
+    this.save();
+    App.render();
+  },
+  cancelLock() {
+    if (this.run) { this.run.lockIntentAt = null; this.save(); }
+    this.lockOverlay = false;
+    App.render();
   },
 
   save() {
@@ -80,6 +115,9 @@ const Focus = {
     const el = this.elapsedSec();
     if (el >= total) return this.finish(true);
     this.run.lastSeen = Date.now();
+    if (this.lockOverlay && this.run.lockIntentAt && Date.now() - this.run.lockIntentAt >= this.LOCK_WINDOW_MS) {
+      this.run.lockIntentAt = null; this.lockOverlay = false; this.save(); App.render();
+    }
     this.save();
     this.paint(el / total, total - el);
   },
@@ -104,6 +142,7 @@ const Focus = {
     if (!run) return;
     clearInterval(this.timer);
     this.releaseWake();
+    this.lockOverlay = false;
     this.run = null;
     this.save();
     const elapsed = (Date.now() - run.startedAt) / 1000;
@@ -143,7 +182,7 @@ const Focus = {
   resultHTML() {
     const r = this.result;
     if (r.ok) return `<div class="result ok"><b>Yokai sigillato!</b><span>+${r.xp} XP · +${r.ryo} 両${r.mult > 1 ? ` · bonus ×${r.mult.toFixed(1)}` : ""} · ${r.chain} di fila${r.tired ? " · ryo dimezzati: eri a terra" : ""}</span></div>`;
-    return `<div class="result bad"><b>Lo yokai è scappato!</b><span>${r.reason === "left" ? "Sei uscito dall'app (modalità severa) e ti ha colpito" : "Hai rinunciato e ti ha colpito"}: −${r.dmg} HP. La serie riparte da zero.</span></div>`;
+    return `<div class="result bad"><b>Lo yokai è scappato!</b><span>${r.reason === "left" ? "Sei uscito dall'app per più di 10 secondi e ti ha colpito" : "Hai rinunciato e ti ha colpito"}: −${r.dmg} HP. La serie riparte da zero.</span></div>`;
   },
 
   render(el) {
@@ -186,9 +225,12 @@ const Focus = {
 
           ${running ? `
             <p class="timer-note">${this.strict()
-              ? "Modalità severa: resta su questa schermata. Se esci per più di 10 secondi lo yokai scappa e ti colpisce."
-              : "Puoi bloccare lo schermo: il timer va avanti e lo yokai viene sigillato anche se l'app è in background."}</p>
-            <button class="btn ghost" data-act="focus-giveup">Rinuncia</button>
+              ? "Se cambi app hai 10 secondi per tornare, altrimenti lo yokai scappa e ti colpisce. Per bloccare lo schermo tocca prima il pulsante qui sotto: il timer va avanti e non prendi danno."
+              : "Puoi cambiare app o bloccare lo schermo: il timer va avanti e lo yokai viene sigillato comunque."}</p>
+            <div class="btn-row center-row">
+              ${this.strict() ? `<button class="btn primary" data-act="focus-lock">${Icon.svg("lock", 16)} Blocco lo schermo</button>` : ""}
+              <button class="btn ghost" data-act="focus-giveup">Rinuncia</button>
+            </div>
           ` : `
             ${this.result ? this.resultHTML() : ""}
             <div class="dur">
@@ -220,7 +262,7 @@ const Focus = {
           </section>
           <section class="card how">
             <h3>Come funziona</h3>
-            <p>Ogni sfida completata sigilla uno yokai: 1 XP al minuto e 1 ryo (両) ogni 5 minuti. Più yokai sigillati di fila, senza uscire, più il bonus cresce: +20% a ogni vittoria, fino a ×2. Se rinunci lo yokai scappa e perdi ${Game.CFG.dmgFail} HP (in modalità severa, attivabile dalle impostazioni, anche se esci dall'app). Puoi bloccare lo schermo senza conseguenze. Con XP e ryo sali di livello, sblocchi yokai più forti e compri equipaggiamento nel Dojo.</p>
+            <p>Ogni sfida completata sigilla uno yokai: 1 XP al minuto e 1 ryo (両) ogni 5 minuti. Più yokai sigillati di fila, senza uscire, più il bonus cresce: +20% a ogni vittoria, fino a ×2. Se rinunci lo yokai scappa e perdi ${Game.CFG.dmgFail} HP o se esci dall'app per più di 10 secondi. Per bloccare lo schermo tocca «Blocco lo schermo»: il timer va avanti senza danni. Con XP e ryo sali di livello, sblocchi yokai più forti e compri equipaggiamento nel Dojo.</p>
           </section>
         </div>
       </div>
@@ -229,12 +271,20 @@ const Focus = {
         <div class="block-head"><h2>Bestiario</h2><span class="muted small">ultime ${recent.length} sfide</span></div>
         ${recent.length ? `<div class="garden">${recent.map((s) => `<div class="plot ${s.completed ? "" : "escaped"}" data-tip="${U.fmtShort(U.dateOf(s.started_at))} · ${s.duration_min} min · ${s.completed ? "sigillato" : "scappato"}">${Yokai.svg(s.creature || "hitodama", 1, s.completed ? "sealed" : "escaped", 56)}</div>`).join("")}</div>`
         : UI.empty("tree", "Nessuna sfida ancora", "Affronta il primo yokai: bastano 25 minuti senza distrazioni.")}
-      </section>`;
+      </section>
+      ${this.lockOverlay && running ? `<div class="lock-overlay" role="dialog" aria-label="Blocco schermo">
+        <div class="lock-card">${Icon.svg("lock", 34)}
+          <h2>Blocca pure lo schermo</h2>
+          <p>Premi il tasto laterale ora. Il timer va avanti e non prendi danno. Hai 60 secondi.</p>
+          <button class="btn ghost wide" data-act="focus-lock-cancel">Annulla</button>
+        </div></div>` : ""}`;
     if (running) this.lastStage = -1;
   }
 };
 
 Actions["focus-start"] = () => Focus.start();
+Actions["focus-lock"] = () => Focus.lockNow();
+Actions["focus-lock-cancel"] = () => Focus.cancelLock();
 Actions["focus-giveup"] = () => { if (confirm("Rinunciare? Lo yokai scapperà e perderai HP.")) Focus.finish(false, "giveup"); };
 Actions["focus-min"] = (el) => { Focus.minutes = Number(el.dataset.id); App.render(); };
 Actions["focus-step"] = (el) => { Focus.minutes = U.clamp(Focus.minutes + Number(el.dataset.id), 5, 180); App.render(); };

@@ -21,7 +21,7 @@ const Settings = {
             </div>
             <label>Peso obiettivo (kg, facoltativo)<input name="weight" type="number" min="20" max="300" step="0.1" value="${cfg.weightTarget ?? ""}"></label>
             <label class="check"><input name="strict" type="checkbox" ${cfg.focusStrict ? "checked" : ""}>
-              <span><b>Modalità severa nel focus</b><small>Se esci dall'app per più di 10 secondi lo yokai scappa e perdi HP. Spenta: puoi bloccare lo schermo senza conseguenze.</small></span></label>
+              <span><b>Lo yokai scappa se esco dall'app</b><small>Se cambi app per più di 10 secondi perdi HP. Per bloccare lo schermo tocca «Blocco lo schermo» nel timer. Disattivo: nessun danno, mai.</small></span></label>
             <label>Evidenziazioni da ripassare al giorno<input name="recall" type="number" min="1" max="15" step="1" value="${cfg.recallPerDay}"></label>
             <button class="btn primary" type="submit">Salva</button>
           </form>

@@ -59,7 +59,7 @@ const SbBackend = {
 };
 
 const LocalBackend = {
-  KEY: "kurashi-demo-v3",
+  KEY: "kurashi-demo-v4",
   db: null,
   load() {
     if (!this.db) {
@@ -78,6 +78,7 @@ const LocalBackend = {
   },
   async remove(t, id) {
     this.db[t] = this.load()[t].filter((x) => x.id !== id);
+    if (t === "milestones") this.db.milestones = this.db.milestones.filter((m) => m.parent_id !== id);
     if (t === "goals") {
       this.db.milestones = this.db.milestones.filter((m) => m.goal_id !== id);
       this.db.habits.forEach((h) => { if (h.goal_id === id) h.goal_id = null; });
@@ -160,6 +161,7 @@ const Store = {
 
   remove(table, id) {
     this.d[table] = this.d[table].filter((x) => x.id !== id);
+    if (table === "milestones") this.d.milestones = this.d.milestones.filter((m) => m.parent_id !== id);
     if (table === "goals") {
       this.d.milestones = this.d.milestones.filter((m) => m.goal_id !== id);
       this.d.habits.forEach((h) => { if (h.goal_id === id) h.goal_id = null; });
@@ -194,6 +196,6 @@ const Store = {
 
   // Impostazioni con valori di default
   cfg() {
-    return { focusWeeklyMin: 600, sleepTarget: 8, weightTarget: null, raindropCollection: 0, notionDb: "", recallPerDay: 5, focusStrict: false, name: window.APP_CONFIG.USER_NAME, ...this.settings };
+    return { focusWeeklyMin: 600, sleepTarget: 8, weightTarget: null, raindropCollection: 0, notionDb: "", recallPerDay: 5, focusStrict: true, name: window.APP_CONFIG.USER_NAME, ...this.settings };
   }
 };

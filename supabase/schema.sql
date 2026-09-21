@@ -237,3 +237,14 @@ create index if not exists mood_logs_logged_idx on mood_logs (logged_at);
 alter table focus_sessions add column if not exists xp int not null default 0;
 alter table focus_sessions add column if not exists ryo int not null default 0;
 alter table focus_sessions add column if not exists creature text;
+
+-- Sottotappe: una tappa può avere tappe figlie (parent_id). Eliminando la tappa, spariscono anche le figlie.
+alter table milestones add column if not exists parent_id uuid references milestones(id) on delete cascade;
+create index if not exists milestones_parent_idx on milestones (parent_id);
+
+-- Libri (da Goodreads o a mano): stessa tabella dei link da leggere, con pagine e avanzamento
+alter table reading_items add column if not exists kind text not null default 'link';   -- link | book
+alter table reading_items add column if not exists author text;
+alter table reading_items add column if not exists pages int;
+alter table reading_items add column if not exists current_page int not null default 0;
+alter table reading_items add column if not exists goodreads_url text;

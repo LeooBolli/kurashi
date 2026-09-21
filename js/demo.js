@@ -25,6 +25,10 @@ const Demo = {
       goal_id: goal.id, title, done, position: i, done_at: done ? iso(U.addDays(today, -(list.length - i) * 4)) : null
     })));
     ms(g.half, [["10 km senza fermarsi", true], ["Mezza di allenamento (16 km)", true], ["Iscrizione alla gara", true], ["18 km di lungo", false], ["Scarico ultima settimana", false]]);
+    const longRun = db.milestones.find((m) => m.title === "18 km di lungo");
+    [["14 km", true], ["16 km", true], ["18 km", false]].forEach(([title, done], i) => db.milestones.push(mk({
+      goal_id: g.half.id, parent_id: longRun.id, title, done, position: i, done_at: done ? iso(U.addDays(today, -3 + i)) : null
+    })));
     ms(g.exam, [["Moduli 1-3", true], ["Moduli 4-6", false], ["Progetto finale", false]]);
     ms(g.app, [["Prototipo cliccabile", true], ["Landing page", true], ["MVP funzionante", false], ["10 utenti di prova", false], ["Lancio pubblico", false]]);
 
@@ -99,8 +103,18 @@ const Demo = {
       ["Come funziona la memoria a lungo termine", "https://example.com/memoria", "done"],
       ["Correre la prima mezza maratona", "https://example.com/mezza", "done"]
     ];
+    const books = [
+      ["Atomic Habits", "James Clear", 320, 124, "reading"],
+      ["Il nome della rosa", "Umberto Eco", 512, 0, "todo"],
+      ["Deep Work", "Cal Newport", 296, 296, "done"]
+    ];
+    books.forEach(([title, author, pages, cur, status], i) => db.reading_items.push(mk({
+      source: "goodreads", external_id: null, title, author, pages, current_page: cur, status, kind: "book",
+      url: "https://www.goodreads.com/book/show/" + (1000 + i), goodreads_url: "https://www.goodreads.com/book/show/" + (1000 + i), cover: null,
+      done_at: status === "done" ? iso(U.addDays(today, -9)) : null, created_at: iso(U.addDays(today, -20 + i))
+    })));
     reads.forEach(([title, url, status], i) => db.reading_items.push(mk({
-      source: "raindrop", external_id: "demo" + i, title, url, status,
+      source: "raindrop", external_id: "demo" + i, title, url, status, kind: "link", author: null, pages: null, current_page: 0, goodreads_url: null,
       done_at: status === "done" ? iso(U.addDays(today, -i * 3)) : null, created_at: iso(U.addDays(today, -i * 4))
     })));
 

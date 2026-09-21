@@ -3,8 +3,8 @@
 App web (PWA) personale per gestire la vita: **abitudini** (sì/no e quantitative),
 **obiettivi** a breve (1 mese), medio (4 mesi) e lungo termine (1 anno o più) collegati
 alle abitudini, **statistiche/KPI** con grafici, **caccia agli yokai** (focus timer gamificato) con livelli, HP, equipaggiamento e un Dojo,
-**benessere** (umore, energia, sonno, peso, allenamenti), **lettura** con i bookmark di
-Raindrop.io, sincronizzazione degli obiettivi con Notion, export Excel e CSV.
+**benessere** (umore, energia, sonno, peso, allenamenti), **lettura** (libri da Goodreads con
+avanzamento a pagine + bookmark di Raindrop.io), sincronizzazione degli obiettivi con Notion, export Excel e CSV.
 
 HTML/CSS/JS senza framework né build. Backend: Supabase (un solo utente, dati protetti
 da RLS). Stesso approccio di PDTravel.
@@ -109,15 +109,23 @@ Su iPhone: Safari → Condividi → *Aggiungi alla schermata Home*.
   abitudini collegate (giorni fatti / giorni previsti nell'intero periodo). La tacca
   sulla barra è dove dovresti essere in base al tempo trascorso → *Avanti / In linea /
   Da recuperare / Indietro*.
+  Ogni **tappa** si può dividere in **sottotappe**: la sua percentuale è sottotappe fatte / totali
+  e l'avanzamento dell'obiettivo ne tiene conto.
+- **Libri**: in Lettura → *Libro*, incolla il link di Goodreads (o scrivi titolo e autore). Goodreads
+  non ha più un'API pubblica: dal link si ricava il titolo e si cercano autore, pagine e copertina
+  su Open Library. Poi segni le pagine (+10, oppure «Pagina») e vedi la percentuale.
 - **Punteggio 0-100** (ultimi 7 giorni): abitudini 35%, obiettivi 25%, benessere 25%,
   focus 15%; le voci senza dati non contano. Si aggiorna in tempo reale.
 - **Focus = caccia allo yokai**: lo yokai si indebolisce mentre resti concentrato; a fine
-  timer viene sigillato (1 XP al minuto, 1 ryo ogni 5 minuti). Se rinunci scappa e ti colpisce
-  (**−12 HP**) e la serie riparte. Puoi **bloccare lo schermo**: il timer usa l'orario di inizio,
-  quindi va avanti e sigilla lo yokai anche a telefono bloccato. Nelle impostazioni c'è una
-  *modalità severa* (spenta di default): uscire dall'app per più di 10 secondi fa scappare lo yokai. Ogni yokai sigillato di
-  fila aggiunge +20% a XP e ryo (fino a ×2). Puoi collegare la sfida a un obiettivo, o a
-  un'abitudine in minuti (li aggiunge da sola).
+  timer viene sigillato (1 XP al minuto, 1 ryo ogni 5 minuti), con bonus a catena fino a ×2.
+  Se rinunci scappa e ti colpisce (**−12 HP**) e la serie riparte.
+  - **Cambio app:** hai **10 secondi** per tornare, altrimenti lo yokai scappa.
+  - **Schermo bloccato:** tocca prima **«Blocco lo schermo»** (un tocco, poi il tasto laterale):
+    il timer va avanti anche a telefono bloccato e al rientro trovi lo yokai sigillato, senza danni.
+  - *Perché un tocco?* Il browser non può distinguere «blocco lo schermo» da «cambio app»: per
+    una pagina web è lo stesso evento. Solo un'app nativa potrebbe saperlo da sola.
+  - Il tempo si calcola dall'orario di inizio, quindi il timer è sempre esatto.
+  - Da Impostazioni si può spegnere del tutto la fuga dello yokai (nessun danno, mai).
 - **Gioco (stile Habitica)**: XP e ryo (両) arrivano da abitudini (+10 XP, +5 両), tappe
   (+30/+15), obiettivi completati (+150/+75) e yokai sigillati. Salendo di livello sblocchi
   yokai più forti (Hitodama → Chōchin-obake → Kasa-obake → Oni). Gli **HP** calano se lo

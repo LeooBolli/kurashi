@@ -62,7 +62,16 @@ const Calc = {
 
   // ---------- Obiettivi ----------
   activeGoals() { return Store.d.goals.filter((g) => g.status === "active"); },
-  milestonesOf(g) { return Store.d.milestones.filter((m) => m.goal_id === g.id).sort((a, b) => a.position - b.position); },
+  // Tappe di primo livello di un obiettivo (le sottotappe stanno dentro la tappa madre)
+  milestonesOf(g) { return Store.d.milestones.filter((m) => m.goal_id === g.id && !m.parent_id).sort((a, b) => a.position - b.position); },
+  childrenOf(m) { return Store.d.milestones.filter((x) => x.parent_id === m.id).sort((a, b) => a.position - b.position); },
+  // Completamento 0..100 di una tappa: con sottotappe = sottotappe fatte / totali
+  msPct(m, asOf = null) {
+    const isDone = (x) => x.done && (!asOf || !x.done_at || U.dateOf(x.done_at) <= asOf);
+    const kids = this.childrenOf(m);
+    if (kids.length) return (kids.filter(isDone).length / kids.length) * 100;
+    return isDone(m) ? 100 : 0;
+  },
   habitsOfGoal(g) { return Store.d.habits.filter((h) => h.goal_id === g.id && !h.archived); },
 
   // Avanzamento 0..100 "a una certa data" (serve anche per confrontare le settimane)
@@ -71,8 +80,7 @@ const Calc = {
     const parts = [];
     const ms = this.milestonesOf(g);
     if (ms.length) {
-      const done = ms.filter((m) => m.done && (!m.done_at || U.dateOf(m.done_at) <= asOf)).length;
-      parts.push((done / ms.length) * 100);
+      parts.push(U.avg(ms.map((m) => this.msPct(m, asOf))));
     }
     const hs = this.habitsOfGoal(g);
     if (hs.length) {

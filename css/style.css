@@ -632,3 +632,56 @@ select { min-height: 40px; }
 .form label.check span { display: grid; gap: 2px; }
 .form label.check b { font-weight: 700; color: var(--ink); }
 .form label.check small { color: var(--ink-3); font-size: 12.5px; line-height: 1.4; }
+
+/* ---------- Tappe e sottotappe ---------- */
+.checklist.steps li.step { display: block; padding: 10px 0; }
+.step-row { display: flex; align-items: center; gap: 10px; }
+.step-title { flex: 1; min-width: 0; }
+.step.done .step-title { color: var(--ink-3); text-decoration: line-through; }
+.pct { font-style: normal; font-weight: 700; font-size: 12.5px; background: var(--blue-100); color: var(--blue-strong); padding: 2px 9px; border-radius: 999px; }
+.step > .bar { margin: 8px 0 4px 36px; width: calc(100% - 36px); }
+.subs { list-style: none; margin: 4px 0 0 36px; padding: 0; display: grid; gap: 2px; }
+.subs li { display: flex; align-items: center; gap: 10px; padding: 5px 0; border: 0; font-size: 14px; }
+.subs li span { flex: 1; }
+.subs li.done span { color: var(--ink-3); text-decoration: line-through; }
+.round.xs { width: 20px; height: 20px; }
+.round.part { border-color: var(--blue-500); background: linear-gradient(90deg, var(--blue-500) 50%, transparent 50%); }
+.icon-btn.xs { width: 24px; height: 24px; }
+.sub-form { margin: 6px 0 0 36px; }
+.step-hint { margin-top: 10px; }
+.step-hint .ico { vertical-align: -2px; }
+
+/* ---------- Focus: blocco schermo ---------- */
+.center-row { justify-content: center; }
+.lock-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(35, 39, 46, .55); backdrop-filter: blur(3px); display: grid; place-items: center; padding: 24px; }
+.lock-card { background: var(--card); border-radius: 28px; padding: 28px 24px; max-width: 340px; text-align: center; display: grid; gap: 12px; justify-items: center; box-shadow: var(--shadow); }
+.lock-card .ico { color: var(--orange); }
+.lock-card h2 { font-family: var(--serif); font-size: 22px; font-weight: 600; }
+.lock-card p { color: var(--ink-2); font-size: 14px; }
+
+/* ---------- Lettura: libri ---------- */
+.hide-sm { display: none; }
+@media (min-width: 480px) { .hide-sm { display: inline; } }
+.cover.book { width: 48px; height: 70px; border-radius: 8px; }
+.cover.lg { width: 86px; height: 128px; border-radius: 10px; }
+.mini-h { font-family: var(--serif); font-size: 19px; font-weight: 600; margin-bottom: 10px; }
+.now-reading { display: grid; gap: 12px; margin-bottom: 22px; }
+.book-now { display: flex; gap: 16px; background: var(--orange-100); border-radius: 26px; padding: 16px; }
+.book-now a { flex: none; line-height: 0; }
+.bn-main { flex: 1; min-width: 0; display: grid; gap: 6px; align-content: start; }
+.bn-main h3 { font-family: var(--serif); font-size: 18px; font-weight: 600; line-height: 1.3; }
+.bn-prog { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink-2); }
+.bn-prog .bar { background: rgba(255, 255, 255, .7); }
+.book-now .btn-row { margin-top: 6px; }
+.book-results { display: grid; gap: 8px; }
+.book-result { display: flex; gap: 12px; align-items: center; text-align: left; border: 1.5px solid var(--line); background: var(--card); border-radius: 18px; padding: 8px 12px 8px 8px; }
+.book-result:hover, .book-result:focus-visible { border-color: var(--blue); }
+.book-result span { display: grid; min-width: 0; }
+.book-result small { color: var(--ink-3); }
+.book-pick { display: flex; gap: 14px; align-items: flex-start; }
+
+@media (max-width: 639px) {
+  .read-row { flex-wrap: wrap; }
+  .read-row .read-main { flex: 1 1 calc(100% - 70px); }
+  .read-row .read-act { width: 100%; justify-content: flex-start; padding-left: 66px; margin-top: -4px; }
+}

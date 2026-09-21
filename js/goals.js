@@ -7,6 +7,7 @@ const Goals = {
   tab: "short",
   openId: null,
   showDone: false,
+  addingSub: null,     // id della tappa a cui si sta aggiungendo una sottotappa
 
   paceIcon(key) { return { ahead: "▲", on: "●", slight: "◐", behind: "▼", done: "✓" }[key]; },
 
@@ -21,7 +22,7 @@ const Goals = {
       <h3>${U.esc(g.title)}</h3>
       <div class="goal-prog">
         ${Charts.bar({ value: pace.progress, color: a.color, mark: g.status === "done" ? null : pace.expected, h: 8 })}
-        <div class="goal-nums"><b>${Math.round(pace.progress)}%</b><span>${ms.length ? `${ms.filter((m) => m.done).length}/${ms.length} tappe · ` : ""}${leftTxt}</span></div>
+        <div class="goal-nums"><b>${Math.round(pace.progress)}%</b><span>${ms.length ? `${ms.filter((m) => Calc.msPct(m) === 100).length}/${ms.length} tappe · ` : ""}${leftTxt}</span></div>
       </div>
     </article>`;
   },
@@ -59,7 +60,7 @@ const Goals = {
     const g = Store.d.goals.find((x) => x.id === id);
     if (!g) return;
     this.openId = id;
-    Sheet.open({ title: g.title, wide: true, body: this.detailHTML(g), onClose: () => { this.openId = null; }, onMount: (root) => {
+    Sheet.open({ title: g.title, wide: true, body: this.detailHTML(g), onClose: () => { this.openId = null; this.addingSub = null; }, onMount: (root) => {
       root.addEventListener("submit", (e) => {
         if (e.target.id !== "ms-form") return;
         e.preventDefault();
@@ -104,12 +105,10 @@ const Goals = {
       </div>
 
       <div class="block">
-        <div class="block-head"><h3>Tappe</h3><span class="muted small">${ms.filter((m) => m.done).length}/${ms.length}</span></div>
-        <ul class="checklist">${ms.map((m) => `<li class="${m.done ? "done" : ""}">
-          <button class="round sm ${m.done ? "on" : ""}" data-act="ms-toggle" data-id="${m.id}" aria-label="Completa tappa">${Icon.svg("check", 14)}</button>
-          <span>${U.esc(m.title)}</span>
-          <button class="icon-btn sm" data-act="ms-delete" data-id="${m.id}" aria-label="Elimina tappa">${Icon.svg("x", 16)}</button></li>`).join("")}</ul>
+        <div class="block-head"><h3>Tappe</h3><span class="muted small">${ms.filter((m) => Calc.msPct(m) === 100).length}/${ms.length}</span></div>
+        <ul class="checklist steps">${ms.map((m) => this.stepHTML(m)).join("")}</ul>
         <form id="ms-form" class="inline-add"><input placeholder="Aggiungi una tappa…" maxlength="120"><button class="btn ghost sm" type="submit">Aggiungi</button></form>
+        ${ms.length ? `<p class="muted small step-hint">Tocca ${Icon.svg("plus", 12)} su una tappa per dividerla in sottotappe: la sua percentuale sale a ogni sottotappa completata.</p>` : ""}
       </div>
 
       <div class="block">
@@ -134,6 +133,37 @@ const Goals = {
         <button class="btn ghost danger" data-act="goal-delete" data-id="${g.id}">${Icon.svg("trash", 16)}</button>
       </div>
     </div>`;
+  },
+
+  // Una tappa con le sue sottotappe e la percentuale di completamento
+  stepHTML(m) {
+    const kids = Calc.childrenOf(m), pct = Calc.msPct(m);
+    const state = pct >= 100 ? "on" : pct > 0 ? "part" : "";
+    return `<li class="step ${pct >= 100 ? "done" : ""}">
+      <div class="step-row">
+        <button class="round sm ${state}" data-act="ms-toggle" data-id="${m.id}" aria-label="${pct >= 100 ? "Riapri la tappa" : "Completa la tappa"}">${Icon.svg("check", 14)}</button>
+        <span class="step-title">${U.esc(m.title)}</span>
+        ${kids.length ? `<em class="pct" data-tip="${kids.filter((k) => k.done).length} di ${kids.length} sottotappe">${Math.round(pct)}%</em>` : ""}
+        <button class="icon-btn sm" data-act="ms-sub" data-id="${m.id}" aria-label="Aggiungi una sottotappa" data-tip="Aggiungi sottotappa">${Icon.svg("plus", 16)}</button>
+        <button class="icon-btn sm" data-act="ms-delete" data-id="${m.id}" aria-label="Elimina la tappa">${Icon.svg("x", 16)}</button>
+      </div>
+      ${kids.length ? `${Charts.bar({ value: pct, color: "var(--blue-500)", h: 4 })}
+      <ul class="subs">${kids.map((k) => `<li class="${k.done ? "done" : ""}">
+        <button class="round xs ${k.done ? "on" : ""}" data-act="ms-toggle" data-id="${k.id}" aria-label="Completa la sottotappa">${Icon.svg("check", 11)}</button>
+        <span>${U.esc(k.title)}</span>
+        <button class="icon-btn xs" data-act="ms-delete" data-id="${k.id}" aria-label="Elimina la sottotappa">${Icon.svg("x", 14)}</button></li>`).join("")}</ul>` : ""}
+      ${this.addingSub === m.id ? `<form class="inline-add sub-form" data-act-submit="ms-sub-add" data-id="${m.id}"><input placeholder="Nuova sottotappa…" maxlength="120" autocomplete="off"><button class="btn ghost sm" type="submit">Aggiungi</button></form>` : ""}
+    </li>`;
+  },
+
+  // Allinea lo stato della tappa madre alle sue sottotappe (fatta = tutte fatte)
+  syncParent(pid) {
+    const p = Store.d.milestones.find((x) => x.id === pid);
+    if (!p) return;
+    const kids = Calc.childrenOf(p);
+    if (!kids.length) return;
+    const all = kids.every((k) => k.done);
+    if (p.done !== all) Store.update("milestones", p.id, { done: all, done_at: all ? new Date().toISOString() : null });
   },
 
   // ---------- form ----------
@@ -205,10 +235,46 @@ Actions["goal-delete"] = (el) => {
 };
 Actions["ms-toggle"] = (el) => {
   const m = Store.d.milestones.find((x) => x.id === el.dataset.id);
-  Store.update("milestones", m.id, { done: !m.done, done_at: !m.done ? new Date().toISOString() : null });
+  if (!m) return;
+  const now = new Date().toISOString(), kids = Calc.childrenOf(m);
+  if (kids.length) {
+    // tappa con sottotappe: le completa (o riapre) tutte insieme
+    const allDone = kids.every((k) => k.done);
+    kids.forEach((k) => Store.update("milestones", k.id, { done: !allDone, done_at: !allDone ? now : null }));
+    Store.update("milestones", m.id, { done: !allDone, done_at: !allDone ? now : null });
+  } else {
+    Store.update("milestones", m.id, { done: !m.done, done_at: !m.done ? now : null });
+    if (m.parent_id) Goals.syncParent(m.parent_id);
+  }
   Goals.refreshDetail();
 };
-Actions["ms-delete"] = (el) => { Store.remove("milestones", el.dataset.id); Goals.refreshDetail(); };
+Actions["ms-delete"] = (el) => {
+  const m = Store.d.milestones.find((x) => x.id === el.dataset.id);
+  if (!m) return;
+  const kids = Calc.childrenOf(m).length;
+  if (kids && !confirm(`Eliminare la tappa e le sue ${kids} sottotappe?`)) return;
+  const pid = m.parent_id;
+  Store.remove("milestones", m.id);
+  if (pid) Goals.syncParent(pid);
+  Goals.refreshDetail();
+};
+Actions["ms-sub"] = (el) => {
+  Goals.addingSub = Goals.addingSub === el.dataset.id ? null : el.dataset.id;
+  Goals.refreshDetail();
+  const input = Sheet.el && Sheet.el.querySelector(".sub-form input");
+  if (input) input.focus();
+};
+Actions["ms-sub-add"] = (form) => {
+  const parent = Store.d.milestones.find((x) => x.id === form.dataset.id);
+  const title = form.querySelector("input").value.trim();
+  if (!parent || !title) return;
+  Store.insert("milestones", { goal_id: parent.goal_id, parent_id: parent.id, title, done: false, done_at: null, position: Calc.childrenOf(parent).length });
+  // la tappa madre torna "in corso" se era completa
+  if (parent.done) Store.update("milestones", parent.id, { done: false, done_at: null });
+  Goals.refreshDetail();
+  const input = Sheet.el && Sheet.el.querySelector(".sub-form input");
+  if (input) input.focus();
+};
 Actions["goal-unlink"] = (el) => { Store.update("habits", el.dataset.id, { goal_id: null }); Goals.refreshDetail(); };
 Actions["goal-manual"] = (el) => Store.update("goals", el.dataset.id, { manual_progress: Number(el.value) });
 Actions["goal-new-habit"] = (el) => Habits.openForm(null, el.dataset.id);

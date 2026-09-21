@@ -10,6 +10,8 @@ const Game = {
     xpHabit: 10, ryoHabit: 5,
     xpMilestone: 30, ryoMilestone: 15,
     xpGoal: 150, ryoGoal: 75,
+    xpSubstep: 10, ryoSubstep: 5,
+    xpBook: 40, ryoBook: 20,     // libro finito
     xpReview: 4, ryoReview: 2,   // ripasso di un'evidenziazione
     dmgFail: 12,          // HP persi quando lo yokai scappa
     dmgMissed: 2,         // HP persi per ogni abitudine prevista e saltata...
@@ -85,7 +87,11 @@ const Game = {
       const n = h.times_reviewed || 0;
       xp += n * C.xpReview; earned += n * C.ryoReview;
     }
-    for (const m of Store.d.milestones) if (m.done) { xp += C.xpMilestone; earned += C.ryoMilestone; }
+    for (const m of Store.d.milestones) {
+      if (!m.done) continue;
+      if (m.parent_id) { xp += C.xpSubstep; earned += C.ryoSubstep; } else { xp += C.xpMilestone; earned += C.ryoMilestone; }
+    }
+    for (const r of Store.d.reading_items) if (r.kind === "book" && r.status === "done") { xp += C.xpBook; earned += C.ryoBook; }
     for (const g of Store.d.goals) if (g.status === "done") { xp += C.xpGoal; earned += C.ryoGoal; }
 
     const st = this.state();
@@ -124,7 +130,8 @@ const Game = {
     const streak = Calc.bestOverallStreak();
     const bestEver = Math.max(0, ...Store.d.habits.map((h) => Calc.bestStreak(h)));
     const goalsDone = Store.d.goals.filter((g) => g.status === "done").length;
-    const ms = Store.d.milestones.filter((m) => m.done).length;
+    const ms = Store.d.milestones.filter((m) => m.done && !m.parent_id).length;
+    const books = Store.d.reading_items.filter((r) => r.kind === "book" && r.status === "done").length;
     const reviews = U.sum((Store.d.highlights || []).map((h) => h.times_reviewed || 0));
     return [
       { id: "first", glyph: "封", label: "Primo sigillo", text: "Sigilla il tuo primo yokai", ok: s.sealed >= 1 },
@@ -136,6 +143,7 @@ const Game = {
       { id: "lv10", glyph: "十", label: "Livello 10", text: "Raggiungi il livello 10", ok: t.level >= 10, prog: [t.level, 10] },
       { id: "goal", glyph: "達", label: "Traguardo", text: "Completa un obiettivo", ok: goalsDone >= 1 },
       { id: "steps", glyph: "歩", label: "Passo dopo passo", text: "Completa 10 tappe", ok: ms >= 10, prog: [ms, 10] },
+      { id: "reader", glyph: "読", label: "Lettore", text: "Finisci 3 libri", ok: books >= 3, prog: [books, 3] },
       { id: "memory", glyph: "記", label: "Memoria", text: "Ripassa 50 evidenziazioni", ok: reviews >= 50, prog: [reviews, 50] },
       { id: "gear", glyph: "装", label: "Ben equipaggiato", text: "Possiedi 3 oggetti", ok: st.owned.length >= 3, prog: [st.owned.length, 3] },
       { id: "mind", glyph: "心", label: "Mente attenta", text: "7 check-in di umore", ok: Store.d.mood_logs.length >= 7, prog: [Store.d.mood_logs.length, 7] },

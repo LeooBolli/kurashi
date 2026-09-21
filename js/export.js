@@ -25,7 +25,7 @@ const Export = {
         return { Titolo: g.title, Area: this.area(g.area), Orizzonte: HORIZONS[g.horizon].label, Inizio: g.start_date, Scadenza: g.due_date, Stato: g.status === "done" ? "completato" : g.status === "archived" ? "archiviato" : "attivo",
           Avanzamento_percent: Math.round(p.progress), Atteso_percent: Math.round(p.expected), Ritmo: p.label, Note: g.description || "" };
       }),
-      Tappe: d.milestones.map((m) => ({ Obiettivo: this.goalName(m.goal_id), Tappa: m.title, Completata: this.yn(m.done), Data_completamento: m.done_at ? U.dateOf(m.done_at) : "" })),
+      Tappe: d.milestones.map((m) => ({ Obiettivo: this.goalName(m.goal_id), Tappa: m.title, Sottotappa_di: (d.milestones.find((p) => p.id === m.parent_id) || {}).title || "", Completata: this.yn(m.done), Data_completamento: m.done_at ? U.dateOf(m.done_at) : "" })),
       Focus: [...d.focus_sessions].sort((a, b) => a.started_at.localeCompare(b.started_at)).map((s) => ({
         Inizio: `${U.dateOf(s.started_at)} ${U.fmtTime(s.started_at)}`, Minuti: s.duration_min, Completata: this.yn(s.completed), XP: s.xp || 0, Ryo: s.ryo || 0, Yokai: (Game.YOKAI[s.creature] || {}).label || "",
         Obiettivo: this.goalName(s.goal_id), Abitudine: this.habitName(s.habit_id)
@@ -38,7 +38,7 @@ const Export = {
         Testo: h.text, Nota: h.note || "", Fonte: h.source_title, Autore: h.source_author || "", Posizione: h.location || "", Tipo: h.source_kind || "",
         Link: h.source_url || "", Preferita: this.yn(h.favorite), Silenziata: this.yn(h.muted), Ripassi: h.times_reviewed || 0, Ultimo_ripasso: h.last_reviewed_on || ""
       })),
-      Lettura: d.reading_items.map((r) => ({ Titolo: r.title, Link: r.url || "", Fonte: r.source === "raindrop" ? "Raindrop" : "Manuale", Stato: { todo: "da leggere", reading: "in corso", done: "letto" }[r.status], Aggiunto: U.dateOf(r.created_at), Letto_il: r.done_at ? U.dateOf(r.done_at) : "" }))
+      Lettura: d.reading_items.map((r) => ({ Titolo: r.title, Tipo: r.kind === "book" ? "libro" : "link", Autore: r.author || "", Pagine: r.pages || "", Pagina_attuale: r.kind === "book" ? r.current_page || 0 : "", Goodreads: r.goodreads_url || "", Link: r.url || "", Fonte: r.source === "raindrop" ? "Raindrop" : "Manuale", Stato: { todo: "da leggere", reading: "in corso", done: "letto" }[r.status], Aggiunto: U.dateOf(r.created_at), Letto_il: r.done_at ? U.dateOf(r.done_at) : "" }))
     };
   },
 
