@@ -1,0 +1,107 @@
+// ============================================================
+// Dojo: il tuo eroe, negozio, bestiario e traguardi
+// ============================================================
+const Dojo = {
+  tab: "shop",
+
+  render(el) {
+    const t = Game.totals(), st = Game.state(), s = Game.stats(), cfg = Store.cfg();
+    const habitsDone = Store.d.habit_logs.filter((l) => { const h = Store.d.habits.find((x) => x.id === l.habit_id); return h && Calc.isDone(h, l.log_date); }).length;
+    const ko = t.hp === 0;
+
+    el.innerHTML = `
+      <div class="page-head">
+        <div><p class="eyebrow">道場 · Dojo</p><h1 class="title">Il tuo <em>eroe</em></h1></div>
+      </div>
+
+      <section class="hero-panel">
+        <div class="hp-av">${Hero.svg(st.equipped, 170)}</div>
+        <div class="hp-main">
+          <p class="hp-name">${U.esc(cfg.name)}</p>
+          <p class="hp-rank">Livello ${t.level} · ${t.rank}</p>
+          <div class="hp-row"><span>XP</span>${Charts.bar({ value: (t.into / t.need) * 100, color: "var(--blue-500)", h: 10 })}<b>${t.into}/${t.need}</b></div>
+          <div class="hp-row"><span>HP</span>${Charts.bar({ value: (t.hp / t.maxHp) * 100, color: "var(--orange-500)", h: 10 })}<b>${t.hp}/${t.maxHp}</b></div>
+          <p class="hp-ryo"><b>${t.ryo}</b> 両 <small>ryo</small></p>
+          ${ko ? `<p class="hp-warn">Sei a terra: bevi una pozione o riposa. Le ferite guariscono da sole in ${Game.CFG.windowDays} giorni.</p>` : ""}
+        </div>
+      </section>
+
+      <div class="kpis kpis4">
+        ${Insights.tile("Yokai sigillati", s.sealed, "sessioni di focus completate")}
+        ${Insights.tile("Yokai scappati", s.escaped, `${Game.CFG.dmgFail} HP ciascuno`)}
+        ${Insights.tile("Serie più lunga", Calc.bestOverallStreak() + " gg", "su un'abitudine")}
+        ${Insights.tile("Abitudini fatte", habitsDone, "in totale")}
+      </div>
+
+      <div class="seg tabs3 dojo-tabs">
+        ${[["shop", "Negozio"], ["bestiary", "Bestiario"], ["badges", "Traguardi"]].map(([k, l]) => `<button class="${this.tab === k ? "on" : ""}" data-act="dojo-tab" data-id="${k}">${l}</button>`).join("")}
+      </div>
+      <div class="dojo-pane">${this[this.tab + "HTML"](t, st, s)}</div>
+
+      <details class="how-xp"><summary>Come si guadagnano XP e ryo</summary>
+        <ul>
+          <li>Abitudine completata: <b>+${Game.CFG.xpHabit} XP · +${Game.CFG.ryoHabit} 両</b></li>
+          <li>Yokai sigillato: <b>+1 XP al minuto · +1 両 ogni 5 minuti</b>, con bonus a catena fino a ×2</li>
+          <li>Evidenziazione ripassata: <b>+${Game.CFG.xpReview} XP · +${Game.CFG.ryoReview} 両</b></li>
+          <li>Tappa completata: <b>+${Game.CFG.xpMilestone} XP · +${Game.CFG.ryoMilestone} 両</b> · obiettivo completato: <b>+${Game.CFG.xpGoal} XP · +${Game.CFG.ryoGoal} 両</b></li>
+          <li>Ferite (si curano da sole in ${Game.CFG.windowDays} giorni): yokai scappato <b>−${Game.CFG.dmgFail} HP</b> · abitudine prevista e saltata <b>−${Game.CFG.dmgMissed} HP</b> (max ${Game.CFG.dmgMissedCap} al giorno)</li>
+        </ul>
+      </details>`;
+  },
+
+  // ---------- negozio ----------
+  shopHTML(t, st) {
+    const sections = Object.entries(Game.SLOTS).map(([slot, label]) => {
+      const items = Object.entries(Game.ITEMS).filter(([, it]) => it.slot === slot);
+      return `<section class="shop-sec"><h3>${label}</h3><div class="shop-grid">${items.map(([id, it]) => {
+        const owned = st.owned.includes(id), on = st.equipped[slot] === id;
+        const can = t.ryo >= it.price;
+        const btn = owned
+          ? `<button class="btn ${on ? "orange" : "ghost"} sm" data-act="shop-equip" data-slot="${slot}" data-id="${on ? "" : id}">${on ? "Equipaggiato ✓" : "Equipaggia"}</button>`
+          : `<button class="btn ${can ? "primary" : "ghost"} sm" data-act="shop-buy" data-id="${id}" ${can ? "" : 'aria-disabled="true"'}>${it.price} 両</button>`;
+        return `<div class="shop-item ${on ? "on" : ""} ${!owned && !can ? "dim" : ""}">
+          <div class="si-prev">${Hero.svg({ ...st.equipped, [slot]: id }, 84)}</div>
+          <b>${it.label}</b>${btn}</div>`;
+      }).join("")}</div></section>`;
+    }).join("");
+
+    const potionOk = t.ryo >= Game.CFG.potionCost && t.hp < t.maxHp;
+    return `${sections}
+      <section class="shop-sec"><h3>Pozioni</h3>
+        <div class="potion card">
+          <i class="glyph big" style="background:var(--orange-100);color:var(--orange)">薬</i>
+          <div><b>Pozione di guarigione</b><p class="muted small">Ripristina ${Game.CFG.potionHeal} HP subito.</p></div>
+          <button class="btn ${potionOk ? "primary" : "ghost"} sm" data-act="shop-potion">${Game.CFG.potionCost} 両</button>
+        </div>
+      </section>`;
+  },
+
+  // ---------- bestiario ----------
+  bestiaryHTML(t, st, s) {
+    return `<div class="bestiary">${Object.entries(Game.YOKAI).map(([k, y]) => {
+      const locked = t.level < y.lvl, c = s.byKind[k] || { sealed: 0, escaped: 0 };
+      return `<div class="beast card ${locked ? "locked" : ""}">
+        <div class="beast-art">${Yokai.svg(k, 0, "idle", 84)}</div>
+        <div><b>${y.label}</b> <span class="jp">${y.jp}</span>
+        <p class="muted small">${locked ? `Compare dal livello ${y.lvl}` : y.note}</p>
+        ${locked ? "" : `<p class="small"><b>${c.sealed}</b> sigillati · ${c.escaped} scappati</p>`}</div>
+      </div>`;
+    }).join("")}</div>`;
+  },
+
+  // ---------- traguardi ----------
+  badgesHTML() {
+    const list = Game.achievements();
+    return `<p class="muted small" style="margin-bottom:12px">${list.filter((a) => a.ok).length} di ${list.length} sbloccati</p>
+      <div class="badges">${list.map((a) => `<div class="badge ${a.ok ? "ok" : ""}">
+        <i class="glyph big">${a.glyph}</i>
+        <div><b>${a.label}</b><p class="muted small">${a.text}</p>
+          ${!a.ok && a.prog ? Charts.bar({ value: (a.prog[0] / a.prog[1]) * 100, color: "var(--blue-500)", h: 5 }) : ""}</div>
+      </div>`).join("")}</div>`;
+  }
+};
+
+Actions["dojo-tab"] = (el) => { Dojo.tab = el.dataset.id; App.render(); };
+Actions["shop-buy"] = (el) => Game.buy(el.dataset.id);
+Actions["shop-equip"] = (el) => Game.equip(el.dataset.slot, el.dataset.id || null);
+Actions["shop-potion"] = () => Game.potion();

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#F6F2EA"/>
+  <rect x="96" y="96" width="320" height="320" rx="72" fill="#F08A48" transform="rotate(-4 256 256)"/>
+  <text x="256" y="338" font-family="'Hiragino Mincho ProN','Yu Mincho',serif" font-size="230" font-weight="700" fill="#fff" text-anchor="middle" transform="rotate(-4 256 256)">暮</text>
+</svg>

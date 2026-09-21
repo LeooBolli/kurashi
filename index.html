@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kurashi</title>
+<meta name="description" content="Abitudini, obiettivi e focus: la tua vita in un posto solo.">
+<meta name="theme-color" content="#F6F2EA">
+<meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Kurashi">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ACCESSO -->
+<section id="view-login" class="hidden">
+  <div class="login-card">
+    <div class="hanko" aria-hidden="true">暮</div>
+    <h1>Kurashi</h1>
+    <p>Il tuo spazio personale.</p>
+    <form id="login-form">
+      <input type="email" id="login-email" name="email" autocomplete="username" placeholder="Email" required>
+      <input type="password" id="login-password" name="password" autocomplete="current-password" placeholder="Password" required>
+      <button type="submit" class="btn primary wide">Entra</button>
+    </form>
+    <p id="login-status" class="login-status" role="status"></p>
+  </div>
+</section>
+
+<!-- APP -->
+<div id="app-shell" class="hidden">
+  <aside class="sidebar">
+    <div class="brand"><span class="hanko sm" aria-hidden="true">暮</span><span class="brand-name">Kurashi</span></div>
+    <nav id="sidebar-nav" class="nav"></nav>
+    <button class="btn primary wide side-add" data-act="quick-add">
+      <svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Aggiungi</span>
+    </button>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="brand"><span class="hanko sm" aria-hidden="true">暮</span><span id="top-title" class="top-title"></span></div>
+      <button id="menu-btn" class="icon-btn" aria-label="Menu">
+        <svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+      </button>
+    </header>
+    <main id="view" class="view"></main>
+  </div>
+
+  <nav id="tabbar" class="tabbar" aria-label="Navigazione principale"></nav>
+</div>
+
+<div id="sheet-root"></div>
+<div id="tip" class="tip" role="tooltip"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<!-- Librerie esterne (versioni fissate + integrità SRI) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3/dist/umd/supabase.js"
+        integrity="sha384-qafw21c/iciq0VXsi9FzkfoQv5I/V0iqE4lSNcKXPnW9/UTJLnv5CcN4FHxVLnKg"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+        integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"
+        crossorigin="anonymous"></script>
+
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/demo.js"></script>
+<script src="js/store.js"></script>
+<script src="js/calc.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+<script src="js/habits.js"></script>
+<script src="js/goals.js"></script>
+<script src="js/today.js"></script>
+<script src="js/focus.js"></script>
+<script src="js/dojo.js"></script>
+<script src="js/body.js"></script>
+<script src="js/reading.js"></script>
+<script src="js/recall.js"></script>
+<script src="js/insights.js"></script>
+<script src="js/export.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
