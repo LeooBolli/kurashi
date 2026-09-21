@@ -2,7 +2,7 @@
 // Lettura: libri (incollando il link di Goodreads, con copertina e
 // avanzamento a pagine), bookmark di Raindrop.io e link manuali.
 // Goodreads non ha più un'API pubblica: dal link si ricava il titolo
-// e si cercano autore, pagine e copertina su Open Library (riserva: Google Books).
+// e si cercano autore, pagine e copertina su Open Library e Apple Books (interrogati insieme).
 // ============================================================
 const Reading = {
   tab: "todo",
@@ -119,51 +119,70 @@ const Reading = {
   // ---------- libro: incolla Goodreads → cerca → conferma ----------
   // Dal link di Goodreads (.../book/show/40121378-atomic-habits) ricava il titolo.
   parseInput(raw) {
-    const s = String(raw || "").trim();
-    const m = s.match(/goodreads\.com\/(?:[a-z]{2}\/)?book\/show\/(\d+)(?:[-.]([^/?#]+))?/i);
+    // toglie spazi, a capo e caratteri invisibili che a volte arrivano con il copia-incolla
+    const s = String(raw || "").replace(/[\u200B-\u200D\uFEFF]/g, "").replace(/\s+/g, " ").trim();
+    const m = s.match(/goodreads\.com\/(?:[a-z]{2}\/)?book\/show\/(\d+)(?:[-.]([^/?#\s]+))?/i);
     if (m) {
       let slug = m[2] || "";
       try { slug = decodeURIComponent(slug); } catch { /* lascia com'è */ }
-      return { goodreads: s.split(/[?#]/)[0], query: slug.replace(/[-_.]+/g, " ").trim() };
+      return { goodreads: "https://www.goodreads.com/book/show/" + m[1] + (m[2] ? "-" + m[2] : ""), query: slug.replace(/[-_.]+/g, " ").trim() };
     }
-    if (/^https?:\/\//i.test(s)) return { goodreads: /goodreads|goodr\.es/i.test(s) ? s.split(/[?#]/)[0] : null, query: "" };
+    const u = s.match(/https?:\/\/\S+/i);
+    if (u) {
+      const text = s.replace(u[0], "").replace(/[“”"«»]/g, "").trim();   // es. «Titolo di Autore https://…»
+      return { goodreads: /goodreads|goodr\.es/i.test(u[0]) ? u[0].split(/[?#]/)[0] : null, query: text };
+    }
     return { goodreads: null, query: s };
   },
 
-  // Open Library: gratuita, senza chiave e senza quota (Google Books, senza chiave, spesso è esaurita)
+  titleCase(t) { return String(t || "").replace(/\S+/g, (w, i) => (i > 0 && /^(di|da|del|della|il|la|lo|le|e|a|in|of|the|and|to)$/i.test(w) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1))); },
+
+  // Richiesta con limite di tempo: mai più «Cerco…» all'infinito se la rete è lenta o bloccata
+  async fetchJson(url, ms = 8000) {
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
+    try {
+      const r = await fetch(url, { signal: ctl.signal });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } finally { clearTimeout(timer); }
+  },
+
+  // Open Library: gratuita, senza chiave: ha le pagine. Lancia un errore se non risponde.
   async searchOpenLibrary(q) {
-    try {
-      const r = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=8&fields=title,author_name,cover_i,number_of_pages_median`);
-      if (!r.ok) return [];
-      const j = await r.json();
-      return (j.docs || []).filter((d) => d.title).map((d) => ({
-        title: d.title, author: (d.author_name || []).slice(0, 2).join(", "), pages: d.number_of_pages_median || null,
-        cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : ""
-      }));
-    } catch { return []; }
+    const j = await this.fetchJson(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=8&fields=title,author_name,cover_i,number_of_pages_median`);
+    return (j.docs || []).filter((d) => d.title).map((d) => ({
+      title: d.title, author: (d.author_name || []).slice(0, 2).join(", "), pages: d.number_of_pages_median || null,
+      cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : ""
+    }));
   },
 
-  async searchGoogle(q) {
-    try {
-      const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=6&printType=books`);
-      if (!r.ok) return [];
-      const j = await r.json();
-      return (j.items || []).filter((it) => it.volumeInfo && it.volumeInfo.title).map((it) => {
-        const v = it.volumeInfo, img = (v.imageLinks && (v.imageLinks.thumbnail || v.imageLinks.smallThumbnail)) || "";
-        return { title: v.title + (v.subtitle ? `: ${v.subtitle}` : ""), author: (v.authors || []).join(", "), pages: v.pageCount || null, cover: img.replace("http://", "https://").replace("&edge=curl", "") };
-      });
-    } catch { return []; }
+  // Apple Books: fonte indipendente, molto affidabile (senza numero di pagine)
+  async searchApple(q) {
+    const j = await this.fetchJson(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=ebook&country=it&limit=8`);
+    return (j.results || []).filter((r) => r.trackName).map((r) => ({
+      title: r.trackName, author: r.artistName || "", pages: null,
+      cover: (r.artworkUrl100 || "").replace("100x100bb", "300x300bb")
+    }));
   },
 
+  // Interroga i due cataloghi insieme. error = true solo se NESSUNO dei due ha risposto (rete assente o bloccata).
   async searchBooks(q) {
-    // titoli lunghi (con sottotitolo) spesso non trovano nulla: riprovo con le prime parole
+    const run = async (text) => {
+      const res = await Promise.allSettled([this.searchOpenLibrary(text), this.searchApple(text)]);
+      return { answered: res.filter((r) => r.status === "fulfilled").length, list: res.flatMap((r) => (r.status === "fulfilled" ? r.value : [])) };
+    };
+    let { answered, list } = await run(q);
     const short = q.split(/\s+/).slice(0, 4).join(" ");
-    const tries = [q, ...(short !== q ? [short] : [])];
-    for (const t of tries) {
-      const ol = await this.searchOpenLibrary(t);
-      if (ol.length) return ol;
+    if (!list.length && answered && short !== q) ({ list } = await run(short));   // titoli lunghi: riprovo con le prime parole
+    // unisce i doppioni tenendo, per ognuno, pagine e copertina disponibili
+    const seen = new Map();
+    for (const b of list) {
+      const key = b.title.toLowerCase().replace(/[^a-z0-9]/g, "") + "|" + (b.author || "").toLowerCase().split(/[ ,]/)[0];
+      const ex = seen.get(key);
+      if (!ex) seen.set(key, { ...b });
+      else { ex.pages = ex.pages || b.pages; ex.cover = ex.cover || b.cover; ex.author = ex.author || b.author; }
     }
-    return this.searchGoogle(q);
+    return { list: [...seen.values()].slice(0, 8), error: answered === 0 };
   },
 
   openBook() {
@@ -174,7 +193,7 @@ const Reading = {
   stepSearchHTML(msg = "") {
     return `<form class="form" id="book-search">
       <label>Incolla il link di Goodreads, oppure scrivi titolo e autore
-        <input name="q" autofocus autocomplete="off" placeholder="https://www.goodreads.com/book/show/… oppure «Atomic Habits»" value="${U.esc(this.draft.raw || "")}"></label>
+        <input name="q" type="text" autofocus autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="search" placeholder="https://www.goodreads.com/book/show/… oppure «Project Hail Mary»" value="${U.esc(this.draft.raw || "")}"></label>
       ${msg ? `<p class="muted small">${msg}</p>` : `<p class="muted small">Su Goodreads: apri il libro → Condividi → Copia link. Poi incolla qui.</p>`}
       <button class="btn primary wide" type="submit">${Icon.svg("book", 16)} Cerca il libro</button>
       <button class="btn ghost wide" type="button" data-act="book-manual">Inserisci a mano</button>
@@ -189,23 +208,34 @@ const Reading = {
       const raw = new FormData(form).get("q");
       const { goodreads, query } = this.parseInput(raw);
       this.draft = { ...this.draft, raw, goodreads, query };
-      if (!query) return this.showForm({ title: "", author: "", pages: null, cover: "" }, "Dal link non riesco a leggere il titolo: scrivilo tu.");
-      Sheet.setBody(`<p class="muted center" style="padding:28px 0">Cerco «${U.esc(query)}»…</p>`, "Cerco il libro");
-      this.draft.results = await this.searchBooks(query);
-      if (!Sheet.isOpen() || !this.draft) return;
+      if (!query) return this.showForm({ title: "", author: "", pages: null, cover: "" }, "Da questo link non riesco a leggere il titolo: scrivilo tu.");
+      Sheet.setBody(`<p class="muted center" style="padding:22px 0 12px">Cerco «${U.esc(query)}»…</p>
+        <div class="btn-row center-row"><button class="btn ghost" data-act="book-manual">Non aspettare: inserisci a mano</button></div>`, "Cerco il libro");
+      const token = (this.searchToken = (this.searchToken || 0) + 1);
+      const { list, error } = await this.searchBooks(query);
+      if (token !== this.searchToken || !Sheet.isOpen() || !this.draft) return;   // nel frattempo hai cambiato strada
+      this.draft.results = list;
+      this.draft.netError = error;
       this.showResults();
     });
   },
 
   showResults() {
-    const res = this.draft.results;
-    const body = res.length
-      ? `<p class="muted small" style="margin-bottom:10px">Scegli il tuo libro:</p>
-         <div class="book-results">${res.map((b, i) => `<button class="book-result" data-act="book-pick" data-i="${i}">
+    const { results: res, query, netError } = this.draft;
+    const asIs = this.titleCase(query);
+    const header = res.length
+      ? `<p class="muted small" style="margin-bottom:10px">Scegli il tuo libro:</p>`
+      : netError
+        ? `<p style="margin-bottom:6px"><b>Non riesco a contattare i cataloghi dei libri.</b></p><p class="muted small" style="margin-bottom:12px">Controlla la connessione, oppure un blocco pubblicità/DNS che impedisce di raggiungere openlibrary.org e itunes.apple.com. Intanto puoi aggiungerlo lo stesso.</p>`
+        : `<p style="margin-bottom:6px"><b>Nessun risultato per «${U.esc(query)}».</b></p><p class="muted small" style="margin-bottom:12px">Prova con titolo e autore insieme, oppure aggiungilo così com'è.</p>`;
+    const list = res.length ? `<div class="book-results">${res.map((b, i) => `<button class="book-result" data-act="book-pick" data-i="${i}">
            ${b.cover ? `<img class="cover book" src="${U.esc(U.safeUrl(b.cover))}" alt="" referrerpolicy="no-referrer">` : `<i class="cover ph book"></i>`}
-           <span><b>${U.esc(b.title)}</b><small>${U.esc(b.author || "Autore sconosciuto")}${b.pages ? ` · ${b.pages} pag.` : ""}</small></span></button>`).join("")}</div>`
-      : `<p class="muted" style="margin-bottom:10px">Nessun risultato per «${U.esc(this.draft.query)}».</p>`;
-    Sheet.setBody(`${body}<div class="btn-row"><button class="btn ghost" data-act="book-back">Cerca di nuovo</button><button class="btn ghost" data-act="book-manual">Inserisci a mano</button></div>`, "Scegli il libro");
+           <span><b>${U.esc(b.title)}</b><small>${U.esc(b.author || "Autore sconosciuto")}${b.pages ? ` · ${b.pages} pag.` : ""}</small></span></button>`).join("")}</div>` : "";
+    Sheet.setBody(`${header}${list}
+      <div class="btn-row">
+        <button class="btn primary" data-act="book-manual" data-title="${U.esc(asIs)}">Aggiungi «${U.esc(asIs)}» così com'è</button>
+        <button class="btn ghost" data-act="book-back">Cerca di nuovo</button>
+      </div>`, res.length ? "Scegli il libro" : "Libro non trovato");
   },
 
   showForm(b, msg = "") {
@@ -308,7 +338,11 @@ const Reading = {
 Actions["read-tab"] = (el) => { Reading.tab = el.dataset.id; App.render(); };
 Actions["read-add"] = () => Reading.openAdd();
 Actions["book-add"] = () => Reading.openBook();
-Actions["book-manual"] = () => { Reading.draft = Reading.draft || {}; Reading.showForm({ title: (Reading.draft.query || ""), author: "", pages: null, cover: "" }); };
+Actions["book-manual"] = (el) => {
+  Reading.draft = Reading.draft || {};
+  Reading.searchToken = (Reading.searchToken || 0) + 1;   // annulla una ricerca ancora in corso
+  Reading.showForm({ title: (el && el.dataset.title) || Reading.titleCase(Reading.draft.query || ""), author: "", pages: null, cover: "" });
+};
 Actions["book-back"] = () => { if (!Reading.draft) return; Sheet.setBody(Reading.stepSearchHTML(), "Aggiungi un libro"); Reading.bindSearch(Sheet.el); const i = Sheet.el.querySelector("input"); if (i) i.focus(); };
 Actions["book-pick"] = (el) => { const b = Reading.draft && Reading.draft.results[Number(el.dataset.i)]; if (b) Reading.showForm(b); };
 Actions["book-plus"] = (el) => { const r = Store.d.reading_items.find((x) => x.id === el.dataset.id); if (r) Reading.setPage(r.id, (r.current_page || 0) + Number(el.dataset.n || 10)); };
