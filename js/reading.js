@@ -156,8 +156,14 @@ const Reading = {
   },
 
   async searchBooks(q) {
-    const ol = await this.searchOpenLibrary(q);
-    return ol.length ? ol : this.searchGoogle(q);
+    // titoli lunghi (con sottotitolo) spesso non trovano nulla: riprovo con le prime parole
+    const short = q.split(/\s+/).slice(0, 4).join(" ");
+    const tries = [q, ...(short !== q ? [short] : [])];
+    for (const t of tries) {
+      const ol = await this.searchOpenLibrary(t);
+      if (ol.length) return ol;
+    }
+    return this.searchGoogle(q);
   },
 
   openBook() {

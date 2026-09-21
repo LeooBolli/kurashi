@@ -685,3 +685,5 @@ select { min-height: 40px; }
   .read-row .read-main { flex: 1 1 calc(100% - 70px); }
   .read-row .read-act { width: 100%; justify-content: flex-start; padding-left: 66px; margin-top: -4px; }
 }
+
+.heal-link { justify-self: start; padding: 2px 0; }

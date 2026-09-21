@@ -139,7 +139,10 @@ const Store = {
     this.pending++;
     this.chain = this.chain.then(fn).catch((e) => {
       console.error(e);
-      U.toast("Non sono riuscito a salvare: riprovo a sincronizzare");
+      const msg = String((e && (e.message || e.details)) || "");
+      U.toast(/column|schema cache|does not exist|PGRST/i.test(msg)
+        ? "Manca un aggiornamento del database: esegui di nuovo supabase/schema.sql su Supabase"
+        : "Non sono riuscito a salvare: riprovo a sincronizzare");
       if (table) this.reloadTable(table);
     }).finally(() => { this.pending--; });
   },

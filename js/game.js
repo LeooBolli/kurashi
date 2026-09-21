@@ -102,8 +102,10 @@ const Game = {
     // Ferite degli ultimi 7 giorni: yokai scappati + abitudini saltate
     const from = U.addDays(today, -(C.windowDays - 1));
     let dmg = 0;
-    for (const s of Store.d.focus_sessions) if (!s.completed && U.dateOf(s.started_at) >= from) dmg += C.dmgFail;
+    const healAt = st.fullHealAt || null, healDay = healAt ? U.dateOf(healAt) : null;   // «ripristina salute»: le ferite precedenti non contano
+    for (const s of Store.d.focus_sessions) if (!s.completed && U.dateOf(s.started_at) >= from && (!healAt || s.started_at > healAt)) dmg += C.dmgFail;
     for (const d of U.range(from, U.addDays(today, -1))) {
+      if (healDay && d <= healDay) continue;
       const missed = Calc.habitsDueOn(d).filter((h) => !Calc.isDone(h, d)).length;
       dmg += Math.min(C.dmgMissedCap, missed * C.dmgMissed);
     }
@@ -165,6 +167,14 @@ const Game = {
     const equipped = { ...st.equipped };
     if (id) equipped[slot] = id; else delete equipped[slot];
     Store.setSettings({ game: { ...st, equipped } });
+  },
+
+  // Riposo completo: azzera tutte le ferite fino ad ora (gratis)
+  fullHeal() {
+    const t = this.totals();
+    if (t.hp >= t.maxHp) return U.toast("Sei già in piena salute");
+    Store.setSettings({ game: { ...this.state(), fullHealAt: new Date().toISOString() } });
+    U.toast("Salute ripristinata al massimo");
   },
 
   potion() {

@@ -22,6 +22,7 @@ const Dojo = {
           <div class="hp-row"><span>XP</span>${Charts.bar({ value: (t.into / t.need) * 100, color: "var(--blue-500)", h: 10 })}<b>${t.into}/${t.need}</b></div>
           <div class="hp-row"><span>HP</span>${Charts.bar({ value: (t.hp / t.maxHp) * 100, color: "var(--orange-500)", h: 10 })}<b>${t.hp}/${t.maxHp}</b></div>
           <p class="hp-ryo"><b>${t.ryo}</b> 両 <small>ryo</small></p>
+          ${t.hp < t.maxHp ? `<button class="link heal-link" data-act="shop-fullheal">${Icon.svg("heart", 14)} Ripristina la salute al massimo</button>` : ""}
           ${ko ? `<p class="hp-warn">Sei a terra: bevi una pozione o riposa. Le ferite guariscono da sole in ${Game.CFG.windowDays} giorni.</p>` : ""}
         </div>
       </section>
@@ -107,3 +108,4 @@ Actions["dojo-tab"] = (el) => { Dojo.tab = el.dataset.id; App.render(); };
 Actions["shop-buy"] = (el) => Game.buy(el.dataset.id);
 Actions["shop-equip"] = (el) => Game.equip(el.dataset.slot, el.dataset.id || null);
 Actions["shop-potion"] = () => Game.potion();
+Actions["shop-fullheal"] = () => { if (confirm("Azzerare tutte le ferite e riportare gli HP al massimo?")) Game.fullHeal(); };
