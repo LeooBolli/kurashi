@@ -167,18 +167,19 @@ const Calc = {
     return { target, done, count: done.length, pct: Math.min(100, (done.length / target) * 100) };
   },
 
-  // Obiettivo di peso: quanto ti sei avvicinato al peso target rispetto al peso di partenza
-  // (l'ultima pesata registrata prima dell'inizio dell'intervallo, o la prima disponibile).
+  // Obiettivo di peso: quanto ti sei avvicinato al peso ideale (impostato in Impostazioni,
+  // un'unica fonte di verità) rispetto al peso di partenza (l'ultima pesata registrata prima
+  // dell'inizio dell'intervallo, o la prima disponibile).
   // Funziona sia per dimagrire sia per aumentare di peso: conta la distanza percorsa, in qualunque direzione.
   weightProgress(g, asOf = U.today(), from = g.start_date) {
-    if (g.weight_target == null) return null;
+    if (!g.weight_linked || Store.cfg().weightTarget == null) return null;
     const logs = [...Store.d.weight_logs].sort((a, b) => a.log_date.localeCompare(b.log_date));
     if (!logs.length) return null;
     const before = [...logs].filter((w) => w.log_date <= from).pop();
     const start = before ? Number(before.kg) : Number(logs[0].kg);
     const at = [...logs].filter((w) => w.log_date <= asOf).pop();
     const current = at ? Number(at.kg) : start;
-    const target = Number(g.weight_target);
+    const target = Number(Store.cfg().weightTarget);
     if (start === target) return current === target ? 100 : 0;
     return U.clamp(((start - current) / (start - target)) * 100, 0, 100);
   },

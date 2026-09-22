@@ -265,9 +265,12 @@ alter table goals add column if not exists period text check (period in ('week',
 alter table goals add column if not exists parent_goal_id uuid references goals(id) on delete set null;
 create index if not exists goals_parent_idx on goals (parent_goal_id);
 
--- Obiettivo di peso (Benessere → Peso): se impostato, l'avanzamento tiene conto della distanza
--- dal peso di partenza (al peso registrato più vicino all'inizio dell'obiettivo) verso questo target.
+-- Obiettivo di peso (Benessere → Peso): se collegato, l'avanzamento tiene conto della distanza
+-- dal peso di partenza (al peso registrato più vicino all'inizio dell'obiettivo) verso il "peso
+-- ideale" impostato in Impostazioni (settings.data->>'weightTarget'), un'unica fonte di verità
+-- invece di un numero duplicato qui.
 alter table goals add column if not exists weight_target numeric(5,2);
+alter table goals add column if not exists weight_linked boolean not null default false;
 
 -- Esami (Studio): una tappa può essere marcata come esame, con tre fasi (primo studio, ripasso,
 -- preparazione). Le sue sottotappe diventano gli argomenti di una fase; "phase" dice di quale.

@@ -95,8 +95,8 @@ const Goals = {
     const kids = Calc.childGoals(g);
     const parent = g.parent_goal_id ? Store.d.goals.find((x) => x.id === g.parent_goal_id) : null;
     const canHaveKids = g.horizon === "medium" || g.horizon === "long";
-    const usesManual = !ms.length && !habits.length && !bk && !kids.length && g.weight_target == null;
     const cfg = Store.cfg();
+    const usesManual = !ms.length && !habits.length && !bk && !kids.length && !g.weight_linked;
     const period = g.horizon === "recurring" ? Calc.periodRange(g.period) : null;
     return `<div class="detail">
       <div class="chips-row">${UI.areaChip(g.area)}<span class="chip">${HORIZONS[g.horizon].label} · ${HORIZONS[g.horizon].sub}</span>
@@ -129,7 +129,7 @@ const Goals = {
         <div class="btn-row"><button class="btn ghost sm" data-act="go" data-id="reading" data-close="1">${Icon.svg("book", 14)} Vai a Lettura</button></div>
       </div>` : ""}
 
-      ${g.weight_target != null ? this.weightBlockHTML(g) : ""}
+      ${g.weight_linked ? this.weightBlockHTML(g) : ""}
 
       <div class="block">
         <div class="block-head"><h3>Abitudini collegate</h3></div>
@@ -177,6 +177,7 @@ const Goals = {
 
   weightBlockHTML(g) {
     const logs = Store.d.weight_logs;
+    const target = Store.cfg().weightTarget;
     const start = this.weightStart(g);
     const latest = [...logs].sort((a, b) => a.log_date.localeCompare(b.log_date)).pop();
     const current = latest ? Number(latest.kg) : start;
@@ -184,10 +185,14 @@ const Goals = {
     return `<div class="block">
       <div class="block-head"><h3>Peso</h3><span class="muted small">${pct == null ? "–" : Math.round(pct) + "%"}</span></div>
       ${pct != null ? Charts.bar({ value: pct, color: "var(--blue-500)", h: 8 }) : ""}
-      <p class="muted small">${start != null && current != null
-        ? `${U.num(start)} kg → <b>${U.num(current)} kg</b> · obiettivo ${U.num(g.weight_target)} kg`
-        : "Registra almeno una pesata in Benessere → Peso per iniziare a tracciare questo obiettivo."}</p>
-      <div class="btn-row"><button class="btn ghost sm" data-act="go" data-id="body" data-close="1">${Icon.svg("scale", 14)} Vai a Benessere</button></div>
+      <p class="muted small">${target == null ? `Imposta il tuo peso ideale in Impostazioni per tracciare questo obiettivo.`
+        : start != null && current != null
+          ? `${U.num(start)} kg → <b>${U.num(current)} kg</b> · peso ideale ${U.num(target)} kg`
+          : "Registra almeno una pesata in Benessere → Peso per iniziare a tracciare questo obiettivo."}</p>
+      <div class="btn-row">
+        <button class="btn ghost sm" data-act="go" data-id="body" data-close="1">${Icon.svg("scale", 14)} Vai a Benessere</button>
+        ${target == null ? `<button class="btn ghost sm" data-act="go" data-id="settings" data-close="1">${Icon.svg("gear", 14)} Vai a Impostazioni</button>` : ""}
+      </div>
     </div>`;
   },
 
@@ -312,6 +317,7 @@ const Goals = {
     const hz = g ? g.horizon : horizon || this.tab || "short";
     const start = g ? g.start_date : U.today();
     const due = g ? g.due_date : U.addMonths(start, HORIZONS[hz].months);
+    const cfg = Store.cfg();
     Sheet.open({
       title: g ? "Modifica obiettivo" : "Nuovo obiettivo",
       body: `<form id="goal-form" class="form">
@@ -327,8 +333,11 @@ const Goals = {
           <small class="muted">L'avanzamento di questo obiettivo concorre anche a quello del genitore.</small></div>
         <label>Libri da leggere (collega la Lettura)<input name="books" type="number" min="0" max="500" inputmode="numeric" placeholder="Es. 12 (lascia vuoto se non serve)" value="${g && Calc.booksTarget(g) ? Calc.booksTarget(g) : ""}">
           <small class="muted">Ogni libro che finisci in Lettura dentro il periodo dell'obiettivo fa avanzare la percentuale.</small></label>
-        <label>Peso obiettivo in kg (collega Benessere → Peso)<input name="weight_target" type="number" min="20" max="400" step="0.1" placeholder="Es. 75 (lascia vuoto se non serve)" value="${g && g.weight_target != null ? g.weight_target : ""}">
-          <small class="muted">L'avanzamento tiene conto della distanza dal peso registrato più vicino all'inizio, verso questo obiettivo.</small></label>
+        <label class="check">
+          <input name="weight_linked" type="checkbox" ${g && g.weight_linked ? "checked" : ""} ${cfg.weightTarget == null ? "disabled" : ""}>
+          <span>Collega al mio peso ideale${cfg.weightTarget != null ? ` (${U.num(cfg.weightTarget)} kg)` : ""}
+            <small>${cfg.weightTarget == null ? "Impostalo prima in Impostazioni → Traguardi personali." : "L'avanzamento tiene conto della distanza dal peso registrato più vicino all'inizio, verso il tuo peso ideale."}</small></span>
+        </label>
         <label>Note<textarea name="description" rows="2" maxlength="300" placeholder="Perché è importante? Come capirai di esserci?">${U.esc(g ? g.description || "" : "")}</textarea></label>
         <button class="btn primary wide" type="submit">${g ? "Salva" : "Crea obiettivo"}</button>
       </form>`,
@@ -365,7 +374,7 @@ const Goals = {
             start_date: f.get("start_date"), due_date: recurring ? U.addMonths(f.get("start_date"), 12) : f.get("due_date"),
             period: recurring ? f.get("period") : null,
             parent_goal_id: f.get("parent_goal_id") || null,
-            weight_target: f.get("weight_target") ? Number(f.get("weight_target")) : null,
+            weight_linked: f.get("weight_linked") === "on",
             description: (f.get("description") || "").trim() || null
           };
           if (!row.title) return;

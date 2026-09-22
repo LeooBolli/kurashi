@@ -19,7 +19,8 @@ const Settings = {
               <label>Focus a settimana (ore)<input name="focus" type="number" min="1" max="80" step="0.5" value="${cfg.focusWeeklyMin / 60}"></label>
               <label>Sonno ideale (ore)<input name="sleep" type="number" min="4" max="12" step="0.25" value="${cfg.sleepTarget}"></label>
             </div>
-            <label>Peso obiettivo (kg, facoltativo)<input name="weight" type="number" min="20" max="300" step="0.1" value="${cfg.weightTarget ?? ""}"></label>
+            <label>Peso ideale (kg, facoltativo)<input name="weight" type="number" min="20" max="300" step="0.1" value="${cfg.weightTarget ?? ""}">
+              <small class="muted">Riga di riferimento nel grafico del peso, e valore a cui si collegano gli obiettivi di peso.</small></label>
             <label class="check"><input name="strict" type="checkbox" ${cfg.focusStrict ? "checked" : ""}>
               <span><b>Lo yokai scappa se esco dall'app</b><small>Se cambi app per più di 10 secondi perdi HP. Per bloccare lo schermo tocca «Blocco lo schermo» nel timer. Disattivo: nessun danno, mai.</small></span></label>
             <label>Evidenziazioni da ripassare al giorno<input name="recall" type="number" min="1" max="15" step="1" value="${cfg.recallPerDay}"></label>

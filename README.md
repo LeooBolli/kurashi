@@ -117,9 +117,11 @@ Su iPhone: Safari → Condividi → *Aggiungi alla schermata Home*.
   Un obiettivo a breve o medio termine può avere come **genitore** un obiettivo a orizzonte
   più lungo (es. «Superare esame diritto» dentro «Finire gli esami del primo anno»):
   l'avanzamento del genitore fa la media anche dei figli collegati.
-  Se imposti un **peso obiettivo**, l'avanzamento segue la distanza dal peso registrato più
-  vicino all'inizio (funziona sia per dimagrire sia per aumentare di peso), ed è visibile
-  anche in Benessere → Peso.
+  Il **peso ideale** si imposta una volta sola in Impostazioni: da lì puoi collegarci un
+  obiettivo (spunta "Collega al mio peso ideale" nel suo modulo) e l'avanzamento segue la
+  distanza dal peso registrato più vicino all'inizio verso quel valore (funziona sia per
+  dimagrire sia per aumentare di peso). Se il peso ideale cambia, l'obiettivo lo segue da
+  solo. Visibile anche in Benessere → Peso, insieme alla riga di riferimento sul grafico.
   Una tappa può diventare un **esame** (tocca 📖): tre fasi — primo studio, ripasso,
   preparazione — ognuna con una checklist di argomenti da spuntare; la percentuale della
   tappa è la media delle tre fasi. Nel gestore dell'esame tieni anche data dell'appello, CFU

@@ -23,7 +23,7 @@ const Export = {
       Obiettivi: d.goals.map((g) => {
         const p = Calc.goalPace(g);
         return { Titolo: g.title, Area: this.area(g.area), Orizzonte: HORIZONS[g.horizon].label, Periodo: g.period ? PERIODS[g.period].label : "", Inizio: g.start_date, Scadenza: g.due_date, Stato: g.status === "done" ? "completato" : g.status === "archived" ? "archiviato" : "attivo",
-          Avanzamento_percent: Math.round(p.progress), Genitore: this.goalName(g.parent_goal_id), Peso_obiettivo_kg: g.weight_target ?? "",
+          Avanzamento_percent: Math.round(p.progress), Genitore: this.goalName(g.parent_goal_id), Collegato_al_peso_ideale: this.yn(g.weight_linked),
           Libri_letti: Calc.goalBooks(g) ? Calc.goalBooks(g).count : "", Libri_obiettivo: Calc.booksTarget(g) || "", Atteso_percent: Math.round(p.expected), Ritmo: p.label, Note: g.description || "" };
       }),
       Tappe: d.milestones.map((m) => ({
