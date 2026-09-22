@@ -22,6 +22,8 @@ const Today = {
     // ultimo check-in di oggi
     const moods = Store.d.mood_logs.filter((m) => U.dateOf(m.logged_at) === today).sort((a, b) => b.logged_at.localeCompare(a.logged_at));
     const last = moods[0];
+    const lastSleep = [...Store.d.sleep_logs].sort((a, b) => b.sleep_date.localeCompare(a.sleep_date))[0];
+    const lastWeight = [...Store.d.weight_logs].sort((a, b) => b.log_date.localeCompare(a.log_date))[0];
 
     const sessions = Store.d.focus_sessions.filter((s) => U.dateOf(s.started_at) === today);
     const sealed = sessions.filter((s) => s.completed);
@@ -76,6 +78,10 @@ const Today = {
           <div class="card checkin">
             <div class="ci-row"><span class="ci-l">${Icon.svg("smile", 18)} Umore</span>${this.scaleHTML("mood", last && last.mood, MOOD_LABELS)}</div>
             <div class="ci-row"><span class="ci-l">${Icon.svg("bolt", 18)} Energia</span>${this.scaleHTML("energy", last && last.energy, ENERGY_LABELS)}</div>
+            <div class="ci-row"><span class="ci-l">${Icon.svg("moon", 18)} Sonno</span>
+              <button class="ci-quick" data-act="sleep-add">${lastSleep ? `${U.num(lastSleep.hours, 2)} h${lastSleep.sleep_date === today ? " stanotte" : " · " + U.fmtShort(lastSleep.sleep_date)}` : "Registra il sonno"}${Icon.svg("edit", 13)}</button></div>
+            <div class="ci-row"><span class="ci-l">${Icon.svg("scale", 18)} Peso</span>
+              <button class="ci-quick" data-act="weight-add">${lastWeight ? `${U.num(lastWeight.kg)} kg · ${U.fmtShort(lastWeight.log_date)}` : "Registra il peso"}${Icon.svg("edit", 13)}</button></div>
           </div>
         </section>
 

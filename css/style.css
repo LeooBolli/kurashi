@@ -228,6 +228,8 @@ a { color: inherit; }
 .ci-row { display: flex; align-items: center; gap: 12px; }
 .ci-l { display: inline-flex; align-items: center; gap: 6px; width: 92px; flex: none; font-size: 13px; color: var(--ink-2); font-weight: 500; }
 .ci-row .scale { flex: 1; }
+.ci-quick { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--card); font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.ci-quick .ico { color: var(--ink-3); flex: none; }
 .focus-mini { display: flex; align-items: center; gap: 14px; }
 .fm-trees { display: flex; align-items: flex-end; min-width: 60px; flex: 1; overflow: hidden; }
 .fm-copy { display: grid; text-align: right; line-height: 1.25; }
