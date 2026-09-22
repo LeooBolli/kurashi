@@ -248,3 +248,34 @@ alter table reading_items add column if not exists author text;
 alter table reading_items add column if not exists pages int;
 alter table reading_items add column if not exists current_page int not null default 0;
 alter table reading_items add column if not exists goodreads_url text;
+
+-- Boss (Dojo): una sessione può essere dedicata al boss della zona invece che a uno yokai comune;
+-- "dmg" è il danno inflitto in quella sessione (minuti × attacco dell'arma, congelato come xp/ryo)
+alter table focus_sessions add column if not exists boss text;
+alter table focus_sessions add column if not exists dmg int not null default 0;
+
+-- Obiettivi ricorrenti (es. "leggi un libro al mese"): un 4° orizzonte, con un periodo che si
+-- rinnova da solo invece di inizio/scadenza fissi.
+alter table goals drop constraint if exists goals_horizon_check;
+alter table goals add constraint goals_horizon_check check (horizon in ('short','medium','long','recurring'));
+alter table goals add column if not exists period text check (period in ('week','month','year'));
+
+-- Gerarchia: un obiettivo a breve/medio termine può far parte di uno a orizzonte più lungo;
+-- l'avanzamento del genitore fa la media anche di quello dei figli collegati.
+alter table goals add column if not exists parent_goal_id uuid references goals(id) on delete set null;
+create index if not exists goals_parent_idx on goals (parent_goal_id);
+
+-- Obiettivo di peso (Benessere → Peso): se impostato, l'avanzamento tiene conto della distanza
+-- dal peso di partenza (al peso registrato più vicino all'inizio dell'obiettivo) verso questo target.
+alter table goals add column if not exists weight_target numeric(5,2);
+
+-- Esami (Studio): una tappa può essere marcata come esame, con tre fasi (primo studio, ripasso,
+-- preparazione). Le sue sottotappe diventano gli argomenti di una fase; "phase" dice di quale.
+alter table milestones add column if not exists is_exam boolean not null default false;
+alter table milestones add column if not exists phase text check (phase in ('studio','ripasso','preparazione'));
+alter table milestones add column if not exists exam_date date;
+alter table milestones add column if not exists exam_cfu numeric(4,1);
+alter table milestones add column if not exists exam_grade text;
+
+-- Una sessione di focus può essere dedicata a un esame specifico (come già per obiettivo/abitudine)
+alter table focus_sessions add column if not exists milestone_id uuid references milestones(id) on delete set null;

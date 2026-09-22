@@ -22,13 +22,19 @@ const Export = {
       }),
       Obiettivi: d.goals.map((g) => {
         const p = Calc.goalPace(g);
-        return { Titolo: g.title, Area: this.area(g.area), Orizzonte: HORIZONS[g.horizon].label, Inizio: g.start_date, Scadenza: g.due_date, Stato: g.status === "done" ? "completato" : g.status === "archived" ? "archiviato" : "attivo",
-          Avanzamento_percent: Math.round(p.progress), Libri_letti: Calc.goalBooks(g) ? Calc.goalBooks(g).count : "", Libri_obiettivo: Calc.booksTarget(g) || "", Atteso_percent: Math.round(p.expected), Ritmo: p.label, Note: g.description || "" };
+        return { Titolo: g.title, Area: this.area(g.area), Orizzonte: HORIZONS[g.horizon].label, Periodo: g.period ? PERIODS[g.period].label : "", Inizio: g.start_date, Scadenza: g.due_date, Stato: g.status === "done" ? "completato" : g.status === "archived" ? "archiviato" : "attivo",
+          Avanzamento_percent: Math.round(p.progress), Genitore: this.goalName(g.parent_goal_id), Peso_obiettivo_kg: g.weight_target ?? "",
+          Libri_letti: Calc.goalBooks(g) ? Calc.goalBooks(g).count : "", Libri_obiettivo: Calc.booksTarget(g) || "", Atteso_percent: Math.round(p.expected), Ritmo: p.label, Note: g.description || "" };
       }),
-      Tappe: d.milestones.map((m) => ({ Obiettivo: this.goalName(m.goal_id), Tappa: m.title, Sottotappa_di: (d.milestones.find((p) => p.id === m.parent_id) || {}).title || "", Completata: this.yn(m.done), Data_completamento: m.done_at ? U.dateOf(m.done_at) : "" })),
+      Tappe: d.milestones.map((m) => ({
+        Obiettivo: this.goalName(m.goal_id), Tappa: m.title, Sottotappa_di: (d.milestones.find((p) => p.id === m.parent_id) || {}).title || "",
+        Esame: this.yn(m.is_exam), Fase: m.phase ? Goals.PHASE_LABELS[m.phase] : "", Data_appello: m.exam_date || "", CFU: m.exam_cfu ?? "", Voto: m.exam_grade || "",
+        Completata: this.yn(m.done), Data_completamento: m.done_at ? U.dateOf(m.done_at) : ""
+      })),
       Focus: [...d.focus_sessions].sort((a, b) => a.started_at.localeCompare(b.started_at)).map((s) => ({
-        Inizio: `${U.dateOf(s.started_at)} ${U.fmtTime(s.started_at)}`, Minuti: s.duration_min, Completata: this.yn(s.completed), XP: s.xp || 0, Ryo: s.ryo || 0, Yokai: (Game.YOKAI[s.creature] || {}).label || "",
-        Obiettivo: this.goalName(s.goal_id), Abitudine: this.habitName(s.habit_id)
+        Inizio: `${U.dateOf(s.started_at)} ${U.fmtTime(s.started_at)}`, Minuti: s.duration_min, Completata: this.yn(s.completed), XP: s.xp || 0, Ryo: s.ryo || 0, Yokai: (Game.zone(s.creature) || {}).label || "",
+        Boss: s.boss ? (Game.boss(s.boss) || {}).label || s.boss : "", Danno_boss: s.dmg || 0,
+        Obiettivo: this.goalName(s.goal_id), Abitudine: this.habitName(s.habit_id), Esame: (d.milestones.find((m) => m.id === s.milestone_id) || {}).title || ""
       })),
       Umore_energia: [...d.mood_logs].sort((a, b) => a.logged_at.localeCompare(b.logged_at)).map((m) => ({ Data: U.dateOf(m.logged_at), Ora: U.fmtTime(m.logged_at), Umore: m.mood ?? "", Energia: m.energy ?? "", Nota: m.note || "" })),
       Sonno: [...d.sleep_logs].sort((a, b) => a.sleep_date.localeCompare(b.sleep_date)).map((s) => ({ Data: s.sleep_date, Ore: Number(s.hours), Qualità: s.quality ?? "" })),

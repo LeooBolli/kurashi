@@ -76,7 +76,12 @@ const Body = {
     const recent = all.slice(-30);
     const latest = all[all.length - 1], first = recent[0];
     const delta = latest && first && latest !== first ? Number(latest.kg) - Number(first.kg) : null;
+    const weightGoals = Calc.activeGoals().filter((g) => g.weight_target != null);
     return `
+      ${weightGoals.map((g) => { const pct = Calc.weightProgress(g), start = Goals.weightStart(g);
+        return `<div class="goal-banner" data-act="goal-open" data-id="${g.id}" role="button">
+          <div><b>${U.esc(g.title)}</b><span>${start != null && latest ? `${U.num(start)} → ${U.num(Number(latest.kg))} kg · ` : ""}obiettivo ${U.num(g.weight_target)} kg${pct == null ? "" : ` · ${Math.round(pct)}%`}</span></div>
+          ${Charts.bar({ value: pct || 0, color: "var(--orange-500)", h: 6 })}</div>`; }).join("")}
       <div class="grid2">
         <section class="card">
           <div class="block-head"><h3>Andamento</h3><span class="muted small">ultime ${recent.length} pesate</span></div>

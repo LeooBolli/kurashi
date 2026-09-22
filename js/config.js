@@ -28,7 +28,15 @@ window.AREAS = {
 };
 
 window.HORIZONS = {
-  short:  { label: "Breve",  sub: "1 mese",       months: 1 },
-  medium: { label: "Medio",  sub: "4 mesi",       months: 4 },
-  long:   { label: "Lungo",  sub: "1 anno o più", months: 12 }
+  short:     { label: "Breve",     sub: "1 mese",       months: 1 },
+  medium:    { label: "Medio",     sub: "4 mesi",       months: 4 },
+  long:      { label: "Lungo",     sub: "1 anno o più", months: 12 },
+  recurring: { label: "Ricorrente", sub: "si ripete",    months: 12 }
+};
+
+// Solo per gli obiettivi ricorrenti: ogni quanto si rinnova il traguardo
+window.PERIODS = {
+  week:  { label: "Settimanale", sub: "ogni settimana" },
+  month: { label: "Mensile",     sub: "ogni mese" },
+  year:  { label: "Annuale",     sub: "ogni anno" }
 };

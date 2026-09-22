@@ -293,6 +293,24 @@ a { color: inherit; }
 .pace.slight { background: var(--orange-100); }
 .pace.behind { background: var(--orange-300); color: var(--ink); }
 .pace.done { background: var(--blue-200); }
+
+.period-dots { display: flex; gap: 5px; }
+.pd { width: 9px; height: 9px; border-radius: 3px; background: var(--line-2); }
+.pd.part { background: var(--orange-300); }
+.pd.on { background: var(--orange-500); }
+.pd.cur { outline: 1.5px solid var(--ink-3); outline-offset: 1px; }
+.period-dots.lg { gap: 6px; margin-bottom: 18px; }
+.period-dots.lg .pd { width: 14px; height: 14px; border-radius: 4px; }
+
+.chip.link { cursor: pointer; border: 0; }
+.checklist.steps.sm li.step { padding: 7px 0; }
+.exam-phase { margin-bottom: 16px; }
+
+.step.exam { cursor: pointer; background: var(--blue-100); border-radius: 14px; padding: 8px 12px; margin-bottom: 4px; }
+.step.exam .step-row { gap: 8px; }
+.exam-badge { display: inline-flex; color: var(--blue-strong); flex: none; }
+.step.exam .pct { color: var(--ink-2); font-weight: 700; }
+.step.exam.done { background: var(--blue-200); }
 .detail { display: grid; gap: 4px; }
 .desc { color: var(--ink-2); margin-bottom: 10px; }
 .goal-hero { display: flex; align-items: center; gap: 18px; margin-bottom: 4px; }
@@ -498,9 +516,10 @@ select { min-height: 40px; }
   .area-read { grid-area: read; }
   .area-recall { grid-area: recall; }
 
-  /* Obiettivi: tre colonne */
+  /* Obiettivi: quattro colonne (breve, medio, lungo, ricorrente) */
   .tabs3 { display: none; }
-  .goal-cols { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+  .tabs4[data-tabs="goals"] { display: none; }
+  .goal-cols { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
   .goal-col { display: grid; gap: 14px; align-content: start; }
   .col-head { display: flex; }
 
@@ -582,6 +601,25 @@ select { min-height: 40px; }
 .how-xp { margin-top: 24px; color: var(--ink-2); font-size: 13px; }
 .how-xp summary { cursor: pointer; color: var(--ink-3); }
 .how-xp ul { padding-left: 18px; display: grid; gap: 6px; }
+
+.atk-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; color: var(--orange); }
+.lock-hint { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-3); text-align: center; }
+.shop-item.locked .si-prev { filter: grayscale(1); opacity: .4; }
+
+.boss-pick { display: flex; align-items: center; gap: 10px; width: 100%; background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 8px 12px; margin: 12px 0; text-align: left; }
+.boss-pick.on { border-color: var(--danger); background: var(--orange-100); }
+.bp-art { flex: none; }
+.bp-info { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.bp-info small { color: var(--ink-3); font-size: 11px; }
+
+.boss-line { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-2); }
+.boss-art { flex: none; }
+.boss-info { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.boss-info small { color: var(--ink-3); font-size: 11px; }
+.boss-tag { display: inline-flex; align-items: center; gap: 3px; color: var(--blue-strong); font-size: 12px; font-weight: 600; }
+.boss-line.beat { opacity: .8; }
+
+.result.boss b { color: var(--danger); }
 
 @media (min-width: 640px) {
   .hero-panel { flex-direction: row; gap: 28px; padding: 24px 32px; }

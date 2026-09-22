@@ -105,12 +105,25 @@ Su iPhone: Safari → Condividi → *Aggiungi alla schermata Home*.
 
 - **Abitudini**: sì/no o quantitative (obiettivo + unità + incremento del tasto +),
   giorni della settimana, serie (streak), record, mappa di calore correggibile.
-- **Obiettivi**: l'avanzamento è la media di tappe completate e costanza delle
-  abitudini collegate (giorni fatti / giorni previsti nell'intero periodo). La tacca
-  sulla barra è dove dovresti essere in base al tempo trascorso → *Avanti / In linea /
-  Da recuperare / Indietro*.
+- **Obiettivi**: brevi (1 mese), medi (4 mesi), lunghi (1 anno o più), oppure
+  **ricorrenti** (settimanale/mensile/annuale: es. «leggi un libro al mese») con un periodo
+  che si rinnova da solo e uno storico dei periodi passati fatto/non fatto. L'avanzamento è
+  la media di tutte le fonti collegate: tappe completate, costanza delle abitudini (giorni
+  fatti / previsti), libri letti, peso, e **obiettivi figli**. La tacca sulla barra è dove
+  dovresti essere in base al tempo trascorso (nel periodo, per i ricorrenti) → *Avanti / In
+  linea / Da recuperare / Indietro*.
   Ogni **tappa** si può dividere in **sottotappe**: la sua percentuale è sottotappe fatte / totali
   e l'avanzamento dell'obiettivo ne tiene conto.
+  Un obiettivo a breve o medio termine può avere come **genitore** un obiettivo a orizzonte
+  più lungo (es. «Superare esame diritto» dentro «Finire gli esami del primo anno»):
+  l'avanzamento del genitore fa la media anche dei figli collegati.
+  Se imposti un **peso obiettivo**, l'avanzamento segue la distanza dal peso registrato più
+  vicino all'inizio (funziona sia per dimagrire sia per aumentare di peso), ed è visibile
+  anche in Benessere → Peso.
+  Una tappa può diventare un **esame** (tocca 📖): tre fasi — primo studio, ripasso,
+  preparazione — ognuna con una checklist di argomenti da spuntare; la percentuale della
+  tappa è la media delle tre fasi. Nel gestore dell'esame tieni anche data dell'appello, CFU
+  e voto, e puoi dedicargli sessioni di Focus (le ore di studio si sommano lì).
 - **Libri**: in Lettura → *Libro*, incolla il link di Goodreads (o scrivi titolo e autore). Goodreads
   non ha più un'API pubblica: dal link si ricava il titolo e si cercano autore, pagine e copertina
   su Open Library. Poi segni le pagine (+10, oppure «Pagina») e vedi la percentuale.
@@ -127,13 +140,22 @@ Su iPhone: Safari → Condividi → *Aggiungi alla schermata Home*.
   - Il tempo si calcola dall'orario di inizio, quindi il timer è sempre esatto.
   - Da Impostazioni si può spegnere del tutto la fuga dello yokai (nessun danno, mai).
 - **Gioco (stile Habitica)**: XP e ryo (両) arrivano da abitudini (+10 XP, +5 両), tappe
-  (+30/+15), obiettivi completati (+150/+75) e yokai sigillati. Salendo di livello sblocchi
-  yokai più forti (Hitodama → Chōchin-obake → Kasa-obake → Oni). Gli **HP** calano se lo
-  yokai scappa (−12) o se salti un'abitudine prevista (−2, max −5 al giorno) e guariscono da
-  soli dopo 7 giorni, oppure con una pozione. Nel **Dojo** personalizzi l'eroe (copricapo,
-  arma, compagno, veste), consulti il bestiario e sblocchi 12 traguardi.
-  XP, ryo e HP sono *calcolati* dai tuoi dati: se correggi un giorno passato, si correggono
-  da soli. Nel database restano solo acquisti ed equipaggiamento (nelle impostazioni).
+  (+30/+15), obiettivi completati (+150/+75) e yokai sigillati. Il focus è diviso in
+  **4 zone** (Hitodama → Chōchin-obake → Kasa-obake → Oni), ognuna con un **boss** di fine
+  zona: puoi dedicargli una sfida invece che a uno yokai comune, e ogni sessione completata
+  gli toglie danno (minuti × attacco dell'arma equipaggiata) finché non è sconfitto. Per
+  passare alla zona successiva serve **sia** il livello richiesto **sia** aver sconfitto il
+  boss precedente.
+  Ogni oggetto ha un potere vero, non solo estetico: le **armi** (bokken, fude, katana, e la
+  Masamune sbloccata sconfiggendo il Tengu) danneggiano i boss; i **cappelli** rigenerano HP
+  nel tempo; le **vesti** aumentano gli HP massimi; i **compagni** danno un bonus percentuale
+  a XP o ryo guadagnati (ricalcolato dal vivo, come il resto).
+  Gli **HP** calano se lo yokai scappa (−12) o se salti un'abitudine prevista (−2, max −5 al
+  giorno) e guariscono da soli dopo 7 giorni, oppure con una pozione. Nel **Dojo**
+  personalizzi l'eroe, consulti il bestiario (zone, boss e barra vita) e sblocchi 14 traguardi.
+  XP, ryo, HP e danno ai boss sono *calcolati* dai tuoi dati: se correggi un giorno passato, o
+  cambi equipaggiamento, si correggono da soli. Nel database restano solo acquisti ed
+  equipaggiamento (nelle impostazioni).
 - **Tempo reale**: le modifiche sono immediate e si sincronizzano tra i dispositivi.
 
 ## Struttura

@@ -20,28 +20,42 @@ const Game = {
     potionCost: 40, potionHeal: 25
   },
 
-  YOKAI: {
-    hitodama: { label: "Hitodama", jp: "人魂", lvl: 1, note: "Fiamma errante" },
-    chochin: { label: "Chōchin-obake", jp: "提灯", lvl: 3, note: "Lanterna dispettosa" },
-    kasa: { label: "Kasa-obake", jp: "傘", lvl: 6, note: "Ombrello con un occhio solo" },
-    oni: { label: "Oni", jp: "鬼", lvl: 10, note: "Il demone" }
-  },
+  // Ogni zona ha uno yokai comune (caccia in una sessione, come sempre) e un boss di fine
+  // zona (barra vita da scalare in più sessioni). Per sbloccare una zona serve il livello
+  // ("lvl") E aver sconfitto il boss della precedente: la prima è sempre aperta.
+  ZONES: [
+    { id: "hitodama", label: "Hitodama", jp: "人魂", note: "Fiamma errante", lvl: 1,
+      boss: { id: "onryo", label: "Onryō", jp: "怨霊", note: "Uno spirito in pena", hp: 500 } },
+    { id: "chochin", label: "Chōchin-obake", jp: "提灯", note: "Lanterna dispettosa", lvl: 3,
+      boss: { id: "nurikabe", label: "Nurikabe", jp: "塗壁", note: "Un muro che non si può aggirare", hp: 1100 } },
+    { id: "kasa", label: "Kasa-obake", jp: "傘", note: "Ombrello con un occhio solo", lvl: 6,
+      boss: { id: "tengu", label: "Tengu", jp: "天狗", note: "Il guardiano alato dei monti", hp: 2000 } },
+    { id: "oni", label: "Oni", jp: "鬼", note: "Il demone", lvl: 10,
+      boss: { id: "oni_daiou", label: "Oni Daiō", jp: "鬼大王", note: "Il re dei demoni", hp: 3400 } }
+  ],
 
   SLOTS: { hat: "Copricapo", weapon: "Arma", pet: "Compagno", robe: "Veste" },
 
+  // Ogni oggetto ha un potere diverso, non solo estetico:
+  // - arma: "atk" = danno al minuto contro i boss
+  // - cappello: "regenHours" = rigenera 1 HP ogni tot ore (fino al massimo)
+  // - veste: "hpBonus" = HP massimi in più
+  // - compagno: "xpPct"/"ryoPct" = bonus percentuale a XP/ryo guadagnati (ricalcolato dal vivo, come tutto il resto)
+  // "unlock" = id del boss da sconfiggere prima di poter comprare l'oggetto.
   ITEMS: {
-    hachimaki: { slot: "hat", label: "Hachimaki", price: 30 },
-    kasa: { slot: "hat", label: "Kasa di paglia", price: 80 },
-    kabuto: { slot: "hat", label: "Kabuto", price: 200 },
-    bokken: { slot: "weapon", label: "Bokken", price: 60 },
-    fude: { slot: "weapon", label: "Pennello fude", price: 120 },
-    katana: { slot: "weapon", label: "Katana", price: 250 },
-    neko: { slot: "pet", label: "Neko", price: 100 },
-    kitsune: { slot: "pet", label: "Kitsune", price: 150 },
-    tanuki: { slot: "pet", label: "Tanuki", price: 180 },
-    robe_orange: { slot: "robe", label: "Veste arancio", price: 40, color: "#F0A070" },
-    robe_sand: { slot: "robe", label: "Veste sabbia", price: 60, color: "#E6D3B0" },
-    robe_indigo: { slot: "robe", label: "Veste indaco", price: 80, color: "#5A6EA3" }
+    hachimaki: { slot: "hat", label: "Hachimaki", price: 30, regenHours: 8 },
+    kasa: { slot: "hat", label: "Kasa di paglia", price: 80, regenHours: 5 },
+    kabuto: { slot: "hat", label: "Kabuto", price: 200, regenHours: 3 },
+    bokken: { slot: "weapon", label: "Bokken", price: 60, atk: 2 },
+    fude: { slot: "weapon", label: "Pennello fude", price: 120, atk: 3 },
+    katana: { slot: "weapon", label: "Katana", price: 250, atk: 5 },
+    masamune: { slot: "weapon", label: "Masamune", price: 600, atk: 9, unlock: "tengu" },
+    neko: { slot: "pet", label: "Neko", price: 100, ryoPct: 0.08 },
+    kitsune: { slot: "pet", label: "Kitsune", price: 150, xpPct: 0.08 },
+    tanuki: { slot: "pet", label: "Tanuki", price: 180, ryoPct: 0.06, xpPct: 0.06 },
+    robe_orange: { slot: "robe", label: "Veste arancio", price: 40, color: "#F0A070", hpBonus: 5 },
+    robe_sand: { slot: "robe", label: "Veste sabbia", price: 60, color: "#E6D3B0", hpBonus: 10 },
+    robe_indigo: { slot: "robe", label: "Veste indaco", price: 80, color: "#5A6EA3", hpBonus: 15 }
   },
 
   RANKS: [[1, "Novizio"], [3, "Apprendista"], [6, "Guerriero"], [10, "Samurai"], [15, "Maestro"], [20, "Leggenda"]],
@@ -67,7 +81,36 @@ const Game = {
     return { level, into: rest, need: this.xpForLevel(level) };
   },
 
-  unlockedYokai(level) { return Object.keys(this.YOKAI).filter((k) => this.YOKAI[k].lvl <= level); },
+  // ---------- Boss e zone ----------
+  zone(id) { return this.ZONES.find((z) => z.id === id) || null; },
+  boss(id) { for (const z of this.ZONES) if (z.boss.id === id) return z.boss; return null; },
+  // Danno inflitto finora: somma di "dmg" (congelato per sessione, come xp/ryo) sulle sessioni completate
+  bossDamage(id) { return U.sum(Store.d.focus_sessions.filter((s) => s.completed && s.boss === id).map((s) => s.dmg || 0)); },
+  bossDefeated(id) { const b = this.boss(id); return !!b && this.bossDamage(id) >= b.hp; },
+  // Zone raggiungibili ora: serve il livello ("lvl") E aver sconfitto il boss precedente.
+  // La prima zona (lvl 1) è sempre aperta.
+  unlockedZones() {
+    const lvl = this.totals().level;
+    const out = [];
+    for (const z of this.ZONES) {
+      if (lvl < z.lvl) break;
+      out.push(z);
+      if (!this.bossDefeated(z.boss.id)) break;
+    }
+    return out;
+  },
+  // Il boss che ti aspetta adesso; null se non ce n'è uno raggiungibile (li hai sconfitti
+  // tutti, oppure devi salire di livello per sbloccare la prossima zona)
+  activeBoss() {
+    const zones = this.unlockedZones();
+    const last = zones[zones.length - 1];
+    return last && !this.bossDefeated(last.boss.id) ? last.boss : null;
+  },
+  allBossesDefeated() { return this.ZONES.every((z) => this.bossDefeated(z.boss.id)); },
+  // La prossima zona bloccata (per dire "ti serve il livello N"), se ce n'è una
+  nextLockedZone() { return this.ZONES[this.unlockedZones().length] || null; },
+  // Attacco dell'arma equipaggiata (a mani nude = 1)
+  atk() { const id = this.state().equipped.weapon, it = id && this.ITEMS[id]; return (it && it.atk) || 1; },
 
   totals() {
     const C = this.CFG, today = U.today();
@@ -95,9 +138,16 @@ const Game = {
     for (const g of Store.d.goals) if (g.status === "done") { xp += C.xpGoal; earned += C.ryoGoal; }
 
     const st = this.state();
+    // Il compagno equipaggiato alza XP e/o ryo guadagnati: come il resto del gioco, è
+    // ricalcolato dal vivo (cambiare compagno si applica anche a tutto lo storico).
+    const pet = st.equipped.pet && this.ITEMS[st.equipped.pet];
+    if (pet && pet.xpPct) xp = Math.round(xp * (1 + pet.xpPct));
+    if (pet && pet.ryoPct) earned = Math.round(earned * (1 + pet.ryoPct));
+
     const spent = U.sum(st.owned.map((id) => (this.ITEMS[id] ? this.ITEMS[id].price : 0))) + st.potions.length * C.potionCost;
     const lv = this.levelOf(xp);
-    const maxHp = 50 + 5 * (lv.level - 1);
+    const robe = st.equipped.robe && this.ITEMS[st.equipped.robe];
+    const maxHp = 50 + 5 * (lv.level - 1) + ((robe && robe.hpBonus) || 0);
 
     // Ferite degli ultimi 7 giorni: yokai scappati + abitudini saltate
     const from = U.addDays(today, -(C.windowDays - 1));
@@ -109,16 +159,20 @@ const Game = {
       const missed = Calc.habitsDueOn(d).filter((h) => !Calc.isDone(h, d)).length;
       dmg += Math.min(C.dmgMissedCap, missed * C.dmgMissed);
     }
-    const heal = st.potions.filter((t) => U.dateOf(t) >= from).length * C.potionHeal;
+    // Il cappello equipaggiato rigenera HP nel tempo: fin dove arriva in una finestra di 7 giorni
+    const hat = st.equipped.hat && this.ITEMS[st.equipped.hat];
+    const regen = hat && hat.regenHours ? Math.floor((C.windowDays * 24) / hat.regenHours) : 0;
+    const heal = st.potions.filter((t) => U.dateOf(t) >= from).length * C.potionHeal + regen;
     const hp = U.clamp(maxHp - dmg + heal, 0, maxHp);
 
-    return { xp, earned, spent, ryo: Math.max(0, earned - spent), level: lv.level, into: lv.into, need: lv.need, hp, maxHp, dmg, rank: this.rank(lv.level) };
+    return { xp, earned, spent, ryo: Math.max(0, earned - spent), level: lv.level, into: lv.into, need: lv.need, hp, maxHp, dmg, regen, rank: this.rank(lv.level) };
   },
 
   stats() {
     const done = Store.d.focus_sessions.filter((s) => s.completed);
     const byKind = {};
     for (const s of Store.d.focus_sessions) {
+      if (s.boss) continue;   // le sfide ai boss si contano a parte (barra vita), non come sigilli comuni
       const k = s.creature || "hitodama";
       byKind[k] = byKind[k] || { sealed: 0, escaped: 0 };
       byKind[k][s.completed ? "sealed" : "escaped"]++;
@@ -149,7 +203,9 @@ const Game = {
       { id: "memory", glyph: "記", label: "Memoria", text: "Ripassa 50 evidenziazioni", ok: reviews >= 50, prog: [reviews, 50] },
       { id: "gear", glyph: "装", label: "Ben equipaggiato", text: "Possiedi 3 oggetti", ok: st.owned.length >= 3, prog: [st.owned.length, 3] },
       { id: "mind", glyph: "心", label: "Mente attenta", text: "7 check-in di umore", ok: Store.d.mood_logs.length >= 7, prog: [Store.d.mood_logs.length, 7] },
-      { id: "body", glyph: "体", label: "In movimento", text: "10 allenamenti", ok: Store.d.workouts.length >= 10, prog: [Store.d.workouts.length, 10] }
+      { id: "body", glyph: "体", label: "In movimento", text: "10 allenamenti", ok: Store.d.workouts.length >= 10, prog: [Store.d.workouts.length, 10] },
+      { id: "boss1", glyph: "討", label: "Cacciatore di boss", text: "Sconfiggi il tuo primo boss", ok: this.ZONES.some((z) => this.bossDefeated(z.boss.id)) },
+      { id: "bossall", glyph: "王", label: "Leggenda vivente", text: "Sconfiggi tutti i boss", ok: this.ZONES.every((z) => this.bossDefeated(z.boss.id)) }
     ];
   },
 
@@ -157,6 +213,7 @@ const Game = {
   buy(id) {
     const it = this.ITEMS[id], st = this.state(), t = this.totals();
     if (!it || st.owned.includes(id)) return;
+    if (it.unlock && !this.bossDefeated(it.unlock)) return U.toast(`Si sblocca sconfiggendo ${this.boss(it.unlock).label}`);
     if (t.ryo < it.price) return U.toast(`Ti mancano ${it.price - t.ryo} ryo`);
     Store.setSettings({ game: { ...st, owned: [...st.owned, id], equipped: { ...st.equipped, [it.slot]: id } } });
     U.toast(`${it.label}: acquistato ed equipaggiato`);
@@ -242,9 +299,46 @@ const Yokai = {
     };
     const stamp = state === "sealed"
       ? `<g transform="translate(62 54) rotate(-10)"><rect width="32" height="32" rx="7" fill="#E8792F"/><text x="16" y="25" font-size="22" text-anchor="middle" fill="#fff" font-family="Shippori Mincho,serif" font-weight="700">封</text></g>` : "";
-    return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" role="img" aria-label="${(Game.YOKAI[kind] || {}).label || "Yokai"}">
+    return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" role="img" aria-label="${(Game.zone(kind) || {}).label || "Yokai"}">
       <ellipse cx="50" cy="94" rx="28" ry="3.2" fill="#000" opacity=".06"/>
       <g transform="translate(50 92) scale(${s.toFixed(3)}) translate(-50 -92)" opacity="${op.toFixed(2)}">${shapes[kind] || shapes.hitodama}</g>${stamp}</svg>`;
+  }
+};
+
+// ---- Boss (nemici di fine zona, con barra vita su più sessioni) -------------
+const Boss = {
+  eye(cx, cy, r) { return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#fff"/><circle cx="${cx}" cy="${cy + 1}" r="${r * 0.55}" fill="#B4472A"/>`; },
+
+  // defeated = disegna col timbro "討" (abbattuto) e un po' sbiadito, per il trofeo nel bestiario
+  svg(id, defeated = false, size = 100) {
+    const shapes = {
+      onryo: `<path d="M50 6C64 22 84 34 84 66A34 34 0 0 1 16 66C16 34 36 22 50 6Z" fill="#5A6EA3"/>
+        <path d="M50 30C58 42 70 50 70 66A20 20 0 0 1 30 66C30 50 42 42 50 30Z" fill="#8698C4"/>
+        ${this.eye(40, 64, 6)}${this.eye(60, 64, 6)}
+        <path d="M40 78Q50 70 60 78" stroke="#23272E" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M22 40L14 24M78 40L86 24" stroke="#5A6EA3" stroke-width="3" stroke-linecap="round"/>`,
+      nurikabe: `<rect x="10" y="18" width="80" height="72" rx="10" fill="#8A8E96"/>
+        <rect x="10" y="18" width="80" height="72" rx="10" fill="none" stroke="#5B6069" stroke-width="3"/>
+        ${this.eye(36, 52, 7)}${this.eye(64, 52, 7)}
+        <path d="M34 70Q50 62 66 70" stroke="#23272E" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M6 40Q10 58 6 76M94 40Q90 58 94 76" stroke="#5B6069" stroke-width="6" stroke-linecap="round" fill="none"/>`,
+      tengu: `<path d="M50 10C74 10 88 32 88 54C88 76 70 92 50 92C30 92 12 76 12 54C12 32 26 10 50 10Z" fill="#B4472A"/>
+        <path d="M8 46Q-6 50 4 60Q12 56 16 50Z" fill="#8A2F1C"/><path d="M92 46Q106 50 96 60Q88 56 84 50Z" fill="#8A2F1C"/>
+        ${this.eye(38, 50, 6.5)}${this.eye(62, 50, 6.5)}
+        <path d="M46 66Q50 84 54 66Z" fill="#F0A070"/>
+        <path d="M20 26L34 14M80 26L66 14" stroke="#23272E" stroke-width="3" stroke-linecap="round"/>`,
+      oni_daiou: `<circle cx="50" cy="58" r="38" fill="#8A2F1C"/>
+        <path d="M27 34L20 2L44 26ZM73 34L80 2L56 26Z" fill="#F6E3C8"/>
+        ${this.eye(36, 56, 8)}${this.eye(64, 56, 8)}
+        <path d="M22 44L44 52M78 44L56 52" stroke="#23272E" stroke-width="5" stroke-linecap="round"/>
+        <path d="M30 76Q50 92 70 76Q50 82 30 76Z" fill="#23272E"/><path d="M38 78L41 88L45 79ZM62 78L59 88L55 79Z" fill="#fff"/>`
+    };
+    const stamp = defeated
+      ? `<g transform="translate(58 52) rotate(-10)"><rect width="34" height="34" rx="7" fill="#3F7CBF"/><text x="17" y="26" font-size="20" text-anchor="middle" fill="#fff" font-family="Shippori Mincho,serif" font-weight="700">討</text></g>` : "";
+    return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" role="img" aria-label="${(Game.boss(id) || {}).label || "Boss"}">
+      <ellipse cx="50" cy="94" rx="34" ry="3.5" fill="#000" opacity=".08"/>
+      <g opacity="${defeated ? 0.4 : 1}">${shapes[id] || shapes.onryo}</g>${stamp}
+    </svg>`;
   }
 };
 

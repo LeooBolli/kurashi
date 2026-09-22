@@ -62,11 +62,27 @@ const Calc = {
 
   // ---------- Obiettivi ----------
   activeGoals() { return Store.d.goals.filter((g) => g.status === "active"); },
-  // Tappe di primo livello di un obiettivo (le sottotappe stanno dentro la tappa madre)
+  childGoals(g) { return Store.d.goals.filter((x) => x.parent_goal_id === g.id && x.status !== "archived"); },
+  // Genitori possibili per un obiettivo: solo orizzonti più lunghi (breve→medio/lungo, medio→lungo), mai sé stesso
+  possibleParents(g) {
+    const order = ["short", "medium", "long"];
+    const i = order.indexOf(g ? g.horizon : "short");
+    if (i < 0) return [];
+    const longer = order.slice(i + 1);
+    return Store.d.goals.filter((x) => longer.includes(x.horizon) && x.status !== "archived" && (!g || x.id !== g.id));
+  },
+  // Tappe di primo livello di un obiettivo (le sottotappe, o gli argomenti di un esame, stanno dentro la tappa madre)
   milestonesOf(g) { return Store.d.milestones.filter((m) => m.goal_id === g.id && !m.parent_id).sort((a, b) => a.position - b.position); },
   childrenOf(m) { return Store.d.milestones.filter((x) => x.parent_id === m.id).sort((a, b) => a.position - b.position); },
-  // Completamento 0..100 di una tappa: con sottotappe = sottotappe fatte / totali
+  EXAM_PHASES: ["studio", "ripasso", "preparazione"],
+  // Completamento 0..100 di una fase di un esame: argomenti spuntati / totali di quella fase
+  examPhasePct(m, phase) {
+    const items = this.childrenOf(m).filter((k) => k.phase === phase);
+    return items.length ? (items.filter((k) => k.done).length / items.length) * 100 : 0;
+  },
+  // Completamento 0..100 di una tappa: per un esame è la media delle 3 fasi, altrimenti sottotappe fatte / totali
   msPct(m, asOf = null) {
+    if (m.is_exam) return U.avg(this.EXAM_PHASES.map((p) => this.examPhasePct(m, p))) || 0;
     const isDone = (x) => x.done && (!asOf || !x.done_at || U.dateOf(x.done_at) <= asOf);
     const kids = this.childrenOf(m);
     if (kids.length) return (kids.filter(isDone).length / kids.length) * 100;
@@ -74,20 +90,52 @@ const Calc = {
   },
   habitsOfGoal(g) { return Store.d.habits.filter((h) => h.goal_id === g.id && !h.archived); },
 
+  // ---------- Periodi (obiettivi ricorrenti) ----------
+  // Intervallo [inizio, fine] del periodo che contiene "ref" (oggi di default)
+  periodRange(period, ref = U.today()) {
+    if (period === "week") { const s = U.mondayOf(ref); return [s, U.addDays(s, 6)]; }
+    if (period === "year") { const y = ref.slice(0, 4); return [`${y}-01-01`, `${y}-12-31`]; }
+    const s = ref.slice(0, 8) + "01";
+    return [s, U.addDays(U.addMonths(s, 1), -1)];
+  },
+  // Il periodo n posizioni prima/dopo quello dato (n negativo = passato)
+  shiftPeriod(period, range, n) {
+    const step = period === "year" ? 12 : period === "month" ? 1 : null;
+    const ref = step ? U.addMonths(range[0], step * n) : U.addDays(range[0], 7 * n);
+    return this.periodRange(period, ref);
+  },
+  // Ultimi n+1 periodi (storico + quello attuale), ognuno con la sua percentuale: per lo streak visivo
+  periodHistory(g, n = 8) {
+    const cur = this.periodRange(g.period);
+    const out = [];
+    for (let i = -n; i <= 0; i++) {
+      const range = i === 0 ? cur : this.shiftPeriod(g.period, cur, i);
+      out.push({ ...range, from: range[0], to: range[1], pct: this.goalProgressParts(g, range[0], range[1], range[1]), current: i === 0 });
+    }
+    return out;
+  },
+
   // Avanzamento 0..100 "a una certa data" (serve anche per confrontare le settimane)
   goalProgress(g, asOf = U.today()) {
+    if (g.horizon === "recurring") {
+      const [from, to] = this.periodRange(g.period, asOf);
+      return this.goalProgressParts(g, from, to, asOf);
+    }
     if (g.status === "done" && (!g.done_at || U.dateOf(g.done_at) <= asOf)) return 100;
+    return this.goalProgressParts(g, g.start_date, g.due_date, asOf);
+  },
+
+  // Le stesse fonti di avanzamento (tappe, abitudini, libri, obiettivi figli, peso), su un intervallo dato:
+  // così i normali obiettivi (intero periodo) e quelli ricorrenti (periodo corrente) condividono la logica.
+  goalProgressParts(g, from, to, asOf) {
     const parts = [];
     const ms = this.milestonesOf(g);
-    if (ms.length) {
-      parts.push(U.avg(ms.map((m) => this.msPct(m, asOf))));
-    }
+    if (ms.length) parts.push(U.avg(ms.map((m) => this.msPct(m, asOf))));
     const hs = this.habitsOfGoal(g);
     if (hs.length) {
-      // giorni completati / giorni previsti nell'intero periodo dell'obiettivo
+      // giorni completati / giorni previsti nell'intervallo
       let planned = 0, credit = 0;
-      const end = g.due_date;
-      for (const d of U.range(g.start_date, end)) {
+      for (const d of U.range(from, to)) {
         for (const h of hs) {
           if (!this.isDue(h, d)) continue;
           planned++;
@@ -96,29 +144,50 @@ const Calc = {
       }
       if (planned) parts.push((credit / planned) * 100);
     }
-    const bk = this.goalBooks(g, asOf);
+    const bk = this.goalBooks(g, asOf, from, to);
     if (bk) parts.push(bk.pct);
+    const wt = this.weightProgress(g, asOf, from);
+    if (wt != null) parts.push(wt);
+    const kids = this.childGoals(g);
+    if (kids.length) parts.push(U.avg(kids.map((k) => this.goalProgress(k, asOf))));
     if (!parts.length) return Number(g.manual_progress) || 0;
     return U.clamp(U.avg(parts), 0, 100);
   },
 
-  // Obiettivo collegato alla Lettura ("leggi N libri"): conta i libri finiti nel periodo dell'obiettivo.
+  // Obiettivo collegato alla Lettura ("leggi N libri"): conta i libri finiti nell'intervallo.
   // Il collegamento vive nelle impostazioni ({ idObiettivo: N }), quindi non serve altro nel database.
   booksTarget(g) { const n = Number((Store.cfg().goalBooks || {})[g.id]); return n > 0 ? n : 0; },
-  goalBooks(g, asOf = U.today()) {
+  goalBooks(g, asOf = U.today(), from = g.start_date, to = g.due_date) {
     const target = this.booksTarget(g);
     if (!target) return null;
-    const end = asOf < g.due_date ? asOf : g.due_date;
+    const end = asOf < to ? asOf : to;
     const done = Store.d.reading_items
-      .filter((r) => r.kind === "book" && r.status === "done" && r.done_at && U.dateOf(r.done_at) >= g.start_date && U.dateOf(r.done_at) <= end)
+      .filter((r) => r.kind === "book" && r.status === "done" && r.done_at && U.dateOf(r.done_at) >= from && U.dateOf(r.done_at) <= end)
       .sort((a, b) => b.done_at.localeCompare(a.done_at));
     return { target, done, count: done.length, pct: Math.min(100, (done.length / target) * 100) };
   },
 
-  // Quanto dovremmo essere avanti in base al tempo trascorso
+  // Obiettivo di peso: quanto ti sei avvicinato al peso target rispetto al peso di partenza
+  // (l'ultima pesata registrata prima dell'inizio dell'intervallo, o la prima disponibile).
+  // Funziona sia per dimagrire sia per aumentare di peso: conta la distanza percorsa, in qualunque direzione.
+  weightProgress(g, asOf = U.today(), from = g.start_date) {
+    if (g.weight_target == null) return null;
+    const logs = [...Store.d.weight_logs].sort((a, b) => a.log_date.localeCompare(b.log_date));
+    if (!logs.length) return null;
+    const before = [...logs].filter((w) => w.log_date <= from).pop();
+    const start = before ? Number(before.kg) : Number(logs[0].kg);
+    const at = [...logs].filter((w) => w.log_date <= asOf).pop();
+    const current = at ? Number(at.kg) : start;
+    const target = Number(g.weight_target);
+    if (start === target) return current === target ? 100 : 0;
+    return U.clamp(((start - current) / (start - target)) * 100, 0, 100);
+  },
+
+  // Quanto dovremmo essere avanti in base al tempo trascorso (nel periodo, per i ricorrenti)
   goalExpected(g, asOf = U.today()) {
-    const total = Math.max(1, U.diffDays(g.start_date, g.due_date));
-    return U.clamp((U.diffDays(g.start_date, asOf) / total) * 100, 0, 100);
+    const [from, to] = g.horizon === "recurring" ? this.periodRange(g.period, asOf) : [g.start_date, g.due_date];
+    const total = Math.max(1, U.diffDays(from, to));
+    return U.clamp((U.diffDays(from, asOf) / total) * 100, 0, 100);
   },
 
   goalPace(g, asOf = U.today()) {
@@ -131,7 +200,10 @@ const Calc = {
     return { key, label, progress: p, expected: e };
   },
 
-  daysLeft(g) { return U.diffDays(U.today(), g.due_date); },
+  daysLeft(g) {
+    if (g.horizon === "recurring") return U.diffDays(U.today(), this.periodRange(g.period)[1]);
+    return U.diffDays(U.today(), g.due_date);
+  },
 
   // ---------- Focus ----------
   focusDone() { return Store.d.focus_sessions.filter((s) => s.completed); },
