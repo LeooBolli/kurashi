@@ -667,6 +667,7 @@ select { min-height: 40px; }
 @media (min-width: 1024px) {
   .quote-list { grid-template-columns: 1fr 1fr; align-items: start; }
   .tabs2 { max-width: 360px; }
+  .recall-tabs { max-width: 480px; }
 }
 
 .form label.check { display: flex; gap: 12px; align-items: flex-start; font-weight: 400; }

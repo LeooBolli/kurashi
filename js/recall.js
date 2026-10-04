@@ -5,8 +5,8 @@
 // preferite o si silenziano. Rivedere un'evidenziazione dà XP.
 // ============================================================
 const Recall = {
-  tab: "today",       // today | library
-  filter: "all",      // all | fav | libro | articolo | video
+  tab: "today",       // today | library | favorites
+  filter: "all",      // all | libro | articolo | video (solo in Libreria)
   q: "",
   limit: 30,
   _persisting: false,
@@ -125,16 +125,19 @@ const Recall = {
 
   libraryList() {
     const q = this.q.trim().toLowerCase();
+    const favTab = this.tab === "favorites";
     let list = this.all().filter((h) => {
-      if (this.filter === "fav" && !h.favorite) return false;
-      if (["libro", "articolo", "video"].includes(this.filter) && h.source_kind !== this.filter) return false;
+      if (favTab && !h.favorite) return false;
+      if (!favTab && ["libro", "articolo", "video"].includes(this.filter) && h.source_kind !== this.filter) return false;
       if (q && !`${h.text} ${h.source_title} ${h.source_author || ""} ${h.note || ""}`.toLowerCase().includes(q)) return false;
       return true;
     });
     list.sort((a, b) => (b.highlighted_at || b.created_at).localeCompare(a.highlighted_at || a.created_at));
     const shown = list.slice(0, this.limit);
     return `<p class="muted small">${list.length} ${list.length === 1 ? "risultato" : "risultati"}</p>
-      <div class="quote-list">${shown.map((h) => this.card(h)).join("") || `<p class="muted">Niente da mostrare.</p>`}</div>
+      <div class="quote-list">${shown.map((h) => this.card(h)).join("") || (favTab && !q
+        ? UI.empty("star", "Nessuna preferita", "Tocca la stella su un'evidenziazione, in Oggi o in Libreria, per ritrovarla qui.")
+        : `<p class="muted">Niente da mostrare.</p>`)}</div>
       ${list.length > shown.length ? `<button class="btn ghost wide" data-act="quote-more-lib">Mostra altre ${Math.min(30, list.length - shown.length)}</button>` : ""}`;
   },
 
@@ -157,8 +160,8 @@ const Recall = {
     } else {
       body = `<div class="lib-tools">
           <input type="search" placeholder="Cerca in testo, libro, autore…" value="${U.esc(this.q)}" data-act-input="recall-search" aria-label="Cerca">
-          <div class="chips-row filters">${[["all", "Tutte"], ["fav", "★ Preferite"], ["libro", "Libri"], ["articolo", "Articoli"], ["video", "Video"]].map(([k, l]) =>
-            `<button class="pill ${this.filter === k ? "on" : ""}" data-act="recall-filter" data-id="${k}">${l}</button>`).join("")}</div>
+          ${this.tab === "library" ? `<div class="chips-row filters">${[["all", "Tutte"], ["libro", "Libri"], ["articolo", "Articoli"], ["video", "Video"]].map(([k, l]) =>
+            `<button class="pill ${this.filter === k ? "on" : ""}" data-act="recall-filter" data-id="${k}">${l}</button>`).join("")}</div>` : ""}
         </div><div id="lib-list">${this.libraryList()}</div>`;
     }
 
@@ -167,15 +170,16 @@ const Recall = {
         <div><p class="eyebrow">再読 · Riscoperte</p><h1 class="title">Le tue <em>sottolineature</em></h1>
           <p class="sub">${all.length} evidenziazioni da ${sources} fonti · ${favs} preferite · ${reviewed} ripassi</p></div>
       </div>
-      ${all.length ? `<div class="seg tabs2">
+      ${all.length ? `<div class="seg tabs4 recall-tabs">
         <button class="${this.tab === "today" ? "on" : ""}" data-act="recall-tab" data-id="today">Oggi<small>${doneN}/${items.length}</small></button>
         <button class="${this.tab === "library" ? "on" : ""}" data-act="recall-tab" data-id="library">Libreria<small>${all.length}</small></button>
+        <button class="${this.tab === "favorites" ? "on" : ""}" data-act="recall-tab" data-id="favorites">Preferiti<small>${favs}</small></button>
       </div>` : ""}
       ${body}`;
   }
 };
 
-Actions["recall-tab"] = (el) => { Recall.tab = el.dataset.id; App.render(); };
+Actions["recall-tab"] = (el) => { Recall.tab = el.dataset.id; Recall.limit = 30; App.render(); };
 Actions["recall-filter"] = (el) => { Recall.filter = el.dataset.id; Recall.limit = 30; App.render(); };
 Actions["recall-search"] = (el) => {
   Recall.q = el.value; Recall.limit = 30;
