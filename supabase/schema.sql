@@ -181,6 +181,53 @@ create table if not exists highlights (
 create index if not exists highlights_source_idx on highlights (source_file);
 
 -- ------------------------------------------------------------
+-- ALIMENTAZIONE (piano dei pasti, senza calcoli nutrizionali)
+--   foods         = ricettario: alimenti singoli (food), piatti con ingredienti (dish)
+--                   e pasti salvati (meal), richiamabili in un tocco
+--   meal_entries  = cosa mangi, in che giorno, a che pasto e quanto; "eaten" è la spunta
+--   meal_templates= giorni o settimane salvati come modello da riapplicare
+--   Le righe del piano copiano nome/quantità/ingredienti: modificare una ricetta
+--   non cambia i giorni già pianificati.
+-- ------------------------------------------------------------
+create table if not exists foods (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  kind text not null default 'food' check (kind in ('food','dish','meal')),
+  name text not null,
+  qty numeric(8,2),                          -- quantità di default (per un piatto: porzioni)
+  unit text,                                 -- g | ml | pz | cucchiaio | cucchiaino | fetta | porzione
+  items jsonb not null default '[]'::jsonb,  -- dish: ingredienti per 1 porzione; meal: righe del pasto
+  favorite boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists meal_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  entry_date date not null,
+  slot text not null check (slot in ('colazione','spuntino_mattina','pranzo','spuntino_pomeriggio','cena')),
+  food_id uuid references foods(id) on delete set null,
+  name text not null,
+  qty numeric(8,2),
+  unit text,
+  items jsonb not null default '[]'::jsonb,
+  eaten boolean not null default false,
+  extra boolean not null default false,      -- fuori programma, aggiunto mentre mangi
+  position int not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists meal_entries_date_idx on meal_entries (entry_date);
+
+create table if not exists meal_templates (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name text not null,
+  kind text not null default 'day' check (kind in ('day','week')),
+  entries jsonb not null default '[]'::jsonb, -- [{ dow (1-7, solo settimana), slot, food_id, name, qty, unit, items }]
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------------
 -- IMPOSTAZIONI (una riga per utente, contenuto libero in JSON)
 -- ------------------------------------------------------------
 create table if not exists settings (
@@ -197,7 +244,8 @@ declare t text;
 begin
   foreach t in array array[
     'goals','milestones','habits','habit_logs','focus_sessions',
-    'mood_logs','sleep_logs','weight_logs','workouts','reading_items','highlights','settings'
+    'mood_logs','sleep_logs','weight_logs','workouts','reading_items','highlights','settings',
+    'foods','meal_entries','meal_templates'
   ] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists "own rows" on %I', t);
@@ -216,7 +264,8 @@ declare t text;
 begin
   foreach t in array array[
     'goals','milestones','habits','habit_logs','focus_sessions',
-    'mood_logs','sleep_logs','weight_logs','workouts','reading_items','highlights'
+    'mood_logs','sleep_logs','weight_logs','workouts','reading_items','highlights',
+    'foods','meal_entries','meal_templates'
   ] loop
     begin
       execute format('alter publication supabase_realtime add table %I', t);
@@ -282,3 +331,6 @@ alter table milestones add column if not exists exam_grade text;
 
 -- Una sessione di focus può essere dedicata a un esame specifico (come già per obiettivo/abitudine)
 alter table focus_sessions add column if not exists milestone_id uuid references milestones(id) on delete set null;
+
+-- Fa riconoscere subito le tabelle nuove all'API
+notify pgrst, 'reload schema';

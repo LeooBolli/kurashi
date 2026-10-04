@@ -6,7 +6,8 @@
 // ============================================================
 const DEMO = !window.APP_CONFIG.SUPABASE_URL;
 const TABLES = ["habits", "goals", "milestones", "habit_logs", "focus_sessions",
-  "mood_logs", "sleep_logs", "weight_logs", "workouts", "reading_items", "highlights"];
+  "mood_logs", "sleep_logs", "weight_logs", "workouts", "reading_items", "highlights",
+  "foods", "meal_entries", "meal_templates"];
 
 const sb = DEMO ? null : window.supabase.createClient(
   window.APP_CONFIG.SUPABASE_URL,
@@ -28,6 +29,14 @@ const SbBackend = {
   },
   async insert(table, row) {
     const { error } = await sb.from(table).insert(row);
+    if (error) throw error;
+  },
+  async insertMany(table, rows) {
+    const { error } = await sb.from(table).insert(rows);
+    if (error) throw error;
+  },
+  async removeMany(table, ids) {
+    const { error } = await sb.from(table).delete().in("id", ids);
     if (error) throw error;
   },
   async update(table, id, patch) {
@@ -65,12 +74,15 @@ const LocalBackend = {
     if (!this.db) {
       try { this.db = JSON.parse(localStorage.getItem(this.KEY)); } catch { this.db = null; }
       if (!this.db) { this.db = Demo.seed(); this.save(); }
+      TABLES.forEach((t) => { if (!this.db[t]) this.db[t] = []; }); // tabelle aggiunte dopo il primo avvio
     }
     return this.db;
   },
   save() { try { localStorage.setItem(this.KEY, JSON.stringify(this.db)); } catch { /* quota */ } },
   async fetchAll(t) { return structuredClone(this.load()[t] || []); },
   async insert(t, row) { this.load()[t].push(structuredClone(row)); this.save(); },
+  async insertMany(t, rows) { this.load()[t].push(...structuredClone(rows)); this.save(); },
+  async removeMany(t, ids) { const set = new Set(ids); this.db[t] = this.load()[t].filter((x) => !set.has(x.id)); this.save(); },
   async update(t, id, patch) {
     const r = this.load()[t].find((x) => x.id === id);
     if (r) Object.assign(r, patch);
@@ -157,6 +169,25 @@ const Store = {
     return full;
   },
 
+  // Più righe con un solo salvataggio e un solo aggiornamento dello schermo (es. copia di una settimana)
+  insertMany(table, rows) {
+    if (!rows.length) return [];
+    const now = new Date().toISOString();
+    const full = rows.map((r) => ({ id: U.uid(), created_at: now, ...r }));
+    this.d[table].push(...full);
+    this.emit();
+    this.enqueue(() => this.backend.insertMany(table, full), table);
+    return full;
+  },
+
+  removeMany(table, ids) {
+    if (!ids.length) return;
+    const set = new Set(ids);
+    this.d[table] = this.d[table].filter((x) => !set.has(x.id));
+    this.emit();
+    this.enqueue(() => this.backend.removeMany(table, ids), table);
+  },
+
   update(table, id, patch) {
     const r = this.d[table].find((x) => x.id === id);
     if (r) Object.assign(r, patch);
@@ -201,6 +232,6 @@ const Store = {
 
   // Impostazioni con valori di default
   cfg() {
-    return { focusWeeklyMin: 600, sleepTarget: 8, weightTarget: null, raindropCollection: 0, notionDb: "", goalBooks: {}, recallPerDay: 5, focusStrict: true, name: window.APP_CONFIG.USER_NAME, ...this.settings };
+    return { focusWeeklyMin: 600, sleepTarget: 8, weightTarget: null, raindropCollection: 0, notionDb: "", goalBooks: {}, dietGoal: null, dietHabit: null, recallPerDay: 5, focusStrict: true, name: window.APP_CONFIG.USER_NAME, ...this.settings };
   }
 };

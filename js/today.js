@@ -85,6 +85,8 @@ const Today = {
           </div>
         </section>
 
+        ${Food.todayHTML()}
+
         <section class="block area-recall">
           <div class="block-head"><h2>Dalle tue letture</h2><button class="link" data-act="go" data-id="recall">Riscoperte ${Icon.svg("right", 14)}</button></div>
           ${Recall.miniHTML()}

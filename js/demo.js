@@ -95,6 +95,23 @@ const Demo = {
       }
     }
 
+    // Alimentazione: un ricettario keto e il piano di ieri, oggi e domani
+    const f = (kind, name, qty, unit, items = [], favorite = false) => mk({ kind, name, qty, unit, items, favorite });
+    const foods = {
+      uova: f("food", "Uova", 2, "pz", [], true), bacon: f("food", "Bacon", 40, "g"), avocado: f("food", "Avocado", 100, "g", [], true),
+      salmone: f("food", "Salmone", 150, "g"), zucchine: f("food", "Zucchine", 200, "g"), olio: f("food", "Olio EVO", 1, "cucchiaio"),
+      noci: f("food", "Noci", 30, "g"), pollo: f("food", "Petto di pollo", 150, "g"),
+      frittata: f("dish", "Frittata di zucchine", 1, "porzione", [{ name: "Uova", qty: 3, unit: "pz" }, { name: "Zucchine", qty: 150, unit: "g" }, { name: "Olio EVO", qty: 10, unit: "g" }], true)
+    };
+    db.foods = Object.values(foods);
+    const row = (fo) => ({ food_id: fo.id, name: fo.name, qty: fo.kind === "dish" ? 1 : fo.qty, unit: fo.kind === "dish" ? "porzione" : fo.unit, items: fo.items });
+    db.foods.push(f("meal", "Colazione keto A", null, null, [row(foods.uova), row(foods.bacon), row(foods.avocado)], true));
+    const plan = { colazione: [foods.uova, foods.bacon, foods.avocado], spuntino_mattina: [foods.noci], pranzo: [foods.salmone, foods.zucchine, foods.olio], cena: [foods.frittata] };
+    [-1, 0, 1].forEach((off) => {
+      const date = U.addDays(today, off);
+      Object.entries(plan).forEach(([slot, list]) => list.forEach((fo, i) => db.meal_entries.push(mk({ entry_date: date, slot, ...row(fo), eaten: off < 0 || (off === 0 && slot === "colazione"), extra: false, position: i }))));
+    });
+
     // Lettura
     const reads = [
       ["The Design of Everyday Things", "https://example.com/design", "todo"],

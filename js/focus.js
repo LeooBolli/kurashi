@@ -217,7 +217,6 @@ const Focus = {
     const rs = Math.ceil(remaining);
     const hit = !!(this.result && this.result.fresh);
     if (this.result) this.result.fresh = false;
-    const recent = [...Store.d.focus_sessions].sort((a, b) => b.started_at.localeCompare(a.started_at)).slice(0, 35);
 
     el.innerHTML = `
       <div class="page-head">
@@ -286,11 +285,9 @@ const Focus = {
         </div>
       </div>
 
-      <section class="block">
-        <div class="block-head"><h2>Bestiario</h2><span class="muted small">ultime ${recent.length} sfide</span></div>
-        ${recent.length ? `<div class="garden">${recent.map((s) => `<div class="plot ${s.completed ? "" : "escaped"}" data-tip="${U.fmtShort(U.dateOf(s.started_at))} · ${s.duration_min} min · ${s.boss ? (s.completed ? `−${s.dmg || 0} HP boss` : "boss: scappato") : (s.completed ? "sigillato" : "scappato")}">${s.boss ? Boss.svg(s.boss, false, 56) : Yokai.svg(s.creature || "hitodama", 1, s.completed ? "sealed" : "escaped", 56)}</div>`).join("")}</div>`
-        : UI.empty("tree", "Nessuna sfida ancora", "Affronta il primo yokai: bastano 25 minuti senza distrazioni.")}
-      </section>
+      <div class="btn-row center-row">
+        <button class="btn ghost" data-act="focus-bestiary">${Icon.svg("shield", 16)} Vedi il bestiario nel Dojo</button>
+      </div>
       ${this.lockOverlay && running ? `<div class="lock-overlay" role="dialog" aria-label="Blocco schermo">
         <div class="lock-card">${Icon.svg("lock", 34)}
           <h2>Blocca pure lo schermo</h2>
@@ -309,4 +306,5 @@ Actions["focus-min"] = (el) => { Focus.minutes = Number(el.dataset.id); App.rend
 Actions["focus-step"] = (el) => { Focus.minutes = U.clamp(Focus.minutes + Number(el.dataset.id), 5, 180); App.render(); };
 Actions["focus-kind"] = (el) => { Focus.kind = el.dataset.id; Focus.boss = null; App.render(); };
 Actions["focus-boss"] = (el) => { Focus.boss = el.dataset.id; App.render(); };
+Actions["focus-bestiary"] = () => { Dojo.tab = "bestiary"; App.go("hero"); };
 Actions["focus-link"] = (el) => { Focus.link = el.value; };

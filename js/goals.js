@@ -130,6 +130,7 @@ const Goals = {
       </div>` : ""}
 
       ${g.weight_linked ? this.weightBlockHTML(g) : ""}
+      ${Food.goalBlockHTML(g)}
 
       <div class="block">
         <div class="block-head"><h3>Abitudini collegate</h3></div>
@@ -270,7 +271,7 @@ const Goals = {
           <label>Data appello<input type="date" name="exam_date" value="${m.exam_date || ""}"></label>
           <label>CFU<input type="number" name="exam_cfu" min="0" max="60" step="0.5" value="${m.exam_cfu ?? ""}"></label>
         </div>
-        <label>Voto (anche atteso)<input name="exam_grade" maxlength="10" placeholder="Es. 28, o «atteso 27»" value="${U.esc(m.exam_grade || "")}"></label>
+        <label>Voto<input name="exam_grade" maxlength="10" placeholder="Es. 28" value="${U.esc(m.exam_grade || "")}"></label>
         <button class="btn ghost sm" type="submit">Salva</button>
       </form>
 

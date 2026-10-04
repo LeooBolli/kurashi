@@ -97,9 +97,11 @@ const Dojo = {
   },
 
   // ---------- bestiario ----------
+  // Specie per zona (sigillati/scappati, boss) + il registro delle sfide recenti: stessi dati
+  // (Store.d.focus_sessions), due letture diverse dello stesso storico.
   bestiaryHTML(t, st, s) {
     const unlocked = Game.unlockedZones().map((z) => z.id);
-    return `<div class="bestiary">${Game.ZONES.map((z, i) => {
+    const zones = `<div class="bestiary">${Game.ZONES.map((z, i) => {
       const locked = !unlocked.includes(z.id), c = s.byKind[z.id] || { sealed: 0, escaped: 0 };
       const dmg = Game.bossDamage(z.boss.id), defeated = Game.bossDefeated(z.boss.id);
       const prevBeat = i === 0 || Game.bossDefeated(Game.ZONES[i - 1].boss.id);
@@ -117,6 +119,15 @@ const Dojo = {
         </div>`}</div>
       </div>`;
     }).join("")}</div>`;
+
+    const recent = [...Store.d.focus_sessions].sort((a, b) => b.started_at.localeCompare(a.started_at)).slice(0, 35);
+    const log = `<section class="block">
+      <div class="block-head"><h3>Sfide recenti</h3><span class="muted small">ultime ${recent.length}</span></div>
+      ${recent.length ? `<div class="garden">${recent.map((r) => `<div class="plot ${r.completed ? "" : "escaped"}" data-tip="${U.fmtShort(U.dateOf(r.started_at))} · ${r.duration_min} min · ${r.boss ? (r.completed ? `−${r.dmg || 0} HP boss` : "boss: scappato") : (r.completed ? "sigillato" : "scappato")}">${r.boss ? Boss.svg(r.boss, false, 56) : Yokai.svg(r.creature || "hitodama", 1, r.completed ? "sealed" : "escaped", 56)}</div>`).join("")}</div>`
+        : UI.empty("tree", "Nessuna sfida ancora", "Affronta il primo yokai: bastano 25 minuti senza distrazioni.")}
+    </section>`;
+
+    return zones + log;
   },
 
   // ---------- traguardi ----------

@@ -21,6 +21,8 @@ const Settings = {
             </div>
             <label>Peso ideale (kg, facoltativo)<input name="weight" type="number" min="20" max="300" step="0.1" value="${cfg.weightTarget ?? ""}">
               <small class="muted">Riga di riferimento nel grafico del peso, e valore a cui si collegano gli obiettivi di peso.</small></label>
+            <label>Obiettivo collegato all'alimentazione<select name="dietGoal"><option value="">Automatico: il primo obiettivo di peso</option>${Calc.activeGoals().map((g) => `<option value="${g.id}" ${g.id === cfg.dietGoal ? "selected" : ""}>${U.esc(g.title)}</option>`).join("")}</select>
+              <small class="muted">In Alimentazione vedi a che punto sei, e nell'obiettivo quanti giorni hai rispettato la dieta.</small></label>
             <label class="check"><input name="strict" type="checkbox" ${cfg.focusStrict ? "checked" : ""}>
               <span><b>Lo yokai scappa se esco dall'app</b><small>Se cambi app per più di 10 secondi perdi HP. Per bloccare lo schermo tocca «Blocco lo schermo» nel timer. Disattivo: nessun danno, mai.</small></span></label>
             <label>Evidenziazioni da ripassare al giorno<input name="recall" type="number" min="1" max="15" step="1" value="${cfg.recallPerDay}"></label>
@@ -103,7 +105,8 @@ Actions["settings-save"] = (form) => {
     sleepTarget: Number(f.get("sleep")) || 8,
     weightTarget: f.get("weight") ? Number(f.get("weight")) : null,
     recallPerDay: U.clamp(Math.round(Number(f.get("recall")) || 5), 1, 15),
-    focusStrict: f.get("strict") === "on"
+    focusStrict: f.get("strict") === "on",
+    dietGoal: f.get("dietGoal") || null
   });
   U.toast("Impostazioni salvate");
 };

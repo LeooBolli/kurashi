@@ -13,13 +13,14 @@ const App = {
     { id: "focus", label: "Focus", icon: "tree" },
     { id: "hero", label: "Dojo", icon: "shield" },
     { id: "body", label: "Benessere", icon: "heart" },
+    { id: "food", label: "Alimentazione", icon: "bowl" },
     { id: "recall", label: "Riscoperte", icon: "quote" },
     { id: "reading", label: "Lettura", icon: "book" },
     { id: "settings", label: "Impostazioni", icon: "gear" }
   ],
 
   views() {
-    return { today: Today, habits: Habits, goals: Goals, insights: Insights, focus: Focus, hero: Dojo, body: Body, recall: Recall, reading: Reading, settings: Settings };
+    return { today: Today, habits: Habits, goals: Goals, insights: Insights, focus: Focus, hero: Dojo, body: Body, food: Food, recall: Recall, reading: Reading, settings: Settings };
   },
 
   start() {
@@ -133,7 +134,7 @@ Actions["reload"] = () => location.reload();
 Actions["quick-add"] = () => {
   const items = [
     ["habit", "Abitudine", "habit-new"], ["goal", "Obiettivo", "goal-new"], ["smile", "Umore", "mood-add"],
-    ["moon", "Sonno", "sleep-add"], ["scale", "Peso", "weight-add"], ["dumbbell", "Allenamento", "workout-add"],
+    ["moon", "Sonno", "sleep-add"], ["scale", "Peso", "weight-add"], ["dumbbell", "Allenamento", "workout-add"], ["bowl", "Pasto", "food-quick"],
     ["book", "Da leggere", "read-add"], ["tree", "Focus", "go"]
   ];
   Sheet.open({

@@ -40,6 +40,12 @@ const Export = {
       Sonno: [...d.sleep_logs].sort((a, b) => a.sleep_date.localeCompare(b.sleep_date)).map((s) => ({ Data: s.sleep_date, Ore: Number(s.hours), Qualità: s.quality ?? "" })),
       Peso: [...d.weight_logs].sort((a, b) => a.log_date.localeCompare(b.log_date)).map((w) => ({ Data: w.log_date, Kg: Number(w.kg) })),
       Allenamenti: [...d.workouts].sort((a, b) => a.workout_date.localeCompare(b.workout_date)).map((w) => ({ Data: w.workout_date, Tipo: w.kind, Minuti: w.minutes, Intensità: w.intensity ?? "", Nota: w.note || "" })),
+      Alimentazione: [...(d.meal_entries || [])].sort((a, b) => a.entry_date.localeCompare(b.entry_date) || Food.slotIdx(a.slot) - Food.slotIdx(b.slot) || a.position - b.position).map((e) => ({
+        Data: e.entry_date, Pasto: Food.slotLabel(e.slot), Cosa: e.name, Quantità: e.qty ?? "", Unità: e.unit || "",
+        Ingredienti: (e.items || []).map((i) => `${i.name}${i.qty != null ? " " + i.qty + " " + (i.unit || "") : ""}`).join(", "), Mangiato: this.yn(e.eaten), Fuori_programma: this.yn(e.extra)
+      })),
+      Ricettario: (d.foods || []).map((f) => ({ Nome: f.name, Tipo: Food.KINDS[f.kind], Quantità: f.qty ?? "", Unità: f.unit || "",
+        Contenuto: (f.items || []).map((i) => `${i.name}${i.qty != null ? " " + i.qty + " " + (i.unit || "") : ""}`).join(", "), Preferito: this.yn(f.favorite) })),
       Evidenziazioni: (d.highlights || []).map((h) => ({
         Testo: h.text, Nota: h.note || "", Fonte: h.source_title, Autore: h.source_author || "", Posizione: h.location || "", Tipo: h.source_kind || "",
         Link: h.source_url || "", Preferita: this.yn(h.favorite), Silenziata: this.yn(h.muted), Ripassi: h.times_reviewed || 0, Ultimo_ripasso: h.last_reviewed_on || ""
