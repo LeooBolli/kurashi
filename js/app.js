@@ -47,6 +47,7 @@ const App = {
       this.loaded = true;
       Game.init();
       Focus.init();
+      KetoPlan.apply();
       this.route();
     });
     window.addEventListener("hashchange", () => this.route());

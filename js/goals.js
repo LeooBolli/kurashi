@@ -143,7 +143,7 @@ const Goals = {
       </div>
 
       ${canHaveKids ? `<div class="block">
-        <div class="block-head"><h3>Obiettivi collegati</h3></div>
+        <div class="block-head"><h3>Obiettivi collegati</h3>${g.weight_linked && kids.length ? `<span class="muted small">non cambiano la % del peso</span>` : ""}</div>
         ${kids.length ? `<ul class="linked">${kids.map((k) => `<li data-act="goal-open" data-id="${k.id}" role="button"><span>${U.esc(k.title)}<small class="muted"> · ${HORIZONS[k.horizon].label} · ${Math.round(Calc.goalProgress(k))}%</small></span>${Icon.svg("right", 14)}</li>`).join("")}</ul>`
           : `<p class="muted small">Nessuno. Collega un obiettivo a breve o medio termine a questo scegliendolo come "genitore" dal suo modulo di modifica.</p>`}
       </div>` : ""}

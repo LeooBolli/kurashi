@@ -126,6 +126,7 @@ const Calc = {
   },
 
   // Le stesse fonti di avanzamento (tappe, abitudini, libri, obiettivi figli, peso), su un intervallo dato:
+  // (gli obiettivi figli non contano per un obiettivo di peso, vedi sotto)
   // così i normali obiettivi (intero periodo) e quelli ricorrenti (periodo corrente) condividono la logica.
   goalProgressParts(g, from, to, asOf) {
     const parts = [];
@@ -148,7 +149,8 @@ const Calc = {
     if (bk) parts.push(bk.pct);
     const wt = this.weightProgress(g, asOf, from);
     if (wt != null) parts.push(wt);
-    const kids = this.childGoals(g);
+    // Un obiettivo di peso resta misurato solo sul peso: i figli (es. la dieta) si vedono ma non entrano nella media
+    const kids = g.weight_linked ? [] : this.childGoals(g);
     if (kids.length) parts.push(U.avg(kids.map((k) => this.goalProgress(k, asOf))));
     if (!parts.length) return Number(g.manual_progress) || 0;
     return U.clamp(U.avg(parts), 0, 100);

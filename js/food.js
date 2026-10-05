@@ -556,7 +556,11 @@ const Food = {
           if (k === "meal") row.items = [...form.querySelectorAll("#meal-rows .meal-row")].map((r) => ({ ...JSON.parse(r.dataset.item), qty: num(r.querySelector("[name=ing-qty]").value) }));
           if (f) Store.update("foods", f.id, row); else Store.insert("foods", row);
           Sheet.close();
-          U.toast(f ? "Ricettario aggiornato" : "Aggiunto al ricettario");
+          // La quantità aggiunta nel ricettario arriva anche alle pietanze in programma che non ne hanno ancora una
+          const todo = f && k === "food" && row.qty != null
+            ? Store.d.meal_entries.filter((e) => e.food_id === f.id && e.entry_date >= U.today() && e.qty == null) : [];
+          todo.forEach((e) => Store.update("meal_entries", e.id, { qty: row.qty, unit: row.unit }));
+          U.toast(todo.length ? `Quantità aggiunta anche a ${todo.length} ${todo.length === 1 ? "pietanza" : "pietanze"} in programma` : f ? "Ricettario aggiornato" : "Aggiunto al ricettario");
         });
       }
     });
