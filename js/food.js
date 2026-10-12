@@ -579,6 +579,7 @@ const Food = {
     const hasWeek = Store.d.meal_entries.some((e) => !e.extra && e.entry_date >= mon && e.entry_date <= U.addDays(mon, 6));
     const items = [];
     if (hasDay) items.push(["copy", "Copia questo giorno su altre date", "food-copy", `data-kind="day"`]);
+    if (hasDay) items.push(["sync", "Scambia con un altro giorno", "food-swap"]);
     if (hasWeek) items.push(["copy", "Copia questa settimana su altre settimane", "food-copy", `data-kind="week"`]);
     if (hasDay) items.push(["star", "Salva il giorno come modello", "food-tpl-save", `data-kind="day"`]);
     if (hasWeek) items.push(["star", "Salva la settimana come modello", "food-tpl-save", `data-kind="week"`]);
@@ -621,8 +622,9 @@ const Food = {
 
   // ---------- scelta delle date (copia o modello) ----------
   // mode: "days" (griglia di giorni) | "weeks" (elenco di settimane)
-  openTargets({ title, mode, exclude = null, onApply, replaceScope }) {
-    this.target = { selected: new Set(), onApply, replaceScope, mode };
+  // single: si sceglie un solo giorno e onPick fa il lavoro (es. scambio), senza "sostituisci"
+  openTargets({ title, mode, exclude = null, onApply, replaceScope, single = false, onPick = null }) {
+    this.target = { selected: new Set(), onApply, replaceScope, mode, single, onPick };
     const start = U.mondayOf(this.sel() > U.today() ? this.sel() : U.today());
     let grid;
     if (mode === "days") {
@@ -641,7 +643,7 @@ const Food = {
     Sheet.open({
       title, wide: true,
       body: `<div class="form targets">${grid}
-        <label class="check tg-replace"><input type="checkbox" id="tg-replace" checked><span><b>Sostituisci quello che c'è già</b><small>${replaceScope === "slot" ? "Svuota quel pasto nei giorni scelti prima di copiare." : "Svuota i giorni scelti prima di copiare. Se lo togli, aggiungo in coda."}</small></span></label>
+        <label class="check tg-replace" ${single ? "hidden" : ""}><input type="checkbox" id="tg-replace" checked><span><b>Sostituisci quello che c'è già</b><small>${replaceScope === "slot" ? "Svuota quel pasto nei giorni scelti prima di copiare." : "Svuota i giorni scelti prima di copiare. Se lo togli, aggiungo in coda."}</small></span></label>
         <button class="btn primary wide" id="tg-go" data-act="food-target-go" disabled>Scegli ${mode === "days" ? "i giorni" : "le settimane"}</button></div>`,
       onClose: () => { this.target = null; }
     });
@@ -651,16 +653,23 @@ const Food = {
     const t = this.target;
     if (!t) return;
     const id = el.dataset.id;
-    if (t.selected.has(id)) t.selected.delete(id); else t.selected.add(id);
+    if (t.single) {
+      const was = t.selected.has(id);
+      t.selected.clear();
+      Sheet.el.querySelectorAll("[data-act=food-target].on").forEach((b) => b.classList.remove("on"));
+      if (!was) t.selected.add(id);
+    } else if (t.selected.has(id)) t.selected.delete(id); else t.selected.add(id);
     el.classList.toggle("on", t.selected.has(id));
     const go = Sheet.el.querySelector("#tg-go"), n = t.selected.size;
     go.disabled = !n;
+    if (t.single) { go.textContent = n ? `Scambia con il ${U.fmtShort(id)}` : "Scegli il giorno"; return; }
     go.textContent = n ? `Applica a ${n} ${t.mode === "days" ? (n === 1 ? "giorno" : "giorni") : (n === 1 ? "settimana" : "settimane")}` : `Scegli ${t.mode === "days" ? "i giorni" : "le settimane"}`;
   },
 
   applyTargets() {
     const t = this.target;
     if (!t || !t.selected.size) return;
+    if (t.single) { const [d] = [...t.selected]; Sheet.close(); t.onPick(d); return; }
     const replace = Sheet.el.querySelector("#tg-replace").checked ? t.replaceScope : null;
     const rows = t.onApply([...t.selected].sort());
     Sheet.close();
@@ -689,6 +698,19 @@ const Food = {
       onApply: (weeks) => weeks.flatMap((w) => tpl.entries.map((e) => ({ ...strip(e), entry_date: U.addDays(w, (e.dow || 1) - 1) }))) });
     else this.openTargets({ title: `Applica «${tpl.name}»`, mode: "days", replaceScope: "day",
       onApply: (dates) => dates.flatMap((d) => tpl.entries.map((e) => ({ ...strip(e), entry_date: d }))) });
+  },
+
+  // Scambia i pasti di due giorni, es. oggi con domani. Le spunte si azzerano: è un piano nuovo per entrambi
+  swap() {
+    const day = this.sel();
+    this.openTargets({ title: `Scambia il ${U.fmtShort(day)} con…`, mode: "days", exclude: day, single: true,
+      onPick: (other) => {
+        const a = Store.d.meal_entries.filter((e) => e.entry_date === day), b = Store.d.meal_entries.filter((e) => e.entry_date === other);
+        a.forEach((e) => Store.update("meal_entries", e.id, { entry_date: other, eaten: false }));
+        b.forEach((e) => Store.update("meal_entries", e.id, { entry_date: day, eaten: false }));
+        this.syncHabit([day, other]);
+        U.toast(`Scambiati ${U.fmtShort(day)} e ${U.fmtShort(other)}`);
+      } });
   },
 
   clear(slot = null) {
@@ -739,4 +761,5 @@ Actions["food-tpl-delete"] = (el) => { if (confirm("Eliminare questo modello? I 
 Actions["food-target"] = (el) => Food.toggleTarget(el);
 Actions["food-target-go"] = () => Food.applyTargets();
 Actions["food-clear-day"] = () => Food.clear();
+Actions["food-swap"] = () => Food.swap();
 Actions["food-clear-slot"] = (el) => Food.clear(el.dataset.slot);
