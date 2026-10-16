@@ -3,7 +3,7 @@
 // Le chiamate a Supabase e agli altri domini non vengono mai toccate.
 // ============================================================
 // Cambiare il numero ad ogni modifica dei file: forza il download dei nuovi.
-const CACHE_NAME = "kurashi-v16";
+const CACHE_NAME = "kurashi-v17";
 const APP_SHELL = [
   "./", "./index.html", "./css/style.css", "./css/dashboard.css", "./manifest.json",
   "./js/config.js", "./js/util.js", "./js/demo.js", "./js/store.js", "./js/calc.js", "./js/charts.js",
@@ -24,8 +24,10 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin || event.request.method !== "GET") return;
+  // "no-cache": chiede sempre al server se il file è cambiato (GitHub Pages altrimenti
+  // lascerebbe usare per 10 minuti la copia vecchia nella cache del browser)
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request.url, { cache: "no-cache", credentials: "same-origin" })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE_NAME).then((c) => c.put(event.request, copy));

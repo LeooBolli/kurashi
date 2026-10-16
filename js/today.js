@@ -67,6 +67,8 @@ const Today = (() => {
 
   const SIZE_NAMES = { c: "Cerchio", s: "Piccolo", p: "Capsula", mh: "Medio orizzontale", mv: "Medio verticale", lh: "Grande orizzontale", lv: "Grande verticale" };
   const SIZE_ORDER = ["c", "s", "p", "mh", "mv", "lh", "lv"];
+  const NEW_WIDGETS = ["nextHabit", "points", "workouts", "deadline", "clock", "exam", "toRead", "quick", "heat"];
+  const unseenNew = () => { const seen = Store.cfg().seenWidgets || []; const used = new Set((st.layout || []).map((l) => l[0])); return NEW_WIDGETS.filter((k) => !seen.includes(k) && !used.has(k)); };
   const sizeIcon = (s) => ({ c: '<circle cx="12" cy="9" r="7.5"/>', p: '<rect x="1" y="4.5" width="22" height="9" rx="4.5"/>', s: '<rect x="7" y="4" width="10" height="10" rx="3"/>', mh: '<rect x="2" y="5" width="20" height="9" rx="3"/>', mv: '<rect x="7" y="1" width="10" height="16" rx="3"/>', lh: '<rect x="1" y="2" width="22" height="14" rx="3"/>', lv: '<rect x="4" y="0.5" width="16" height="17" rx="3"/>' })[s];
   const DEFAULT = [["score", "c"], ["timer", "s"], ["calendar", "lv"], ["stats", "mh"], ["habits", "mv"], ["weight", "c"], ["streak", "c"], ["goals", "lh"], ["focusStats", "p"], ["quick", "p"], ["reading", "mh"], ["recall", "mh"], ["meals", "mh"], ["clock", "c"], ["points", "c"], ["deadline", "c"], ["nextHabit", "c"]];
 
@@ -698,7 +700,7 @@ const Today = (() => {
     bindOnce();
     const tools = st.editing
       ? `<button class="d-btn glassy" type="button" data-dash-tool="reset">${ic("reset", 16)}Ripristina</button><button class="d-btn glassy" type="button" data-dash-tool="add">${ic("plus", 16)}Widget</button><button class="d-btn deep" type="button" data-dash-tool="done">Fine</button>`
-      : `<button class="d-btn glassy" type="button" data-act="look-open">${ic("image", 16)}Aspetto</button><button class="d-btn deep" type="button" data-dash-tool="edit">${ic("edit", 16)}Modifica Home</button>`;
+      : `${unseenNew().length ? `<button class="d-btn orange-btn" type="button" data-dash-tool="add">${ic("star", 16)}${unseenNew().length} widget nuovi</button>` : ""}<button class="d-btn glassy" type="button" data-act="look-open">${ic("image", 16)}Aspetto</button><button class="d-btn deep" type="button" data-dash-tool="edit">${ic("edit", 16)}Modifica Home</button>`;
     el.innerHTML = `<div class="dash">
       <div class="d-bar"><h2>${st.editing ? "Modifica la Home" : "La tua giornata"}</h2><div class="d-tools">${tools}</div></div>
       <section class="d-grid ${st.editing ? "editing" : ""}" aria-label="Widget della Home">${st.layout.map(widgetHTML).join("")}${st.editing ? `<button type="button" class="d-w d-adder" data-size="s" data-dash-tool="add"><span class="d-plus">${ic("plus", 22, 2.4)}</span>Aggiungi widget</button>` : ""}</section>
@@ -752,11 +754,13 @@ const Today = (() => {
   }
   function openAdd() {
     const used = new Set(st.layout.map((l) => l[0]));
-    const free = Object.entries(W).filter(([k]) => !used.has(k));
+    const fresh = unseenNew();
+    const free = Object.entries(W).filter(([k]) => !used.has(k)).sort((a, b) => fresh.includes(b[0]) - fresh.includes(a[0]));
+    if (fresh.length) Store.setSettings({ seenWidgets: [...new Set([...(Store.cfg().seenWidgets || []), ...fresh])] });
     Sheet.open({
       title: "Aggiungi un widget",
       body: `<div class="dash-sheet">${free.length
-        ? `<div class="d-picks">${free.map(([k, d]) => `<button class="d-pick" type="button" data-pick="${k}"><span class="d-ic">${ic(d.icon, 17)}</span><b>${d.title}</b><small>${SIZE_ORDER.filter((x) => d.sizes.includes(x)).map((x) => SIZE_NAMES[x]).join(" · ")}</small></button>`).join("")}</div>`
+        ? `<div class="d-picks">${free.map(([k, d]) => `<button class="d-pick" type="button" data-pick="${k}"><span class="d-ic">${ic(d.icon, 17)}</span><b>${d.title}${fresh.includes(k) ? ` <em class="d-new">Nuovo</em>` : ""}</b><small>${SIZE_ORDER.filter((x) => d.sizes.includes(x)).map((x) => SIZE_NAMES[x]).join(" · ")}</small></button>`).join("")}</div>`
         : `<p class="d-note">Tutti i widget sono già nella Home. Rimuovine uno per spostarlo altrove.</p>`}</div>`,
       onMount: (root) => {
         root.addEventListener("click", (e) => {
