@@ -40,7 +40,6 @@ const U = {
   MONTHS: ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"],
   MONTHS_LONG: ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"],
   DOW_SHORT: ["L", "M", "M", "G", "V", "S", "D"],
-  DOW_KANJI: ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"],
   DOW_NAMES: ["domenica", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato"],
 
   fmtShort(s) { const d = U.parse(s); return `${d.getDate()} ${U.MONTHS[d.getMonth()]}`; },
@@ -159,6 +158,11 @@ const ICONS = {
   play: "M8 5l11 7-11 7z",
   bowl: "M3 11h18a9 9 0 0 1-18 0zM9 4c-1 1.2-1 2.300 0 3.500M13 4c-1 1.200-1 2.300 0 3.500M17 4c-1 1.200-1 2.300 0 3.500",
   dots: "M5 11.200a.8.8 0 1 0 0 1.600.8.8 0 1 0 0-1.600zM12 11.200a.8.8 0 1 0 0 1.600.8.8 0 1 0 0-1.600zM19 11.200a.8.8 0 1 0 0 1.600.8.8 0 1 0 0-1.600z",
+  briefcase: "M4 8h16v11H4zM9 8V5h6v3M4 13h16",
+  cap: "M2 9l10-5 10 5-10 5zM6 11v5c3 2 9 2 12 0v-5M22 9v5",
+  spark: "M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6",
+  palette: "M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.7-1.4-.7-2.2 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4c0-4.700-4-8.600-9-8.600zM7.5 12h.01M9.5 7.5h.01M14.5 7.5h.01",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
   seed: "M12 20v-7M12 13c0-4 2-6 6-6 0 4-2 6-6 6zM12 15c0-3-1.5-5-5-5 0 3 1.5 5 5 5z"
 };
 

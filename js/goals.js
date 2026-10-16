@@ -47,7 +47,7 @@ const Goals = {
 
     el.innerHTML = `
       <div class="page-head">
-        <div><p class="eyebrow">目標 · Obiettivi</p><h1 class="title">Dove stai <em>andando</em></h1>
+        <div><p class="eyebrow">Obiettivi</p><h1 class="title">Dove stai <em>andando</em></h1>
           ${total ? `<p class="sub">${onTrack} su ${total} in linea con il tempo</p>` : ""}</div>
         <button class="btn primary" data-act="goal-new">${Icon.svg("plus", 18)}<span>Nuovo</span></button>
       </div>

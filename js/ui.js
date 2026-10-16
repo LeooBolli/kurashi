@@ -85,18 +85,21 @@ const Tip = {
 // ---- Helper HTML per i form -------------------------------------------------
 const UI = {
   areaOptions(sel) {
-    return Object.entries(AREAS).map(([k, a]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${a.glyph}  ${a.label}</option>`).join("");
+    return Object.entries(AREAS).map(([k, a]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${a.label}</option>`).join("");
   },
 
   areaChip(area, small = false) {
     const a = AREAS[area] || AREAS.progetti;
-    return `<span class="chip ${small ? "chip-sm" : ""}" style="background:${a.tint}"><i class="glyph" style="color:${a.color}">${a.glyph}</i>${a.label}</span>`;
+    return `<span class="chip ${small ? "chip-sm" : ""}" style="background:${a.tint}"><i class="glyph" style="color:${a.color}">${Icon.svg(a.icon, 14)}</i>${a.label}</span>`;
   },
 
   glyph(area) {
     const a = AREAS[area] || AREAS.progetti;
-    return `<i class="glyph big" style="background:${a.tint};color:${a.color}">${a.glyph}</i>`;
+    return `<i class="glyph big" style="background:${a.tint};color:${a.color}">${Icon.svg(a.icon, 20)}</i>`;
   },
+
+  // Solo l'icona SVG di un'area (senza contenitore)
+  areaIcon(area, size = 16) { return Icon.svg((AREAS[area] || AREAS.progetti).icon, size); },
 
   // Selettore a pillole: <div class="seg" data-seg="name">
   seg(name, options, current) {

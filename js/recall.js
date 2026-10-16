@@ -2,7 +2,7 @@
 // Riscoperte: le evidenziazioni del tuo second brain (Kindle, Raindrop,
 // note) ripescate ogni giorno, stile Readwise. I contenuti arrivano da
 // scripts/sync_second_brain.py; qui si ripassano, si segnano come
-// preferite o si silenziano. Rivedere un'evidenziazione dà XP.
+// preferite o si silenziano.
 // ============================================================
 const Recall = {
   tab: "today",       // today | library | favorites
@@ -154,7 +154,7 @@ const Recall = {
     if (!all.length) body = `<div class="card">${this.empty()}</div>`;
     else if (this.tab === "today") {
       const allDone = items.length && doneN === items.length;
-      body = `${allDone ? `<div class="card recall-done big">${Icon.svg("check", 26)}<div><b>Fatto per oggi</b><p class="muted small">Hai ripassato ${doneN} evidenziazioni. Ogni ripasso vale +${Game.CFG.xpReview} XP.</p></div></div>` : ""}
+      body = `${allDone ? `<div class="card recall-done big">${Icon.svg("check", 26)}<div><b>Fatto per oggi</b><p class="muted small">Hai ripassato ${doneN} evidenziazioni.</p></div></div>` : ""}
         <div class="quote-list">${items.map((h) => this.card(h, { review: true, done: r.done.includes(h.id) })).join("")}</div>
         <div class="btn-row"><button class="btn ghost" data-act="quote-more">${Icon.svg("plus", 16)} Altre 3 per oggi</button></div>`;
     } else {
@@ -167,7 +167,7 @@ const Recall = {
 
     el.innerHTML = `
       <div class="page-head">
-        <div><p class="eyebrow">再読 · Riscoperte</p><h1 class="title">Le tue <em>sottolineature</em></h1>
+        <div><p class="eyebrow">Riscoperte</p><h1 class="title">Le tue <em>sottolineature</em></h1>
           <p class="sub">${all.length} evidenziazioni da ${sources} fonti · ${favs} preferite · ${reviewed} ripassi</p></div>
       </div>
       ${all.length ? `<div class="seg tabs4 recall-tabs">

@@ -32,8 +32,7 @@ const Export = {
         Completata: this.yn(m.done), Data_completamento: m.done_at ? U.dateOf(m.done_at) : ""
       })),
       Focus: [...d.focus_sessions].sort((a, b) => a.started_at.localeCompare(b.started_at)).map((s) => ({
-        Inizio: `${U.dateOf(s.started_at)} ${U.fmtTime(s.started_at)}`, Minuti: s.duration_min, Completata: this.yn(s.completed), XP: s.xp || 0, Ryo: s.ryo || 0, Yokai: (Game.zone(s.creature) || {}).label || "",
-        Boss: s.boss ? (Game.boss(s.boss) || {}).label || s.boss : "", Danno_boss: s.dmg || 0,
+        Inizio: `${U.dateOf(s.started_at)} ${U.fmtTime(s.started_at)}`, Minuti: s.duration_min, Completata: this.yn(s.completed),
         Obiettivo: this.goalName(s.goal_id), Abitudine: this.habitName(s.habit_id), Esame: (d.milestones.find((m) => m.id === s.milestone_id) || {}).title || ""
       })),
       Umore_energia: [...d.mood_logs].sort((a, b) => a.logged_at.localeCompare(b.logged_at)).map((m) => ({ Data: U.dateOf(m.logged_at), Ora: U.fmtTime(m.logged_at), Umore: m.mood ?? "", Energia: m.energy ?? "", Nota: m.note || "" })),

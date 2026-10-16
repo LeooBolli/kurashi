@@ -69,7 +69,7 @@ const Insights = {
     const areaRows = Object.entries(AREAS).map(([k, a]) => {
       const hs = Calc.activeHabits().filter((h) => h.area === k);
       const r = hs.length ? Calc.rate(from, today, hs) : null;
-      return r == null ? null : { label: a.label, glyph: a.glyph, color: a.color, tint: a.tint, v: r, tip: `${a.label}: ${Math.round(r)}% in ${n} giorni · ${hs.length} abitudini` };
+      return r == null ? null : { label: a.label, icon: a.icon, color: a.color, tint: a.tint, v: r, tip: `${a.label}: ${Math.round(r)}% in ${n} giorni · ${hs.length} abitudini` };
     }).filter(Boolean).sort((a, b) => b.v - a.v);
 
     // ---- mappa di calore complessiva ----
@@ -83,7 +83,7 @@ const Insights = {
 
     el.innerHTML = `
       <div class="page-head">
-        <div><p class="eyebrow">統計 · Statistiche</p><h1 class="title">Come sta <em>andando</em></h1></div>
+        <div><p class="eyebrow">Statistiche</p><h1 class="title">Come sta <em>andando</em></h1></div>
         <div class="seg range">${[7, 30, 90].map((d) => `<button class="${n === d ? "on" : ""}" data-act="ins-range" data-id="${d}">${d} giorni</button>`).join("")}</div>
       </div>
 

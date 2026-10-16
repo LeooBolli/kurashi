@@ -243,7 +243,7 @@ const Food = {
     const head = { plan: ["Il tuo <em>piano</em>"], book: ["Il tuo <em>ricettario</em>"], templates: ["I tuoi <em>modelli</em>"] }[this.tab];
     el.innerHTML = `
       <div class="page-head">
-        <div><p class="eyebrow">食事 · Alimentazione</p><h1 class="title">${head[0]}</h1></div>
+        <div><p class="eyebrow">Alimentazione</p><h1 class="title">${head[0]}</h1></div>
         <button class="btn primary" data-act="food-new">${Icon.svg("plus", 18)}<span>Ricettario</span></button>
       </div>
       ${this.bannerHTML()}

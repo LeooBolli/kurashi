@@ -142,11 +142,11 @@ const Charts = {
     return `<svg viewBox="0 0 ${W} ${H}" class="heatmap" role="img" aria-label="${U.esc(name)}">${out}</svg>`;
   },
 
-  // Barre orizzontali con etichetta. rows: [{label, glyph, color, v(0-100), tip}]
+  // Barre orizzontali con etichetta. rows: [{label, icon, color, v(0-100), tip}]
   hbars(rows) {
     return `<div class="hbars">${rows.map((r) => `
       <div class="hbar"${this._tip(r.tip)}>
-        <span class="hbar-l"><i class="glyph" style="background:${r.tint || "var(--blue-100)"};color:var(--ink-2)">${r.glyph || ""}</i>${U.esc(r.label)}</span>
+        <span class="hbar-l"><i class="glyph" style="background:${r.tint || "var(--blue-100)"};color:var(--ink-2)">${r.icon ? Icon.svg(r.icon, 14) : ""}</i>${U.esc(r.label)}</span>
         <span class="hbar-t"><i style="width:${U.clamp(r.v, 0, 100)}%;background:${r.color}"></i></span>
         <span class="hbar-v">${Math.round(r.v)}%</span>
       </div>`).join("")}</div>`;

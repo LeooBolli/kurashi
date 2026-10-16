@@ -1,8 +1,8 @@
-# Kurashi 暮らし
+# Kurashi
 
 App web (PWA) personale per gestire la vita: **abitudini** (sì/no e quantitative),
 **obiettivi** a breve (1 mese), medio (4 mesi) e lungo termine (1 anno o più) collegati
-alle abitudini, **statistiche/KPI** con grafici, **caccia agli yokai** (focus timer gamificato) con livelli, HP, equipaggiamento e un Dojo,
+alle abitudini, **statistiche/KPI** con grafici, **timer di focus**, una **Home a widget** spostabili e ridimensionabili,
 **benessere** (umore, energia, sonno, peso, allenamenti), **lettura** (libri da Goodreads con
 avanzamento a pagine + bookmark di Raindrop.io), sincronizzazione degli obiettivi con Notion, export Excel e CSV.
 
@@ -89,7 +89,7 @@ id stabile (`<!-- id:… -->`), le altre un hash di file + testo. Se un'evidenzi
 da un file, sparisce anche dall'app; per sicurezza si ferma se dovrebbe cancellarne troppe.
 Prova a secco: `python3 scripts/sync_second_brain.py --dry-run`.
 
-Nell'app: *Ricordo* (ripasso, +4 XP), ★ preferita (esce più spesso), «non riproporre»,
+Nell'app: *Ricordo* (ripasso), ★ preferita (esce più spesso), «non riproporre»,
 «Altre 3 per oggi», libreria con ricerca e filtri. Sotto i 30 caratteri (es. il nome di un
 canale) non viene proposta ma resta in libreria.
 
@@ -131,45 +131,34 @@ Su iPhone: Safari → Condividi → *Aggiungi alla schermata Home*.
   su Open Library. Poi segni le pagine (+10, oppure «Pagina») e vedi la percentuale.
 - **Punteggio 0-100** (ultimi 7 giorni): abitudini 35%, obiettivi 25%, benessere 25%,
   focus 15%; le voci senza dati non contano. Si aggiorna in tempo reale.
-- **Focus = caccia allo yokai**: lo yokai si indebolisce mentre resti concentrato; a fine
-  timer viene sigillato (1 XP al minuto, 1 ryo ogni 5 minuti), con bonus a catena fino a ×2.
-  Se rinunci scappa e ti colpisce (**−12 HP**) e la serie riparte.
-  - **Cambio app:** hai **10 secondi** per tornare, altrimenti lo yokai scappa.
+- **Focus**: timer con durata a scelta (15/25/45/60 minuti o ±5), da dedicare a un obiettivo,
+  a un esame o a un'abitudine in minuti (i minuti si sommano lì).
+  - **Cambio app:** hai **10 secondi** per tornare, altrimenti la sessione si interrompe
+    (si può disattivare da Impostazioni).
   - **Schermo bloccato:** tocca prima **«Blocco lo schermo»** (un tocco, poi il tasto laterale):
-    il timer va avanti anche a telefono bloccato e al rientro trovi lo yokai sigillato, senza danni.
+    il timer va avanti anche a telefono bloccato.
   - *Perché un tocco?* Il browser non può distinguere «blocco lo schermo» da «cambio app»: per
     una pagina web è lo stesso evento. Solo un'app nativa potrebbe saperlo da sola.
   - Il tempo si calcola dall'orario di inizio, quindi il timer è sempre esatto.
-  - Da Impostazioni si può spegnere del tutto la fuga dello yokai (nessun danno, mai).
-- **Gioco (stile Habitica)**: XP e ryo (両) arrivano da abitudini (+10 XP, +5 両), tappe
-  (+30/+15), obiettivi completati (+150/+75) e yokai sigillati. Il focus è diviso in
-  **4 zone** (Hitodama → Chōchin-obake → Kasa-obake → Oni), ognuna con un **boss** di fine
-  zona: puoi dedicargli una sfida invece che a uno yokai comune, e ogni sessione completata
-  gli toglie danno (minuti × attacco dell'arma equipaggiata) finché non è sconfitto. Per
-  passare alla zona successiva serve **sia** il livello richiesto **sia** aver sconfitto il
-  boss precedente.
-  Ogni oggetto ha un potere vero, non solo estetico: le **armi** (bokken, fude, katana, e la
-  Masamune sbloccata sconfiggendo il Tengu) danneggiano i boss; i **cappelli** rigenerano HP
-  nel tempo; le **vesti** aumentano gli HP massimi; i **compagni** danno un bonus percentuale
-  a XP o ryo guadagnati (ricalcolato dal vivo, come il resto).
-  Gli **HP** calano se lo yokai scappa (−12) o se salti un'abitudine prevista (−2, max −5 al
-  giorno) e guariscono da soli dopo 7 giorni, oppure con una pozione. Nel **Dojo**
-  personalizzi l'eroe, consulti il bestiario (zone, boss e barra vita) e sblocchi 14 traguardi.
-  XP, ryo, HP e danno ai boss sono *calcolati* dai tuoi dati: se correggi un giorno passato, o
-  cambi equipaggiamento, si correggono da soli. Nel database restano solo acquisti ed
-  equipaggiamento (nelle impostazioni).
+- **Home a widget**: in *Modifica Home* sposti i widget trascinandoli, scegli fra 5 formati
+  (piccolo, medio orizzontale/verticale, grande orizzontale/verticale), ne togli o ne aggiungi.
+  La disposizione si salva nelle impostazioni ed è la stessa su tutti i dispositivi.
+- **Aspetto** (Impostazioni → Aspetto): palette di colori, opacità del vetro, luminosità dello
+  sfondo, sfondo morbido a colori o foto in bianco e nero (anche tue: vanno nel bucket privato
+  `kurashi-backgrounds` creato da `supabase/schema.sql`). Tema chiaro/scuro dall'interruttore in alto.
+- **Meteo**: in alto, da Open-Meteo (gratis, senza chiave), per la città scelta in Impostazioni.
 - **Tempo reale**: le modifiche sono immediate e si sincronizzano tra i dispositivi.
 
 ## Struttura
 
 ```
 index.html · manifest.json · sw.js
-css/style.css                 design system (carta washi, blu e arancio pastello)
+css/style.css · dashboard.css design system (liquid glass, blu e arancio) · widget della Home
 js/config.js                  Supabase, email, aree e orizzonti
 js/store.js · calc.js         dati (Supabase/demo) e logica dei KPI
 js/charts.js                  grafici SVG (anelli, colonne, linee, heatmap)
-js/game.js                    XP, HP, negozio, yokai ed eroe (SVG)
-js/today · habits · goals · focus · dojo · body · reading · recall · insights · settings · export
+js/shell.js                   cornice: aspetto, tema, barra laterale, testata con meteo
+js/today · habits · goals · focus · body · reading · recall · insights · settings · export
 scripts/sync_second_brain.py  vault .md → Supabase (Riscoperte)
 scripts/install-second-brain-sync.sh   Portachiavi + LaunchAgent
 supabase/schema.sql           tabelle, RLS, realtime

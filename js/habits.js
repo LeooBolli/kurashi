@@ -52,12 +52,12 @@ const Habits = {
 
     el.innerHTML = `
       <div class="page-head">
-        <div><p class="eyebrow">習慣 · Abitudini</p><h1 class="title">Le tue <em>abitudini</em></h1></div>
+        <div><p class="eyebrow">Abitudini</p><h1 class="title">Le tue <em>abitudini</em></h1></div>
         <button class="btn primary" data-act="habit-new">${Icon.svg("plus", 18)}<span>Nuova</span></button>
       </div>
       ${usedAreas.length > 1 ? `<div class="chips-row filters">
         <button class="pill ${this.filter === "all" ? "on" : ""}" data-act="habit-filter" data-id="all">Tutte</button>
-        ${usedAreas.map((a) => `<button class="pill ${this.filter === a ? "on" : ""}" data-act="habit-filter" data-id="${a}">${AREAS[a].glyph} ${AREAS[a].label}</button>`).join("")}
+        ${usedAreas.map((a) => `<button class="pill ${this.filter === a ? "on" : ""}" data-act="habit-filter" data-id="${a}">${UI.areaIcon(a, 14)} ${AREAS[a].label}</button>`).join("")}
       </div>` : ""}
       ${list.length ? `<div class="list">${list.map((h) => {
         const streak = Calc.streak(h);

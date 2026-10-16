@@ -213,18 +213,6 @@ const Calc = {
   focusMinutes(from, to) {
     return U.sum(this.focusDone().filter((s) => { const d = U.dateOf(s.started_at); return d >= from && d <= to; }).map((s) => s.duration_min));
   },
-  // Sessioni consecutive sigillate senza uscire (dalla più recente all'indietro)
-  focusChain() {
-    const all = [...Store.d.focus_sessions].sort((a, b) => b.started_at.localeCompare(a.started_at));
-    let n = 0;
-    for (const s of all) { if (s.completed) n++; else break; }
-    return n;
-  },
-  // Bonus a catena: +20% per ogni yokai sigillato di fila, fino a x2
-  comboFor(minutes, chain) {
-    const mult = 1 + 0.2 * Math.min(chain, 5);
-    return { mult, xp: Math.round(minutes * mult), ryo: Math.max(1, Math.round((minutes / 5) * mult)) };
-  },
 
   // ---------- Benessere ----------
   moodByDay(from, to, field) {

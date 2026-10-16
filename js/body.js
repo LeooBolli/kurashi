@@ -11,7 +11,7 @@ const Body = {
   render(el) {
     el.innerHTML = `
       <div class="page-head">
-        <div><p class="eyebrow">心身 · Benessere</p><h1 class="title">Corpo e <em>mente</em></h1></div>
+        <div><p class="eyebrow">Benessere</p><h1 class="title">Corpo e <em>mente</em></h1></div>
         <button class="btn primary" data-act="body-add">${Icon.svg("plus", 18)}<span>Registra</span></button>
       </div>
       <div class="seg tabs4">${this.TABS.map(([k, l]) => `<button class="${this.tab === k ? "on" : ""}" data-act="body-tab" data-id="${k}">${l}</button>`).join("")}</div>

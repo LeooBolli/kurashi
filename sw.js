@@ -3,11 +3,11 @@
 // Le chiamate a Supabase e agli altri domini non vengono mai toccate.
 // ============================================================
 // Cambiare il numero ad ogni modifica dei file: forza il download dei nuovi.
-const CACHE_NAME = "kurashi-v14";
+const CACHE_NAME = "kurashi-v15";
 const APP_SHELL = [
-  "./", "./index.html", "./css/style.css", "./manifest.json",
+  "./", "./index.html", "./css/style.css", "./css/dashboard.css", "./manifest.json",
   "./js/config.js", "./js/util.js", "./js/demo.js", "./js/store.js", "./js/calc.js", "./js/charts.js",
-  "./js/auth.js", "./js/ui.js", "./js/game.js", "./js/habits.js", "./js/goals.js", "./js/today.js", "./js/focus.js", "./js/dojo.js",
+  "./js/auth.js", "./js/ui.js", "./js/shell.js", "./js/habits.js", "./js/goals.js", "./js/today.js", "./js/focus.js",
   "./js/body.js", "./js/food.js", "./js/plan-keto.js", "./js/reading.js", "./js/recall.js", "./js/insights.js", "./js/export.js", "./js/settings.js", "./js/app.js"
 ];
 

@@ -8,7 +8,7 @@ const Settings = {
     const cfg = Store.cfg();
     const sets = Object.keys(Export.datasets());
     el.innerHTML = `
-      <div class="page-head"><div><p class="eyebrow">設定 · Impostazioni</p><h1 class="title">Su <em>misura</em></h1></div></div>
+      <div class="page-head"><div><p class="eyebrow">Impostazioni</p><h1 class="title">Su <em>misura</em></h1></div></div>
       <div class="settings">
         <section class="card">
           <h3>Traguardi personali</h3>
@@ -24,9 +24,20 @@ const Settings = {
             <label>Obiettivo collegato all'alimentazione<select name="dietGoal"><option value="">Automatico: il primo obiettivo di peso</option>${Calc.activeGoals().map((g) => `<option value="${g.id}" ${g.id === cfg.dietGoal ? "selected" : ""}>${U.esc(g.title)}</option>`).join("")}</select>
               <small class="muted">In Alimentazione vedi a che punto sei, e nell'obiettivo quanti giorni hai rispettato la dieta.</small></label>
             <label class="check"><input name="strict" type="checkbox" ${cfg.focusStrict ? "checked" : ""}>
-              <span><b>Lo yokai scappa se esco dall'app</b><small>Se cambi app per più di 10 secondi perdi HP. Per bloccare lo schermo tocca «Blocco lo schermo» nel timer. Disattivo: nessun danno, mai.</small></span></label>
+              <span><b>Interrompi la sessione se esco dall'app</b><small>Se cambi app per più di 10 secondi la sessione di focus si interrompe. Per bloccare lo schermo tocca «Blocco lo schermo» nel timer. Disattivo: la sessione continua sempre.</small></span></label>
             <label>Evidenziazioni da ripassare al giorno<input name="recall" type="number" min="1" max="15" step="1" value="${cfg.recallPerDay}"></label>
             <button class="btn primary" type="submit">Salva</button>
+          </form>
+        </section>
+
+        <section class="card">
+          <h3>Aspetto</h3>
+          <p class="muted small">Colori, vetro dei widget, luminosità e sfondo. Valgono su tutti i tuoi dispositivi; il tema chiaro o scuro si sceglie dall'interruttore in alto.</p>
+          <div class="btn-row"><button class="btn primary" data-act="look-open">${Icon.svg("palette", 16)} Personalizza l'aspetto</button></div>
+          <form class="form" data-act-submit="weather-save">
+            <label>Città per il meteo<input name="city" maxlength="60" placeholder="Vuoto = posizione del dispositivo" value="${U.esc(cfg.weatherCity || "")}">
+              <small class="muted">Lascia vuoto per usare la posizione del dispositivo (il browser ti chiede il permesso). Il meteo arriva da Open-Meteo, gratuito e senza account.</small></label>
+            <button class="btn ghost" type="submit">Salva città</button>
           </form>
         </section>
 

@@ -237,7 +237,10 @@ create table if not exists settings (
 );
 
 -- ------------------------------------------------------------
--- SICUREZZA: RLS - ognuno vede e modifica solo le proprie righe
+-- SICUREZZA: RLS - solo le proprie righe, e solo dall'account di Kurashi.
+-- Il progetto Supabase è condiviso con PDTravel, che ha altri account:
+-- quelli possono fare login ma qui non leggono né scrivono nulla.
+-- (Stessa email di ALLOWED_EMAIL in js/config.js.)
 -- ------------------------------------------------------------
 do $$
 declare t text;
@@ -250,7 +253,9 @@ begin
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists "own rows" on %I', t);
     execute format(
-      'create policy "own rows" on %I for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid())',
+      'create policy "own rows" on %I for all to authenticated '
+      'using (user_id = auth.uid() and (auth.jwt() ->> ''email'') = ''23leo07@gmail.com'') '
+      'with check (user_id = auth.uid() and (auth.jwt() ->> ''email'') = ''23leo07@gmail.com'')',
       t
     );
   end loop;
@@ -331,6 +336,15 @@ alter table milestones add column if not exists exam_grade text;
 
 -- Una sessione di focus può essere dedicata a un esame specifico (come già per obiettivo/abitudine)
 alter table focus_sessions add column if not exists milestone_id uuid references milestones(id) on delete set null;
+
+-- Sfondi personali (Impostazioni → Aspetto): foto già ridotte e in bianco e nero, in un bucket
+-- privato. Ogni file sta in una cartella col proprio user id; solo l'account di Kurashi lo vede.
+insert into storage.buckets (id, name, public) values ('kurashi-backgrounds', 'kurashi-backgrounds', false)
+  on conflict (id) do nothing;
+drop policy if exists "kurashi backgrounds own" on storage.objects;
+create policy "kurashi backgrounds own" on storage.objects for all to authenticated
+  using (bucket_id = 'kurashi-backgrounds' and (storage.foldername(name))[1] = auth.uid()::text and (auth.jwt() ->> 'email') = '23leo07@gmail.com')
+  with check (bucket_id = 'kurashi-backgrounds' and (storage.foldername(name))[1] = auth.uid()::text and (auth.jwt() ->> 'email') = '23leo07@gmail.com');
 
 -- Fa riconoscere subito le tabelle nuove all'API
 notify pgrst, 'reload schema';

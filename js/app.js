@@ -6,12 +6,11 @@ const App = {
   loaded: false,
 
   NAV: [
-    { id: "today", label: "Oggi", icon: "home", tab: true },
+    { id: "today", label: "Home", icon: "home", tab: true },
     { id: "habits", label: "Abitudini", icon: "habit", tab: true },
     { id: "goals", label: "Obiettivi", icon: "goal", tab: true },
     { id: "insights", label: "Statistiche", icon: "chart", tab: true },
-    { id: "focus", label: "Focus", icon: "tree" },
-    { id: "hero", label: "Dojo", icon: "shield" },
+    { id: "focus", label: "Focus", icon: "clock" },
     { id: "body", label: "Benessere", icon: "heart" },
     { id: "food", label: "Alimentazione", icon: "bowl" },
     { id: "recall", label: "Riscoperte", icon: "quote" },
@@ -20,11 +19,12 @@ const App = {
   ],
 
   views() {
-    return { today: Today, habits: Habits, goals: Goals, insights: Insights, focus: Focus, hero: Dojo, body: Body, food: Food, recall: Recall, reading: Reading, settings: Settings };
+    return { today: Today, habits: Habits, goals: Goals, insights: Insights, focus: Focus, body: Body, food: Food, recall: Recall, reading: Reading, settings: Settings };
   },
 
   start() {
     Tip.init();
+    Shell.boot();
     this.buildNav();
     this.bind();
     Store.on(() => this.render());
@@ -45,8 +45,8 @@ const App = {
         return;
       }
       this.loaded = true;
-      Game.init();
       Focus.init();
+      Shell.ready();
       KetoPlan.apply();
       this.route();
     });
@@ -71,6 +71,8 @@ const App = {
     const cur = this.NAV.find((n) => n.id === this.view);
     document.getElementById("top-title").textContent = cur ? cur.label : "";
     document.body.dataset.view = this.view;
+    Shell.renderHeader(this.view);
+    Shell.placeNotch(true);
   },
 
   go(view) {
@@ -136,7 +138,7 @@ Actions["quick-add"] = () => {
   const items = [
     ["habit", "Abitudine", "habit-new"], ["goal", "Obiettivo", "goal-new"], ["smile", "Umore", "mood-add"],
     ["moon", "Sonno", "sleep-add"], ["scale", "Peso", "weight-add"], ["dumbbell", "Allenamento", "workout-add"], ["bowl", "Pasto", "food-quick"],
-    ["book", "Da leggere", "read-add"], ["tree", "Focus", "go"]
+    ["book", "Da leggere", "read-add"], ["clock", "Focus", "go"]
   ];
   Sheet.open({
     title: "Aggiungi",

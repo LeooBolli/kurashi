@@ -6,7 +6,7 @@ const Demo = {
     const rnd = U.rng(42);
     const today = U.today();
     const iso = (date, h = 9, m = 0) => new Date(`${date}T${U.pad(h)}:${U.pad(m)}:00`).toISOString();
-    const db = { settings: { focusWeeklyMin: 600, sleepTarget: 8, weightTarget: 74, game: { owned: ["hachimaki", "bokken"], equipped: { hat: "hachimaki", weapon: "bokken" }, potions: [] } } };
+    const db = { settings: { focusWeeklyMin: 600, sleepTarget: 8, weightTarget: 74 } };
     TABLES.forEach((t) => (db[t] = []));
 
     const mk = (o) => ({ id: U.uid(), created_at: iso(U.addDays(today, -60)), ...o });
@@ -70,10 +70,9 @@ const Demo = {
       for (let k = 0; k < n; k++) {
         const dur = [25, 25, 45, 50][Math.floor(rnd() * 4)];
         const ok = rnd() > 0.15;
-        const creature = ["hitodama", "hitodama", "chochin", "kasa"][Math.floor(rnd() * 4)];
         db.focus_sessions.push(mk({
-          started_at: iso(date, 9 + k * 3, 10), duration_min: dur, completed: ok, xp: ok ? dur : 0, ryo: ok ? Math.round(dur / 5) : 0,
-          creature, goal_id: rnd() > 0.5 ? g.app.id : null, label: null, created_at: iso(date, 9 + k * 3, 10)
+          started_at: iso(date, 9 + k * 3, 10), duration_min: dur, completed: ok,
+          goal_id: rnd() > 0.5 ? g.app.id : null, label: null, created_at: iso(date, 9 + k * 3, 10)
         }));
       }
     }

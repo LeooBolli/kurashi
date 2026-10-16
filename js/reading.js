@@ -75,7 +75,7 @@ const Reading = {
 
     el.innerHTML = `
       <div class="page-head">
-        <div><p class="eyebrow">読書 · Lettura</p><h1 class="title">Da <em>leggere</em></h1>
+        <div><p class="eyebrow">Lettura</p><h1 class="title">Da <em>leggere</em></h1>
           <p class="sub">${booksDone} ${booksDone === 1 ? "libro finito" : "libri finiti"} · ${doneMonth} letti questo mese · ${counts.todo + counts.reading} in coda</p></div>
         <div class="btn-row nowrap">
           <button class="btn ghost" data-act="read-sync" aria-label="Sincronizza Raindrop" ${this.syncing ? "disabled" : ""}>${Icon.svg("sync", 16, this.syncing ? "spin" : "")}<span class="hide-sm">${this.syncing ? "Sincronizzo…" : "Raindrop"}</span></button>
