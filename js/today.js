@@ -32,7 +32,16 @@ const Today = (() => {
     right: '<path d="M9 6l6 6-6 6"/>',
     up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
     down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
-    flat: '<path d="M5 12h14"/>'
+    flat: '<path d="M5 12h14"/>',
+    run: '<circle cx="14" cy="4.5" r="2"/><path d="M8 21l3-6 3 3v-6l-3-2-3 3M14 12l3 3h3"/>',
+    hourglass: '<path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    cap: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>',
+    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    bolt: '<path d="M13 3L5 13h6l-1 8 8-10h-6z"/>',
+    grid: '<rect x="4" y="4" width="6" height="6" rx="3"/><rect x="14" y="4" width="6" height="6" rx="3"/><rect x="4" y="14" width="6" height="6" rx="3"/><rect x="14" y="14" width="6" height="6" rx="3"/>',
+    star: '<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5l-5.4 3 1.2-6-4.5-4.2 6.1-.7z"/>',
+    scaleAdd: '<rect x="3" y="4" width="18" height="16" rx="5"/><path d="M8 10a5 5 0 0 1 8 0l-3 2"/>'
   };
   const ic = (n, s = 18, w = 1.8) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ""}</svg>`;
   const esc = (s) => U.esc(s);
@@ -56,9 +65,10 @@ const Today = (() => {
     suppressClick: false
   };
 
-  const SIZE_NAMES = { s: "Piccolo", mh: "Medio orizzontale", mv: "Medio verticale", lh: "Grande orizzontale", lv: "Grande verticale" };
-  const sizeIcon = (s) => ({ s: '<rect x="7" y="4" width="10" height="10" rx="3"/>', mh: '<rect x="2" y="5" width="20" height="9" rx="3"/>', mv: '<rect x="7" y="1" width="10" height="16" rx="3"/>', lh: '<rect x="1" y="2" width="22" height="14" rx="3"/>', lv: '<rect x="4" y="0.5" width="16" height="17" rx="3"/>' })[s];
-  const DEFAULT = [["score", "s"], ["timer", "s"], ["calendar", "lv"], ["stats", "mh"], ["habits", "mv"], ["weight", "s"], ["streak", "s"], ["goals", "lh"], ["reading", "mh"], ["recall", "mh"], ["meals", "mh"], ["focusStats", "mh"]];
+  const SIZE_NAMES = { c: "Cerchio", s: "Piccolo", p: "Capsula", mh: "Medio orizzontale", mv: "Medio verticale", lh: "Grande orizzontale", lv: "Grande verticale" };
+  const SIZE_ORDER = ["c", "s", "p", "mh", "mv", "lh", "lv"];
+  const sizeIcon = (s) => ({ c: '<circle cx="12" cy="9" r="7.5"/>', p: '<rect x="1" y="4.5" width="22" height="9" rx="4.5"/>', s: '<rect x="7" y="4" width="10" height="10" rx="3"/>', mh: '<rect x="2" y="5" width="20" height="9" rx="3"/>', mv: '<rect x="7" y="1" width="10" height="16" rx="3"/>', lh: '<rect x="1" y="2" width="22" height="14" rx="3"/>', lv: '<rect x="4" y="0.5" width="16" height="17" rx="3"/>' })[s];
+  const DEFAULT = [["score", "c"], ["timer", "s"], ["calendar", "lv"], ["stats", "mh"], ["habits", "mv"], ["weight", "c"], ["streak", "c"], ["goals", "lh"], ["focusStats", "p"], ["quick", "p"], ["reading", "mh"], ["recall", "mh"], ["meals", "mh"], ["clock", "c"], ["points", "c"], ["deadline", "c"], ["nextHabit", "c"]];
 
   // ---------- Pezzi comuni ----------
   const head = (icon, title, sub, right = "") => `<header class="d-wh"><span class="d-ic">${ic(icon, 17)}</span><div class="d-tt"><h3>${title}</h3>${sub ? `<p>${sub}</p>` : ""}</div>${right ? `<div class="d-right">${right}</div>` : ""}</header>`;
@@ -72,6 +82,21 @@ const Today = (() => {
   const track = (pct, label) => `<div class="d-track" role="img" aria-label="${label || Math.round(pct) + "%"}"><i style="width:${U.clamp(pct, 0, 100)}%"></i></div>`;
   const hours = (min) => U.num(min / 60, 1);
   const mmss = (sec) => { const s = Math.max(0, Math.ceil(sec)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60; return h ? `${h}:${U.pad(m)}:${U.pad(r)}` : `${U.pad(m)}:${U.pad(r)}`; };
+
+  // ---------- Forme: cerchio (1×1) e capsula (2×1) ----------
+  // Ogni widget che le supporta ha mini(): { icon, title, value, unit, cap, p (0..1 o null), cls, action }
+  const arc = (p, cls = "") => {
+    const r = 46, c = 2 * Math.PI * r, v = p == null ? null : U.clamp(p, 0, 1);
+    return v == null ? "" : `<svg class="d-cring ${cls}" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="${r}" class="t"/>${v > 0 ? `<circle cx="50" cy="50" r="${r}" class="v" stroke-dasharray="${(c * v).toFixed(1)} ${c.toFixed(1)}"/>` : ""}</svg>`;
+  };
+  function shapeHTML(sz, def, m) {
+    const val = `${m.value}${m.unit ? `<span class="d-u">${m.unit}</span>` : ""}`;
+    if (sz === "c") return { cls: m.cls, html: `${arc(m.p)}<div class="d-circ"><span class="d-ic">${ic(m.icon || def.icon, 16)}</span><div class="d-cv">${val}</div>${m.cap ? `<small>${m.cap}</small>` : ""}${m.action || ""}</div>` };
+    const left = m.p != null
+      ? `<div class="d-pring">${arc(m.p, "mini")}<span class="d-ic">${ic(m.icon || def.icon, 18)}</span></div>`
+      : `<span class="d-pic">${ic(m.icon || def.icon, 22)}</span>`;
+    return { cls: m.cls, html: `<div class="d-pillrow">${left}<div class="d-ptx"><b>${m.title || def.title}</b>${m.cap ? `<small>${m.cap}</small>` : ""}</div><div class="d-pv">${val}</div>${m.action || ""}</div>` };
+  }
 
   // ---------- Dati ----------
   const todayData = () => {
@@ -89,6 +114,15 @@ const Today = (() => {
     const stTxt = qty ? `${U.num(Calc.value(h, today))}/${U.num(h.target)} ${esc(h.unit || "")}${s ? ` · ${plural(s, "giorno", "giorni")}` : ""}`
       : s ? `${plural(s, "giorno", "giorni")} di fila` : "Da iniziare";
     return `<button type="button" class="d-hab ${done ? "done" : ""}" ${act} aria-pressed="${done}" aria-label="${label}"><span class="d-ck">${ic(done || !qty ? "check" : "plus", 16, 2.6)}</span><span class="d-tx"><span class="d-n">${esc(h.name)}</span><span class="d-st">${stTxt}</span></span></button>`;
+  }
+
+  // Pulsante "fatta" (o "+passo" per le quantitative) sulla prossima abitudine
+  function nextBtn(h, today, wide) {
+    const qty = h.kind !== "check";
+    const act = qty ? `data-act="habit-inc" data-id="${h.id}" data-dir="1"` : `data-act="habit-toggle" data-id="${h.id}"`;
+    const lbl = qty ? `Aggiungi ${U.num(h.step || 1)} ${esc(h.unit || "")} a ${esc(h.name)}` : `Segna ${esc(h.name)} come fatta`;
+    return wide ? `<button type="button" class="d-btn deep sm" ${act} aria-label="${lbl}">${ic(qty ? "plus" : "check", 14, 2.6)}${qty ? `+${U.num(h.step || 1)}` : "Fatta"}</button>`
+      : `<button type="button" class="d-cbtn" ${act} aria-label="${lbl}">${ic(qty ? "plus" : "check", 15, 2.6)}</button>`;
   }
 
   // Percentuale (0..100) di abitudini fatte per i 7 giorni della settimana corrente
@@ -220,7 +254,11 @@ const Today = (() => {
   // ---------- Registro dei widget ----------
   const W = {
     score: {
-      title: "Oggi", icon: "sun", sizes: ["s", "mh"], go: "habits",
+      title: "Oggi", icon: "sun", sizes: ["c", "s", "p", "mh"], go: "habits",
+      mini() {
+        const d = todayData(), p = d.stats.pct;
+        return { icon: "sun", title: "Oggi", value: d.stats.due ? Math.round((p || 0) * 100) : "—", unit: d.stats.due ? "%" : "", cap: d.stats.due ? `${d.stats.done} di ${d.stats.due} abitudini` : "Giorno di riposo", p: d.stats.due ? p || 0 : null };
+      },
       render(sz) {
         const d = todayData();
         const p = d.stats.pct;
@@ -234,7 +272,11 @@ const Today = (() => {
       }
     },
     habits: {
-      title: "Abitudini", icon: "habit", sizes: ["mh", "mv", "lh", "lv"], go: "habits",
+      title: "Abitudini", icon: "habit", sizes: ["p", "mh", "mv", "lh", "lv"], go: "habits",
+      mini() {
+        const d = todayData(), next = d.due.find((h) => !Calc.isDone(h, d.today));
+        return { icon: "habit", title: "Abitudini", value: `${d.stats.done}/${d.stats.due}`, cap: next ? `Prossima: ${esc(next.name)}` : d.stats.due ? "Tutte fatte" : "Oggi riposo", p: d.stats.due ? d.stats.pct || 0 : null, action: next ? nextBtn(next, d.today) : "" };
+      },
       render(sz) {
         const d = todayData();
         if (!d.due.length) {
@@ -251,7 +293,12 @@ const Today = (() => {
       }
     },
     focusStats: {
-      title: "Ore di focus", icon: "timer", sizes: ["s", "mh"], go: "focus",
+      title: "Ore di focus", icon: "timer", sizes: ["c", "s", "p", "mh"], go: "focus",
+      mini() {
+        const today = U.today(), mon = U.mondayOf(today);
+        const tMin = Calc.focusMinutes(today, today), wMin = Calc.focusMinutes(mon, today), goal = Number(Store.cfg().focusWeeklyMin) || 600;
+        return { icon: "timer", title: "Ore di focus", value: hours(tMin), unit: "h", cap: `oggi · ${hours(wMin)} su ${hours(goal)} h a settimana`, p: wMin / goal };
+      },
       render(sz) {
         const today = U.today(), mon = U.mondayOf(today);
         const tMin = Calc.focusMinutes(today, today), wMin = Calc.focusMinutes(mon, today);
@@ -263,7 +310,15 @@ const Today = (() => {
       }
     },
     timer: {
-      title: "Sessione di focus", icon: "timer", sizes: ["s", "mh"], go: "focus",
+      title: "Sessione di focus", icon: "timer", sizes: ["c", "s", "p", "mh"], go: "focus",
+      mini() {
+        const running = focusOk() && !!Focus.run;
+        const btn = running
+          ? `<button type="button" class="d-cbtn" data-act="focus-giveup" aria-label="Interrompi la sessione">${ic("stop", 14)}</button>`
+          : `<button type="button" class="d-cbtn" data-act="focus-start" aria-label="Avvia una sessione di ${focusOk() ? Focus.minutes : 25} minuti">${ic("play", 15, 2.6)}</button>`;
+        const p = running ? Focus.elapsedSec() / (Focus.run.durationMin * 60) : null;
+        return { cls: "blue", icon: "timer", title: "Sessione di focus", value: `<span data-dash-timer data-running="${running}" role="timer">${mmss(remainingSec())}</span>`, cap: running ? esc(linkLabel(Focus.run)) : `Pronta · ${focusOk() ? Focus.minutes : 25} min`, p, action: btn };
+      },
       render(sz) {
         const running = focusOk() && !!Focus.run;
         const btns = `<div class="d-tbtns">${running
@@ -276,7 +331,13 @@ const Today = (() => {
       }
     },
     goals: {
-      title: "Obiettivi", icon: "goal", sizes: ["mh", "mv", "lh", "lv"], go: "goals",
+      title: "Obiettivi", icon: "goal", sizes: ["c", "p", "mh", "mv", "lh", "lv"], go: "goals",
+      mini() {
+        const g = Calc.activeGoals().slice().sort((a, b) => (goalInfo(a).due || "9999").localeCompare(goalInfo(b).due || "9999"))[0];
+        if (!g) return { icon: "goal", title: "Obiettivi", value: "0", cap: "Nessun obiettivo attivo", p: null };
+        const gi = goalInfo(g);
+        return { icon: "goal", title: esc(g.title), value: gi.pct, unit: "%", cap: gi.due ? `Scade il ${U.fmtShort(gi.due)} · ${gi.pace.label}` : gi.pace.label, p: gi.pct / 100 };
+      },
       render(sz) {
         const goals = Calc.activeGoals().slice().sort((a, b) => (goalInfo(a).due || "9999").localeCompare(goalInfo(b).due || "9999"));
         if (!goals.length) return { html: head("goal", "Obiettivi", "Nessuno attivo") + `<div class="d-wb">${empty("Definisci dove vuoi arrivare in 1, 4 o 12 mesi.", cta("Nuovo obiettivo", "goal-new"))}</div>` };
@@ -327,7 +388,13 @@ const Today = (() => {
       }
     },
     weight: {
-      title: "Peso", icon: "scale", sizes: ["s", "mh"], go: "body",
+      title: "Peso", icon: "scale", sizes: ["c", "s", "p", "mh"], go: "body",
+      mini() {
+        const w = weightSeries();
+        if (!w) return { icon: "scale", title: "Peso", value: "—", cap: "Nessuna pesata", p: null, action: `<button type="button" class="d-cbtn" data-act="weight-add" aria-label="Registra il peso">${ic("plus", 15, 2.4)}</button>` };
+        const t = Store.cfg().weightTarget, diff = t == null ? null : Math.round((w.last - Number(t)) * 10) / 10;
+        return { icon: "scale", title: "Peso", value: U.num(w.last), unit: "kg", cap: t == null ? U.fmtShort(w.lastDate) : Math.abs(diff) < 0.05 ? "Peso ideale" : `${diff > 0 ? "−" : "+"}${U.num(Math.abs(diff))} kg ai ${U.num(Number(t))}`, p: null };
+      },
       render(sz) {
         const w = weightSeries();
         if (!w) return { html: head("scale", "Peso", sz === "s" ? "" : "Nessuna pesata") + `<div class="d-wb">${empty(sz === "s" ? "" : "Registra il peso per vedere l'andamento.", cta("Peso", "weight-add"))}</div>` };
@@ -349,7 +416,13 @@ const Today = (() => {
       }
     },
     reading: {
-      title: "Lettura", icon: "book", sizes: ["mh", "mv"], go: "reading",
+      title: "Lettura", icon: "book", sizes: ["c", "p", "mh", "mv"], go: "reading",
+      mini() {
+        const r = Store.d.reading_items.filter((x) => x.kind === "book" && x.status === "reading").sort((a, b) => (b.updated_at || b.created_at || "").localeCompare(a.updated_at || a.created_at || ""))[0];
+        if (!r) return { icon: "book", title: "Sto leggendo", value: "—", cap: "Nessun libro in corso", p: null };
+        const p = r.pages ? U.clamp((r.current_page || 0) / r.pages, 0, 1) : null;
+        return { icon: "book", title: esc(r.title), value: p == null ? r.current_page || 0 : Math.round(p * 100), unit: p == null ? "pag." : "%", cap: esc(r.title), p };
+      },
       render(sz) {
         const books = Store.d.reading_items.filter((r) => r.kind === "book" && r.status === "reading")
           .sort((a, b) => (b.updated_at || b.created_at || "").localeCompare(a.updated_at || a.created_at || ""));
@@ -403,12 +476,152 @@ const Today = (() => {
       }
     },
     streak: {
-      title: "Serie migliore", icon: "flame", sizes: ["s"], go: "habits",
+      title: "Serie migliore", icon: "flame", sizes: ["c", "s", "p"], go: "habits",
+      mini() {
+        const best = Calc.activeHabits().map((h) => ({ h, s: Calc.streak(h) })).sort((a, b) => b.s - a.s)[0];
+        return { cls: "orange", icon: "flame", title: "Serie migliore", value: best ? best.s : 0, unit: best && best.s === 1 ? "giorno" : "giorni", cap: best && best.s ? esc(best.h.name) : "Completa un'abitudine", p: null };
+      },
       render() {
         const best = Calc.activeHabits().map((h) => ({ h, s: Calc.streak(h) })).sort((a, b) => b.s - a.s)[0];
         if (!best || !best.s) return { cls: "orange", html: head("flame", "Serie") + `<div class="d-wb end">${big(0, "giorni")}<span class="d-cap">${best ? "Completa un'abitudine per iniziare" : "Nessuna abitudine"}</span></div>` };
         const rec = Calc.bestStreak(best.h);
         return { cls: "orange", html: head("flame", "Serie") + `<div class="d-wb end">${big(best.s, best.s === 1 ? "giorno" : "giorni")}<span class="d-cap">${esc(best.h.name)}${rec > best.s ? ` · record ${rec}` : " · è il record"}</span></div>` };
+      }
+    },
+
+    // ---------- Widget nuovi ----------
+    nextHabit: {
+      title: "Prossima abitudine", icon: "habit", sizes: ["c", "s", "p", "mh"], go: "habits",
+      mini() {
+        const d = todayData(), next = d.due.find((h) => !Calc.isDone(h, d.today));
+        if (!next) return { icon: "check", title: "Prossima abitudine", value: d.stats.due ? "Fatto" : "—", cap: d.stats.due ? "Tutte le abitudini di oggi" : "Oggi riposo", p: d.stats.due ? 1 : null };
+        return { icon: "habit", title: esc(next.name), value: Calc.streak(next), unit: Calc.streak(next) === 1 ? "giorno" : "giorni", cap: esc(next.name), p: null, action: nextBtn(next, d.today) };
+      },
+      render(sz) {
+        const d = todayData(), next = d.due.find((h) => !Calc.isDone(h, d.today));
+        if (!next) return { html: head("habit", "Prossima abitudine") + `<div class="d-wb">${empty(d.stats.due ? "Hai fatto tutto per oggi." : "Niente in programma oggi.")}</div>` };
+        const s = Calc.streak(next), qty = next.kind !== "check";
+        const info = qty ? `${U.num(Calc.value(next, d.today))} di ${U.num(next.target)} ${esc(next.unit || "")}` : s ? `${plural(s, "giorno", "giorni")} di fila` : "Da iniziare";
+        return { html: head("habit", "Prossima", `${d.stats.due - d.stats.done} da fare oggi`) + `<div class="d-wb end"><b class="d-hname">${esc(next.name)}</b><div class="d-row"><span class="d-cap">${info}</span>${nextBtn(next, d.today, true)}</div></div>` };
+      }
+    },
+    points: {
+      title: "Punteggio", icon: "star", sizes: ["c", "s", "p"], go: "insights",
+      mini() {
+        const sc = Calc.score(), v = sc.score == null ? null : Math.round(sc.score);
+        return { cls: "blue", icon: "star", title: "Punteggio della settimana", value: v == null ? "—" : v, unit: v == null ? "" : "/100", cap: Calc.scoreLabel(v).label, p: v == null ? null : v / 100 };
+      },
+      render() {
+        const sc = Calc.score(), v = sc.score == null ? null : Math.round(sc.score);
+        return { cls: "blue", html: head("star", "Punteggio", "Ultimi 7 giorni") + `<div class="d-wb end">${big(v == null ? "—" : v, v == null ? "" : "/100")}<span class="d-cap">${Calc.scoreLabel(v).label}</span></div>` };
+      }
+    },
+    workouts: {
+      title: "Allenamenti", icon: "run", sizes: ["c", "s", "p", "mh"], go: "body",
+      data() {
+        const today = U.today(), mon = U.mondayOf(today);
+        const wk = Calc.workoutsIn(mon, today), days = new Set(wk.map((w) => w.workout_date));
+        const last = [...Store.d.workouts].sort((a, b) => b.workout_date.localeCompare(a.workout_date))[0];
+        return { wk, days, mon, today, last, min: U.sum(wk.map((w) => Number(w.minutes) || 0)) };
+      },
+      mini() {
+        const x = this.data();
+        return { icon: "run", title: "Allenamenti", value: x.wk.length, unit: x.wk.length === 1 ? "questa sett." : "questa sett.", cap: x.last ? `Ultimo: ${esc(x.last.kind)} · ${U.fmtShort(x.last.workout_date)}` : "Nessun allenamento", p: Math.min(1, x.days.size / 4), action: `<button type="button" class="d-cbtn" data-act="workout-add" aria-label="Registra un allenamento">${ic("plus", 15, 2.4)}</button>` };
+      },
+      render(sz) {
+        const x = this.data();
+        const dots = `<div class="d-wdots" aria-label="${x.days.size} giorni di allenamento questa settimana">${U.DOW_SHORT.map((l, i) => { const d = U.addDays(x.mon, i); return `<span class="${x.days.has(d) ? "on" : ""} ${d === x.today ? "today" : ""}"><i></i>${l}</span>`; }).join("")}</div>`;
+        const add = `<button type="button" class="d-cbtn" data-act="workout-add" aria-label="Registra un allenamento">${ic("plus", 15, 2.4)}</button>`;
+        if (sz === "s") return { html: head("run", "Allenamenti", "Questa settimana") + `<div class="d-wb end">${big(x.wk.length, x.wk.length === 1 ? "sessione" : "sessioni")}<span class="d-cap">${x.min} minuti</span></div>` };
+        return { html: head("run", "Allenamenti", `${plural(x.wk.length, "sessione", "sessioni")} · ${x.min} minuti questa settimana`, add) + `<div class="d-wb end">${dots}<span class="d-cap">${x.last ? `Ultimo: ${esc(x.last.kind)}, ${U.fmtShort(x.last.workout_date)}` : "Ancora nessun allenamento"}</span></div>` };
+      }
+    },
+    deadline: {
+      title: "Prossima scadenza", icon: "hourglass", sizes: ["c", "s", "p"], go: "goals",
+      pick() {
+        return Calc.activeGoals().map((g) => ({ g, gi: goalInfo(g) })).filter((x) => x.gi.due && x.gi.left >= 0).sort((a, b) => a.gi.left - b.gi.left)[0];
+      },
+      mini() {
+        const x = this.pick();
+        if (!x) return { icon: "hourglass", title: "Prossima scadenza", value: "—", cap: "Nessuna scadenza", p: null };
+        return { cls: "orange", icon: "hourglass", title: esc(x.g.title), value: x.gi.left, unit: x.gi.left === 1 ? "giorno" : "giorni", cap: esc(x.g.title), p: x.gi.pct / 100 };
+      },
+      render() {
+        const x = this.pick();
+        if (!x) return { html: head("hourglass", "Scadenza") + `<div class="d-wb">${empty("Nessun obiettivo con una data.")}</div>` };
+        return { cls: "orange", html: head("hourglass", "Scadenza", `${x.gi.pct}% fatto`) + `<div class="d-wb end">${big(x.gi.left, x.gi.left === 1 ? "giorno" : "giorni")}<span class="d-cap">${esc(x.g.title)}</span></div>` };
+      }
+    },
+    clock: {
+      title: "Orologio", icon: "clock", sizes: ["c", "s"],
+      face(size) {
+        const ticks = Array.from({ length: 12 }, (_, i) => { const a = (i * 30) * Math.PI / 180, r1 = i % 3 ? 41 : 37; return `<line x1="${50 + Math.sin(a) * r1}" y1="${50 - Math.cos(a) * r1}" x2="${50 + Math.sin(a) * 44}" y2="${50 - Math.cos(a) * 44}" class="${i % 3 ? "tk" : "tk b"}"/>`; }).join("");
+        const n = new Date(), hr = n.getHours() % 12, mi = n.getMinutes(), se = n.getSeconds();
+        return `<svg class="d-clock" viewBox="0 0 100 100" style="width:${size}" role="img" aria-label="Ora attuale">${ticks}<line x1="50" y1="50" x2="50" y2="27" class="hh" data-hand="h" transform="rotate(${hr * 30 + mi / 2} 50 50)"/><line x1="50" y1="50" x2="50" y2="17" class="mh" data-hand="m" transform="rotate(${mi * 6 + se / 10} 50 50)"/><line x1="50" y1="56" x2="50" y2="14" class="sh" data-hand="s" transform="rotate(${se * 6} 50 50)"/><circle cx="50" cy="50" r="2.6" class="pin"/></svg>`;
+      },
+      mini() { return { icon: "clock", title: "Orologio", value: "", cap: "", p: null }; },
+      render(sz) {
+        const d = new Date();
+        if (sz === "c") return { html: `<div class="d-circ clock">${this.face("100%")}</div>` };
+        return { html: `<div class="d-wb center" style="gap:6px">${this.face("96px")}<span class="d-cap">${cap1(d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" }))}</span></div>` };
+      }
+    },
+    exam: {
+      title: "Prossimo esame", icon: "cap", sizes: ["c", "s", "p"], go: "goals",
+      pick() {
+        const today = U.today();
+        const m = Store.d.milestones.filter((x) => x.is_exam && x.exam_date && x.exam_date >= today && Calc.msPct(x) < 100).sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0];
+        return m ? { m, left: U.diffDays(today, m.exam_date), pct: Calc.msPct(m) } : null;
+      },
+      mini() {
+        const x = this.pick();
+        if (!x) return { icon: "cap", title: "Prossimo esame", value: "—", cap: "Nessun esame in programma", p: null };
+        return { icon: "cap", title: esc(x.m.title), value: x.left, unit: x.left === 1 ? "giorno" : "giorni", cap: esc(x.m.title), p: x.pct / 100 };
+      },
+      render() {
+        const x = this.pick();
+        if (!x) return { html: head("cap", "Prossimo esame") + `<div class="d-wb">${empty("Nessun esame con una data d'appello.")}</div>` };
+        return { html: head("cap", "Esame", `${U.fmtShort(x.m.exam_date)} · ${Math.round(x.pct)}% pronto`) + `<div class="d-wb end">${big(x.left, x.left === 1 ? "giorno" : "giorni")}<span class="d-cap">${esc(x.m.title)}</span></div>` };
+      }
+    },
+    toRead: {
+      title: "Da leggere", icon: "link", sizes: ["c", "s", "p"], go: "reading",
+      list() { return Store.d.reading_items.filter((r) => r.kind !== "book" && r.status !== "done").sort((a, b) => (b.created_at || "").localeCompare(a.created_at || "")); },
+      mini() {
+        const l = this.list();
+        return { icon: "link", title: "Da leggere", value: l.length, unit: l.length === 1 ? "link" : "link", cap: l[0] ? esc(l[0].title || l[0].url || "") : "Lista vuota", p: null, action: `<button type="button" class="d-cbtn" data-act="read-add" aria-label="Aggiungi da leggere">${ic("plus", 15, 2.4)}</button>` };
+      },
+      render() {
+        const l = this.list();
+        return { html: head("link", "Da leggere", l.length ? "Il più recente" : "") + `<div class="d-wb end">${big(l.length, "link")}<span class="d-cap d-clamp">${l[0] ? esc(l[0].title || l[0].url || "") : "Niente in coda"}</span></div>` };
+      }
+    },
+    quick: {
+      title: "Azioni rapide", icon: "bolt", sizes: ["s", "p", "mh"],
+      acts: [["scaleAdd", "Peso", "weight-add"], ["run", "Allenamento", "workout-add"], ["bowl", "Pasto", "food-quick"], ["timer", "Focus", "focus-start"], ["book", "Da leggere", "read-add"], ["habit", "Abitudine", "habit-new"]],
+      render(sz) {
+        const n = sz === "s" ? 4 : sz === "p" ? 5 : 6;
+        const btns = this.acts.slice(0, n).map(([i, l, a]) => `<button type="button" class="d-qa" data-act="${a}" aria-label="${l}"><span>${ic(i, 20)}</span>${sz === "s" ? "" : `<small>${l}</small>`}</button>`).join("");
+        if (sz === "p") return { html: `<div class="d-pillrow d-qrow">${btns}</div>` };
+        if (sz === "s") return { html: `<div class="d-wb center"><div class="d-qas s">${btns}</div></div>` };
+        return { html: head("bolt", "Azioni rapide") + `<div class="d-wb end"><div class="d-qas ${sz}">${btns}</div></div>` };
+      }
+    },
+    heat: {
+      title: "Ultime settimane", icon: "grid", sizes: ["mh", "lh"], go: "insights",
+      render(sz) {
+        const weeks = sz === "lh" ? 10 : 5, today = U.today(), mon = U.mondayOf(today);
+        const start = U.addDays(mon, -7 * (weeks - 1));
+        let cells = "";
+        for (let w = 0; w < weeks; w++) for (let i = 0; i < 7; i++) {
+          const d = U.addDays(start, w * 7 + i);
+          if (d > today) { cells += `<i class="fut"></i>`; continue; }
+          const s = Calc.dayStats(d), p = s.pct;
+          const lv = p == null ? 0 : p >= 1 ? 4 : p >= .66 ? 3 : p >= .33 ? 2 : p > 0 ? 1 : 0;
+          cells += `<i class="l${lv} ${d === today ? "today" : ""}" title="${U.fmtShort(d)}: ${p == null ? "riposo" : Math.round(p * 100) + "%"}"></i>`;
+        }
+        const r = Calc.rate(start, today);
+        return { html: head("grid", "Ultime settimane", `${weeks} settimane · ${r == null ? "nessun dato" : Math.round(r) + "% di abitudini fatte"}`) + `<div class="d-wb center"><div class="d-heat" style="--w:${weeks}" role="img" aria-label="Costanza giorno per giorno nelle ultime ${weeks} settimane">${cells}</div></div>` };
       }
     }
   };
@@ -473,8 +686,8 @@ const Today = (() => {
   function widgetHTML([type, sz], idx) {
     const def = W[type];
     let r;
-    try { r = def.render(sz); } catch (e) { console.error(e); r = { html: head(def.icon, def.title) + `<div class="d-wb">${empty("Non riesco a mostrare questi dati.")}</div>` }; }
-    const sizes = def.sizes.length > 1 ? `<div class="d-sizes" role="group" aria-label="Formato di ${def.title}">${def.sizes.map((s) => `<button type="button" data-dash-size="${s}" aria-pressed="${s === sz}" aria-label="${SIZE_NAMES[s]}" title="${SIZE_NAMES[s]}"><svg width="22" height="18" viewBox="0 0 24 18" aria-hidden="true">${sizeIcon(s)}</svg></button>`).join("")}</div>` : "";
+    try { r = (sz === "c" || sz === "p") && def.mini && !(type === "clock" && sz === "c") && type !== "quick" ? shapeHTML(sz, def, def.mini()) : def.render(sz); } catch (e) { console.error(e); r = { html: head(def.icon, def.title) + `<div class="d-wb">${empty("Non riesco a mostrare questi dati.")}</div>` }; }
+    const sizes = def.sizes.length > 1 ? `<div class="d-sizes" role="group" aria-label="Formato di ${def.title}">${SIZE_ORDER.filter((x) => def.sizes.includes(x)).map((s) => `<button type="button" data-dash-size="${s}" aria-pressed="${s === sz}" aria-label="${SIZE_NAMES[s]}" title="${SIZE_NAMES[s]}"><svg width="22" height="18" viewBox="0 0 24 18" aria-hidden="true">${sizeIcon(s)}</svg></button>`).join("")}</div>` : "";
     const jd = st.editing ? `style="--jd:-${((idx * 37) % 14) / 100}s"` : "";
     const lbl = st.editing ? `${def.title}, ${SIZE_NAMES[sz].toLowerCase()}, posizione ${idx + 1} di ${st.layout.length}. Frecce per spostare, Canc per rimuovere` : `${def.title}: apri la sezione`;
     return `<article class="d-w d-glass ${r.cls || ""}" data-idx="${idx}" data-size="${sz}" data-type="${type}" tabindex="0" aria-label="${lbl}" ${jd}>${st.editing ? `<button type="button" class="d-x" data-dash-remove aria-label="Rimuovi ${def.title}">${ic("x", 15, 2.6)}</button>` : ""}${r.html}${st.editing ? sizes : ""}</article>`;
@@ -504,6 +717,13 @@ const Today = (() => {
     st.timerI = setInterval(() => {
       const dash = document.querySelector(".view-today .dash");
       if (!dash || App.view !== "today") { clearInterval(st.timerI); st.timerI = null; return; }
+      const now = new Date();
+      dash.querySelectorAll(".d-clock").forEach((c) => {
+        const h = now.getHours() % 12, m = now.getMinutes(), s2 = now.getSeconds();
+        c.querySelector('[data-hand="h"]').setAttribute("transform", `rotate(${h * 30 + m / 2} 50 50)`);
+        c.querySelector('[data-hand="m"]').setAttribute("transform", `rotate(${m * 6 + s2 / 10} 50 50)`);
+        c.querySelector('[data-hand="s"]').setAttribute("transform", `rotate(${s2 * 6} 50 50)`);
+      });
       const nodes = dash.querySelectorAll("[data-dash-timer]");
       if (!nodes.length) return;
       const running = focusOk() && !!Focus.run;
@@ -536,14 +756,14 @@ const Today = (() => {
     Sheet.open({
       title: "Aggiungi un widget",
       body: `<div class="dash-sheet">${free.length
-        ? `<div class="d-picks">${free.map(([k, d]) => `<button class="d-pick" type="button" data-pick="${k}"><span class="d-ic">${ic(d.icon, 17)}</span><b>${d.title}</b><small>${d.sizes.map((x) => SIZE_NAMES[x]).join(" · ")}</small></button>`).join("")}</div>`
+        ? `<div class="d-picks">${free.map(([k, d]) => `<button class="d-pick" type="button" data-pick="${k}"><span class="d-ic">${ic(d.icon, 17)}</span><b>${d.title}</b><small>${SIZE_ORDER.filter((x) => d.sizes.includes(x)).map((x) => SIZE_NAMES[x]).join(" · ")}</small></button>`).join("")}</div>`
         : `<p class="d-note">Tutti i widget sono già nella Home. Rimuovine uno per spostarlo altrove.</p>`}</div>`,
       onMount: (root) => {
         root.addEventListener("click", (e) => {
           const p = e.target.closest("[data-pick]");
           if (!p) return;
           const k = p.dataset.pick;
-          st.layout.push([k, W[k].sizes[0]]);
+          st.layout.push([k, W[k].sizes.includes("c") ? "c" : W[k].sizes[0]]);
           Sheet.close();
           commit(st.layout.length - 1);
           toast(`${W[k].title} aggiunto in fondo`);

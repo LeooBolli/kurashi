@@ -18,7 +18,13 @@ const Shell = {
     ceruleo: { name: "Ceruleo e mandarino", side: "#76A6D8", sideIc: "#FFE4CC", navy: "#3471AE", deep: "#3471AE", hot: "#F28C3B", accent: "#F5A25E", sky: "#78A7DA" },
     indaco: { name: "Indaco e corallo", side: "#7489C0", sideIc: "#FFDCD2", navy: "#3D5A99", deep: "#3D5A99", hot: "#E9765B", accent: "#EF907A", sky: "#8396C8" },
     petrolio: { name: "Petrolio e arancio bruciato", side: "#6596A1", sideIc: "#FFE0C6", navy: "#2F6470", deep: "#2F6470", hot: "#D9732F", accent: "#E58E52", sky: "#6E9DA7" },
-    ardesia: { name: "Ardesia e pesca", side: "#7F97B2", sideIc: "#FFE6D3", navy: "#4A6380", deep: "#4A6380", hot: "#EE9A63", accent: "#F2AE80", sky: "#8399B3" }
+    ardesia: { name: "Ardesia e pesca", side: "#7F97B2", sideIc: "#FFE6D3", navy: "#4A6380", deep: "#4A6380", hot: "#EE9A63", accent: "#F2AE80", sky: "#8399B3" },
+    // Arancio come colore principale: barra, widget pieni e pulsanti arancio; il blu passa ad accento
+    arancio: { name: "Arancio Kurashi", side: "#E8853F", sideIc: "#FFF1E2", navy: "#C9632B", deep: "#BF5A22", hot: "#F2A65A", accent: "#6F9BCF", sky: "#F6C09B" },
+    mandarino: { name: "Mandarino e notte", side: "#F08A48", sideIc: "#FFF1E4", navy: "#2C3E5C", deep: "#2C3E5C", hot: "#F08A48", accent: "#F4A06A", sky: "#8FA6C4" },
+    terracotta: { name: "Terracotta e salvia", side: "#C97B5A", sideIc: "#FFEBDD", navy: "#A65A3C", deep: "#A65A3C", hot: "#7FA58C", accent: "#8DB39A", sky: "#E0A788" },
+    lavanda: { name: "Lavanda e pesca", side: "#8A86C8", sideIc: "#FFE5D4", navy: "#5B57A0", deep: "#5B57A0", hot: "#F08A48", accent: "#F4A986", sky: "#A9A6DB" },
+    bosco: { name: "Bosco e albicocca", side: "#6E9C86", sideIc: "#FFE6CF", navy: "#3E6E5A", deep: "#3E6E5A", hot: "#E8853F", accent: "#F2A65A", sky: "#8FB8A4" }
   },
 
   look: { pal: "kurashi", ga: 72, dim: 0, bg: "morbido" },
