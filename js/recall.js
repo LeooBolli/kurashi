@@ -65,8 +65,8 @@ const Recall = {
     Store.setSettings({ review: { ...r, done: [...r.done, id] } });
   },
   favorite(id) { const h = this.find(id); if (h) Store.update("highlights", id, { favorite: !h.favorite }); },
-  mute(id) {
-    if (!confirm("Non riproporre più questa evidenziazione? Resta comunque in libreria.")) return;
+  async mute(id) {
+    if (!(await UI.confirm({ title: "Non riproporla più?", text: "L'evidenziazione resta comunque in libreria.", confirmLabel: "Non riproporre" }))) return;
     Store.update("highlights", id, { muted: true });
     U.toast("Non verrà più riproposta");
   },
@@ -86,19 +86,19 @@ const Recall = {
   card(h, { review = false, done = false } = {}) {
     const url = U.safeUrl(h.source_url);
     const long = h.text.length > 360;
-    return `<article class="quote ${done ? "done" : ""} ${h.muted ? "muted-q" : ""}" data-qid="${h.id}">
+    return `<article class="quote ${done ? "done" : ""} ${h.muted ? "muted-q" : ""}" data-qid="${U.esc(h.id)}">
       <blockquote class="${long ? "clamp" : ""}">${U.esc(h.text)}</blockquote>
-      ${long ? `<button class="link sm-link" data-act="quote-expand">Leggi tutto</button>` : ""}
+      ${long ? `<button class="link sm-link" data-act="quote-expand" aria-expanded="false">Leggi tutto</button>` : ""}
       ${h.note ? `<p class="q-note">${Icon.svg("edit", 13)} ${U.esc(h.note)}</p>` : ""}
       <footer>
         <div class="q-src"><b>${U.esc(h.source_title)}</b><span>${U.esc(this.cite(h))}</span></div>
         <div class="q-act">
-          <button class="icon-btn sm ${h.favorite ? "fav" : ""}" data-act="quote-fav" data-id="${h.id}" aria-label="${h.favorite ? "Togli dalle preferite" : "Aggiungi alle preferite"}" data-tip="Preferita">${Icon.svg("star", 18)}</button>
-          ${url ? `<a class="icon-btn sm" href="${U.esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="Apri la fonte" data-tip="Apri la fonte">${Icon.svg("external", 17)}</a>` : ""}
-          <button class="icon-btn sm" data-act="quote-copy" data-id="${h.id}" aria-label="Copia" data-tip="Copia">${Icon.svg("copy", 17)}</button>
-          ${h.muted ? `<button class="btn ghost sm" data-act="quote-unmute" data-id="${h.id}">Riproponi</button>`
-            : `<button class="icon-btn sm" data-act="quote-mute" data-id="${h.id}" aria-label="Non riproporre" data-tip="Non riproporre">${Icon.svg("eyeoff", 17)}</button>`}
-          ${review ? (done ? `<span class="q-done">${Icon.svg("check", 15)} Ricordo</span>` : `<button class="btn primary sm" data-act="quote-review" data-id="${h.id}">${Icon.svg("check", 15)} Ricordo</button>`) : ""}
+          <button class="icon-btn q-btn ${h.favorite ? "fav" : ""}" data-act="quote-fav" data-id="${U.esc(h.id)}" aria-pressed="${!!h.favorite}" aria-label="${h.favorite ? "Togli dalle preferite" : "Aggiungi alle preferite"}" data-tip="${h.favorite ? "Togli dalle preferite" : "Aggiungi alle preferite"}">${Icon.svg("star", 20)}</button>
+          ${url ? `<a class="icon-btn q-btn" href="${U.esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="Apri la fonte (nuova scheda)" data-tip="Apri la fonte">${Icon.svg("external", 19)}</a>` : ""}
+          <button class="icon-btn q-btn" data-act="quote-copy" data-id="${U.esc(h.id)}" aria-label="Copia negli appunti" data-tip="Copia negli appunti">${Icon.svg("copy", 19)}</button>
+          ${h.muted ? `<button class="btn ghost sm" data-act="quote-unmute" data-id="${U.esc(h.id)}">Riproponi</button>`
+            : `<button class="icon-btn q-btn" data-act="quote-mute" data-id="${U.esc(h.id)}" aria-label="Non riproporre più" data-tip="Non riproporre più">${Icon.svg("eyeoff", 19)}</button>`}
+          ${review ? (done ? `<span class="q-done">${Icon.svg("check", 15)} Ricordo</span>` : `<button class="btn primary sm" data-act="quote-review" data-id="${U.esc(h.id)}">${Icon.svg("check", 15)} Ricordo</button>`) : ""}
         </div>
       </footer>
     </article>`;
@@ -171,10 +171,11 @@ const Recall = {
           <p class="sub">${all.length} evidenziazioni da ${sources} fonti · ${favs} preferite · ${reviewed} ripassi</p></div>
       </div>
       ${all.length ? `<div class="seg tabs4 recall-tabs">
-        <button class="${this.tab === "today" ? "on" : ""}" data-act="recall-tab" data-id="today">Oggi<small>${doneN}/${items.length}</small></button>
-        <button class="${this.tab === "library" ? "on" : ""}" data-act="recall-tab" data-id="library">Libreria<small>${all.length}</small></button>
-        <button class="${this.tab === "favorites" ? "on" : ""}" data-act="recall-tab" data-id="favorites">Preferiti<small>${favs}</small></button>
+        <button class="${this.tab === "today" ? "on" : ""}" data-act="recall-tab" data-id="today" aria-pressed="${this.tab === "today"}">Oggi<small>${doneN}/${items.length}</small></button>
+        <button class="${this.tab === "library" ? "on" : ""}" data-act="recall-tab" data-id="library" aria-pressed="${this.tab === "library"}">Libreria<small>${all.length}</small></button>
+        <button class="${this.tab === "favorites" ? "on" : ""}" data-act="recall-tab" data-id="favorites" aria-pressed="${this.tab === "favorites"}">Preferiti<small>${favs}</small></button>
       </div>` : ""}
+      <h2 class="sr">${{ today: "Da ripassare oggi", library: "Libreria", favorites: "Preferite" }[this.tab] || ""}</h2>
       ${body}`;
   }
 };
@@ -196,6 +197,7 @@ Actions["quote-expand"] = (el) => {
   const bq = el.closest(".quote").querySelector("blockquote");
   bq.classList.toggle("clamp");
   el.textContent = bq.classList.contains("clamp") ? "Leggi tutto" : "Riduci";
+  el.setAttribute("aria-expanded", String(!bq.classList.contains("clamp")));
 };
 Actions["quote-copy"] = async (el) => {
   const h = Recall.find(el.dataset.id);

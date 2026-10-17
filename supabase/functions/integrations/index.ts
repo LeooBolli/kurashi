@@ -5,46 +5,77 @@
 // Segreti richiesti (vedi README):
 //   RAINDROP_TOKEN   - "Test token" da raindrop.io > Settings > Integrations
 //   NOTION_TOKEN     - token di un'integrazione interna Notion
-//   ALLOWED_EMAIL    - (consigliato) l'unica email che può usare la funzione
+//   ALLOWED_EMAIL    - (obbligatorio) l'unica email che può usare la funzione:
+//                      se manca, la funzione rifiuta ogni richiesta
+//   ALLOWED_UID      - (facoltativo) l'id utente Supabase autorizzato, controllo in più
 //
 // SUPABASE_URL e SUPABASE_ANON_KEY sono già iniettate da Supabase.
 // ============================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// CORS: solo l'app pubblicata su GitHub Pages e, per lo sviluppo, http://localhost:<porta>
+const PAGES_ORIGIN = "https://leoobolli.github.io";
+const LOCALHOST = /^http:\/\/(localhost|127\.0\.0\.1)(:\d{1,5})?$/;
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+function corsFor(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") ?? "";
+  const h: Record<string, string> = {
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+  if (origin === PAGES_ORIGIN || LOCALHOST.test(origin)) h["Access-Control-Allow-Origin"] = origin;
+  return h;
+}
+
+
+// Errore con un messaggio già pensato per l'utente (in italiano, senza dettagli interni)
+class UserError extends Error {
+  status: number;
+  constructor(message: string, status = 502) { super(message); this.status = status; }
+}
 
 // La chiave anon è pubblica: senza questo controllo chiunque potrebbe usare i tuoi token.
+// Senza ALLOWED_EMAIL configurato non passa nessuno.
 async function requireOwner(req: Request): Promise<string | null> {
+  const allowed = (Deno.env.get("ALLOWED_EMAIL") ?? "").trim().toLowerCase();
+  if (!allowed) {
+    console.error("ALLOWED_EMAIL non impostato: richiesta rifiutata");
+    return "Funzione non configurata";
+  }
   const auth = req.headers.get("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return "Accesso non valido";
   const supa = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: auth } },
   });
   const { data, error } = await supa.auth.getUser();
   if (error || !data.user) return "Accesso non valido";
-  const allowed = Deno.env.get("ALLOWED_EMAIL");
-  if (allowed && data.user.email?.toLowerCase() !== allowed.toLowerCase()) return "Utente non autorizzato";
+  if ((data.user.email ?? "").toLowerCase() !== allowed) return "Utente non autorizzato";
+  const uid = (Deno.env.get("ALLOWED_UID") ?? "").trim();
+  if (uid && data.user.id !== uid) return "Utente non autorizzato";
   return null;
 }
+
+// ID Notion: 32 caratteri esadecimali oppure un UUID con i trattini
+const NOTION_ID = /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const validId = (v: unknown): v is string => typeof v === "string" && NOTION_ID.test(v);
 
 // ---------- Raindrop ----------
 async function raindrop(path: string) {
   const token = Deno.env.get("RAINDROP_TOKEN");
-  if (!token) throw new Error("RAINDROP_TOKEN non configurato");
+  if (!token) throw new UserError("Raindrop non è configurato sul server", 500);
   const r = await fetch(`https://api.raindrop.io/rest/v1${path}`, { headers: { Authorization: `Bearer ${token}` } });
-  if (!r.ok) throw new Error(`Raindrop ha risposto ${r.status}`);
+  if (!r.ok) {
+    console.error("Raindrop", r.status, (await r.text().catch(() => "")).slice(0, 500));
+    throw new UserError(r.status === 401 || r.status === 403 ? "Raindrop ha rifiutato il token" : "Raindrop non risponde correttamente, riprova più tardi");
+  }
   return r.json();
 }
 
 // ---------- Notion ----------
 async function notion(path: string, method = "GET", body?: unknown) {
   const token = Deno.env.get("NOTION_TOKEN");
-  if (!token) throw new Error("NOTION_TOKEN non configurato");
+  if (!token) throw new UserError("Notion non è configurato sul server", 500);
   const r = await fetch(`https://api.notion.com/v1${path}`, {
     method,
     headers: { Authorization: `Bearer ${token}`, "Notion-Version": "2022-06-28", "Content-Type": "application/json" },
@@ -52,9 +83,13 @@ async function notion(path: string, method = "GET", body?: unknown) {
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) {
-    const err = new Error(data.message || `Notion ha risposto ${r.status}`) as Error & { status?: number };
-    err.status = r.status;
-    throw err;
+    console.error("Notion", method, path, r.status, JSON.stringify(data).slice(0, 500));
+    const msg = r.status === 401 ? "Notion ha rifiutato il token"
+      : r.status === 404 ? "Notion non trova la pagina o il database (è condiviso con l'integrazione?)"
+      : r.status === 400 ? "Notion ha rifiutato i dati: controlla le colonne del database"
+      : r.status === 429 ? "Notion è occupato, riprova tra poco"
+      : "Notion non risponde correttamente, riprova più tardi";
+    throw new UserError(msg, r.status === 404 ? 404 : 502);
   }
   return data;
 }
@@ -73,7 +108,7 @@ async function buildProperties(databaseId: string, g: any) {
   const out: Record<string, unknown> = {};
 
   const titleKey = Object.keys(props).find((k) => props[k].type === "title");
-  if (!titleKey) throw new Error("Il database Notion non ha una colonna titolo");
+  if (!titleKey) throw new UserError("Il database Notion non ha una colonna titolo", 400);
   out[titleKey] = { title: [{ text: { content: String(g.title).slice(0, 200) } }] };
 
   const text = (v: string) => [{ text: { content: String(v).slice(0, 1900) } }];
@@ -99,12 +134,18 @@ async function buildProperties(databaseId: string, g: any) {
 }
 
 Deno.serve(async (req) => {
+  // intestazioni CORS calcolate per questa richiesta (le richieste possono arrivare in parallelo)
+  const cors = corsFor(req);
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return json({ error: "Metodo non consentito" }, 405);
   try {
     const denied = await requireOwner(req);
     if (denied) return json({ error: denied }, 401);
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") return json({ error: "Richiesta non valida" }, 400);
     switch (body.action) {
       case "raindrop_ping": {
         const u = await raindrop("/user");
@@ -126,12 +167,15 @@ Deno.serve(async (req) => {
 
       case "notion_ping": {
         if (!body.databaseId) return json({ error: "Manca l'ID del database Notion" }, 400);
+        if (!validId(body.databaseId)) return json({ error: "ID del database Notion non valido" }, 400);
         const db = await notion(`/databases/${body.databaseId}`);
         return json({ ok: true, title: (db.title ?? []).map((t: any) => t.plain_text).join("") || "senza titolo" });
       }
 
       case "notion_upsert_goal": {
         if (!body.databaseId || !body.goal) return json({ error: "Richiesta incompleta" }, 400);
+        if (!validId(body.databaseId)) return json({ error: "ID del database Notion non valido" }, 400);
+        if (body.goal.pageId != null && !validId(body.goal.pageId)) return json({ error: "ID della pagina Notion non valido" }, 400);
         const properties = await buildProperties(body.databaseId, body.goal);
         if (body.goal.pageId) {
           try {
@@ -139,7 +183,7 @@ Deno.serve(async (req) => {
             return json({ pageId: page.id });
           } catch (e) {
             // pagina eliminata su Notion: ne creo una nuova
-            if ((e as { status?: number }).status !== 404) throw e;
+            if (!(e instanceof UserError) || e.status !== 404) throw e;
           }
         }
         const page = await notion("/pages", "POST", { parent: { database_id: body.databaseId }, properties });
@@ -150,6 +194,8 @@ Deno.serve(async (req) => {
         return json({ error: "Azione sconosciuta" }, 400);
     }
   } catch (e) {
-    return json({ error: (e as Error).message }, 500);
+    if (e instanceof UserError) return json({ error: e.message }, e.status);
+    console.error("integrations", e);
+    return json({ error: "Errore interno, riprova più tardi" }, 500);
   }
 });

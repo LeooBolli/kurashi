@@ -216,7 +216,7 @@ const Food = {
     if (!g) return "";
     const cfg = Store.cfg(), latest = Calc.latestWeight(), pct = Calc.weightProgress(g);
     const a = this.adherence(this.goalFrom(g)), h = this.habit(), streak = h ? Calc.streak(h) : 0;
-    return `<div class="goal-banner food-banner" data-act="goal-open" data-id="${g.id}" role="button">
+    return `<div class="goal-banner food-banner" data-act="goal-open" data-id="${U.esc(g.id)}" role="button" tabindex="0" aria-label="${U.esc(g.title)}: apri l'obiettivo">
       <div><b>${U.esc(g.title)}</b><span>${latest ? `${U.num(latest.kg)} kg` : "nessuna pesata"}${cfg.weightTarget != null ? ` → ${U.num(cfg.weightTarget)} kg` : ""}</span></div>
       ${pct != null ? Charts.bar({ value: pct, color: "var(--orange-500)", h: 6 }) : ""}
       <p class="gb-sub">${a.planned ? `Dieta rispettata ${a.ok}/${a.planned} giorni` : "Pianifica i pasti e spuntali mentre mangi"}${streak >= 1 ? ` · ${Icon.svg("flame", 13)} serie ${streak}` : ""}</p>
@@ -244,11 +244,12 @@ const Food = {
     el.innerHTML = `
       <div class="page-head">
         <div><p class="eyebrow">Alimentazione</p><h1 class="title">${head[0]}</h1></div>
-        <button class="btn primary" data-act="food-new">${Icon.svg("plus", 18)}<span>Ricettario</span></button>
+        ${this.tab === "book" ? `<button class="btn primary" data-act="food-new">${Icon.svg("plus", 18)}<span>Nel ricettario</span></button>`
+          : `<button class="btn primary" data-act="food-add-meal">${Icon.svg("plus", 18)}<span>Aggiungi pasto</span></button>`}
       </div>
       ${this.bannerHTML()}
       <div class="seg tabs4 food-tabs">${[["plan", "Piano"], ["book", "Ricettario"], ["templates", "Modelli"]].map(([k, l]) =>
-        `<button class="${this.tab === k ? "on" : ""}" data-act="food-tab" data-id="${k}">${l}</button>`).join("")}</div>
+        `<button class="${this.tab === k ? "on" : ""}" data-act="food-tab" data-id="${k}" aria-pressed="${this.tab === k}">${l}</button>`).join("")}</div>
       <div class="food-pane">${this[this.tab + "HTML"]()}</div>`;
   },
 
@@ -280,17 +281,17 @@ const Food = {
     const list = this.entriesOn(date, slot);
     return `<section class="card meal-card">
       <div class="block-head"><h3>${label}</h3>
-        ${list.length ? `<button class="icon-btn sm" data-act="food-slot-menu" data-slot="${slot}" aria-label="Azioni ${label}">${Icon.svg("dots", 18)}</button>` : ""}</div>
+        ${list.length ? `<button class="icon-btn sm hit" data-act="food-slot-menu" data-slot="${slot}" aria-label="Azioni ${label}">${Icon.svg("dots", 18)}</button>` : ""}</div>
       ${list.length ? `<ul class="meal-list">${list.map((e) => this.entryHTML(e)).join("")}</ul>` : ""}
-      <button class="link meal-add" data-act="food-pick" data-date="${date}" data-slot="${slot}">${Icon.svg("plus", 14)} Aggiungi</button>
+      <button class="link meal-add" data-act="food-pick" data-date="${date}" data-slot="${slot}" aria-label="Aggiungi a ${label}">${Icon.svg("plus", 14)} Aggiungi</button>
     </section>`;
   },
 
   entryHTML(e) {
     const sub = this.entrySub(e);
-    return `<li class="${e.eaten ? "eaten" : ""}">
-      <button class="round sm ${e.eaten ? "on" : ""}" data-act="food-toggle" data-id="${e.id}" aria-label="${e.eaten ? "Segna come non mangiato" : "Segna come mangiato"}">${Icon.svg("check", 14)}</button>
-      <span class="me-main" data-act="food-entry" data-id="${e.id}" role="button"><b>${U.esc(e.name)}${e.extra ? ` <i class="tag-extra">fuori programma</i>` : ""}</b>${sub ? `<small>${sub}</small>` : ""}</span>
+    return `<li class="${e.eaten ? "eaten done-muted" : ""}">
+      <button class="round sm hit ${e.eaten ? "on" : ""}" data-act="food-toggle" data-id="${U.esc(e.id)}" aria-pressed="${!!e.eaten}" aria-label="${U.esc(e.name)}: ${e.eaten ? "segna come non mangiato" : "segna come mangiato"}">${Icon.svg("check", 14)}</button>
+      <span class="me-main" data-act="food-entry" data-id="${U.esc(e.id)}" role="button" tabindex="0" aria-label="Modifica ${U.esc(e.name)}"><b>${U.esc(e.name)}${e.extra ? ` <i class="tag-extra">fuori programma</i>` : ""}</b>${sub ? `<small>${sub}</small>` : ""}</span>
       <span class="me-qty">${this.qtyText(e.qty, e.unit)}</span>
     </li>`;
   },
@@ -301,10 +302,10 @@ const Food = {
     const uses = this.usage();
     return `
       <div class="chips-row filters">${[["all", "Tutto"], ["food", "Alimenti"], ["dish", "Piatti"], ["meal", "Pasti salvati"]].map(([k, l]) =>
-        `<button class="pill ${this.bookFilter === k ? "on" : ""}" data-act="food-filter" data-id="${k}">${l}</button>`).join("")}</div>
+        `<button class="pill ${this.bookFilter === k ? "on" : ""}" data-act="food-filter" data-id="${k}" aria-pressed="${this.bookFilter === k}">${l}</button>`).join("")}</div>
       ${list.length ? `<div class="card stack"><ul class="food-book">${list.map((f) => `<li>
         <button class="icon-btn sm star ${f.favorite ? "on" : ""}" data-act="food-fav" data-id="${f.id}" aria-label="${f.favorite ? "Togli dai preferiti" : "Metti tra i preferiti"}">${Icon.svg("star", 16)}</button>
-        <span data-act="food-edit" data-id="${f.id}" role="button"><b>${U.esc(f.name)}</b><small>${this.KINDS[f.kind]}${f.kind === "food" ? "" : " · "}${f.kind === "food" ? (f.qty != null || f.unit ? " · " + this.foodSub(f) : "") : this.foodSub(f)}</small></span>
+        <span data-act="food-edit" data-id="${U.esc(f.id)}" role="button" tabindex="0" aria-label="Modifica ${U.esc(f.name)}"><b>${U.esc(f.name)}</b><small>${this.KINDS[f.kind] || ""}${f.kind === "food" ? "" : " · "}${f.kind === "food" ? (f.qty != null || f.unit ? " · " + this.foodSub(f) : "") : this.foodSub(f)}</small></span>
         ${uses.get(f.id) ? `<span class="muted small">${uses.get(f.id)}×</span>` : ""}
       </li>`).join("")}</ul></div>`
         : UI.empty("bowl", all.length ? "Niente in questa categoria" : "Il ricettario è vuoto",
@@ -315,11 +316,11 @@ const Food = {
   templatesHTML() {
     const list = [...Store.d.meal_templates].sort((a, b) => a.name.localeCompare(b.name, "it"));
     return list.length ? `<div class="list">${list.map((t) => `<article class="row-card">
-        <div class="row-main"><h3>${U.esc(t.name)}</h3><p class="muted">${t.kind === "week" ? "Settimana" : "Giorno"} · ${t.entries.length} ${t.entries.length === 1 ? "elemento" : "elementi"}</p></div>
+        <div class="row-main"><h3>${U.esc(t.name)}</h3><p class="muted">${t.kind === "week" ? "Settimana" : "Giorno"} · ${(t.entries || []).length} ${(t.entries || []).length === 1 ? "elemento" : "elementi"}</p></div>
         <div class="row-side">
           <button class="btn primary sm" data-act="food-tpl-apply" data-id="${t.id}">Applica</button>
-          <button class="icon-btn sm" data-act="food-tpl-rename" data-id="${t.id}" aria-label="Rinomina">${Icon.svg("edit", 16)}</button>
-          <button class="icon-btn sm" data-act="food-tpl-delete" data-id="${t.id}" aria-label="Elimina">${Icon.svg("trash", 16)}</button>
+          <button class="icon-btn sm hit" data-act="food-tpl-rename" data-id="${U.esc(t.id)}" aria-label="Rinomina ${U.esc(t.name)}">${Icon.svg("edit", 16)}</button>
+          <button class="icon-btn sm hit" data-act="food-tpl-delete" data-id="${U.esc(t.id)}" aria-label="Elimina ${U.esc(t.name)}">${Icon.svg("trash", 16)}</button>
         </div></article>`).join("")}</div>`
       : UI.empty("copy", "Nessun modello", "Pianifica un giorno o una settimana, poi da «Copia e modelli» salvala come modello: la riapplichi su altre date in un tocco.",
         `<button class="btn primary" data-act="food-tab" data-id="plan">Vai al piano</button>`);
@@ -348,13 +349,14 @@ const Food = {
   openPicker(date, slot, extra = false) {
     this.pick = { date, slot, extra, q: "", added: {} };
     Sheet.open({
-      title: extra ? "Fuori programma" : "Aggiungi",
+      title: extra ? "Fuori programma" : `Aggiungi a ${this.slotLabel(slot)}`,
       wide: true,
       body: `<div class="picker">
         <div class="chips-row filters pick-slots" id="pick-slots"></div>
         <input class="pick-search" id="pick-q" type="search" autocomplete="off" autofocus placeholder="Cerca, o scrivi «salmone 150 g»" data-act-input="food-q">
         <div id="pick-now"></div>
         <div id="pick-list" class="pick-list"></div>
+        <div class="pick-foot"><button type="button" class="btn primary wide" data-sheet-close id="pick-done">Fatto</button></div>
       </div>`,
       onMount: (root) => {
         this.refreshPicker();
@@ -375,9 +377,13 @@ const Food = {
     const root = Sheet.el;
     const slots = root.querySelector("#pick-slots");
     if (!slots) return;
-    slots.innerHTML = this.SLOTS.map(([k, l]) => `<button class="pill ${p.slot === k ? "on" : ""}" data-act="food-pick-slot" data-id="${k}">${l}</button>`).join("");
+    slots.innerHTML = this.SLOTS.map(([k, l]) => `<button class="pill ${p.slot === k ? "on" : ""}" data-act="food-pick-slot" data-id="${k}" aria-pressed="${p.slot === k}">${l}</button>`).join("");
     const on = slots.querySelector(".on");
-    if (on) slots.scrollLeft = on.offsetLeft - slots.clientWidth / 2 + on.offsetWidth / 2;
+    if (on) slots.scrollLeft = on.offsetLeft - slots.offsetLeft - slots.clientWidth / 2 + on.offsetWidth / 2;
+    if (!p.extra) { const t = root.querySelector("#sheet-title"); if (t) t.textContent = `Aggiungi a ${this.slotLabel(p.slot)}`; }
+    const nAdded = U.sum(Object.values(p.added));
+    const doneBtn = root.querySelector("#pick-done");
+    if (doneBtn) doneBtn.textContent = nAdded ? `Fatto (${nAdded})` : "Fatto";
     const now = this.entriesOn(p.date, p.slot);
     root.querySelector("#pick-now").innerHTML = `<p class="pick-now"><b>${this.slotLabel(p.slot)} · ${U.fmtShort(p.date)}</b>${now.length ? ": " + now.map((e) => `${U.esc(e.name)} ${this.qtyText(e.qty, e.unit)}`).join(", ") : " · ancora vuoto"}</p>`;
     root.querySelector("#pick-list").innerHTML = this.pickListHTML();
@@ -386,8 +392,8 @@ const Food = {
   pickRow(f, over) {
     const n = this.pick.added[f.id] || 0;
     const sub = over && over.qty != null && f.kind !== "meal" ? this.qtyText(over.qty, f.kind === "dish" ? "porzione" : over.unit) : this.foodSub(f);
-    return `<button class="pick-row ${n ? "added" : ""}" data-act="food-pick-add" data-id="${f.id}">
-      <span><b>${U.esc(f.name)}</b><small>${f.kind === "food" ? "" : this.KINDS[f.kind] + " · "}${sub}</small></span>
+    return `<button class="pick-row ${n ? "added" : ""}" data-act="food-pick-add" data-id="${U.esc(f.id)}">
+      <span><b>${U.esc(f.name)}</b><small>${f.kind === "food" ? "" : (this.KINDS[f.kind] || "") + " · "}${sub}</small></span>
       ${n ? `<i class="pk-n">${n}×</i>` : ""}<i class="pk-plus">${Icon.svg(n ? "check" : "plus", 16)}</i></button>`;
   },
 
@@ -453,11 +459,11 @@ const Food = {
       title: e.name,
       body: `<form class="form" id="entry-form">
         <label>Cosa<input name="name" maxlength="80" required value="${U.esc(e.name)}"></label>
-        <div class="row2"><label>Quantità<input name="qty" type="number" step="any" min="0" inputmode="decimal" value="${e.qty ?? ""}"></label>
+        <div class="row2"><label>Quantità<input name="qty" type="number" step="any" min="0" inputmode="decimal" value="${U.esc(e.qty ?? "")}"></label>
           <label>Unità<select name="unit"><option value="">—</option>${this.UNITS.map((u) => `<option ${u === e.unit ? "selected" : ""}>${u}</option>`).join("")}</select></label></div>
         ${e.items && e.items.length ? `<p class="muted small">Ingredienti: ${this.entrySub(e)}</p>` : ""}
         <div class="row2"><label>Pasto<select name="slot">${this.SLOTS.map(([k, l]) => `<option value="${k}" ${k === e.slot ? "selected" : ""}>${l}</option>`).join("")}</select></label>
-          <label>Giorno<input name="date" type="date" value="${e.entry_date}" required></label></div>
+          <label>Giorno<input name="date" type="date" value="${U.esc(e.entry_date)}" required></label></div>
         <label class="check"><input name="eaten" type="checkbox" ${e.eaten ? "checked" : ""}><span><b>Mangiato</b></span></label>
         <div class="btn-row"><button class="btn primary" type="submit">Salva</button>
           <button class="btn ghost danger" type="button" data-act="food-entry-delete" data-id="${e.id}" data-close="1">${Icon.svg("trash", 16)} Togli dal piano</button></div>
@@ -483,16 +489,16 @@ const Food = {
   // ---------- ricettario: modulo ----------
   ingRow(i = {}) {
     return `<div class="ing-row">
-      <input name="ing-name" maxlength="60" placeholder="Ingrediente" list="food-names" value="${U.esc(i.name || "")}">
-      <input name="ing-qty" type="number" step="any" min="0" inputmode="decimal" placeholder="Q.tà" value="${i.qty ?? ""}">
-      <select name="ing-unit">${this.UNITS.filter((u) => u !== "porzione").map((u) => `<option ${u === (i.unit || "g") ? "selected" : ""}>${u}</option>`).join("")}</select>
+      <input name="ing-name" maxlength="60" placeholder="Ingrediente" aria-label="Ingrediente" list="food-names" value="${U.esc(i.name || "")}">
+      <input name="ing-qty" type="number" step="any" min="0" inputmode="decimal" placeholder="Q.tà" aria-label="Quantità" value="${U.esc(i.qty ?? "")}">
+      <select name="ing-unit" aria-label="Unità">${this.UNITS.filter((u) => u !== "porzione").map((u) => `<option ${u === (i.unit || "g") ? "selected" : ""}>${u}</option>`).join("")}</select>
       <button type="button" class="icon-btn sm" data-ing-del aria-label="Togli">${Icon.svg("x", 16)}</button></div>`;
   },
 
   mealRow(i) {
     return `<div class="ing-row meal-row" data-item='${U.esc(JSON.stringify(i))}'>
       <span class="mr-name">${U.esc(i.name)}</span>
-      <input name="ing-qty" type="number" step="any" min="0" inputmode="decimal" value="${i.qty ?? ""}">
+      <input name="ing-qty" type="number" step="any" min="0" inputmode="decimal" aria-label="Quantità di ${U.esc(i.name)}" value="${U.esc(i.qty ?? "")}">
       <span class="mr-unit">${U.esc(i.unit || "")}</span>
       <button type="button" class="icon-btn sm" data-ing-del aria-label="Togli">${Icon.svg("x", 16)}</button></div>`;
   },
@@ -508,7 +514,7 @@ const Food = {
         ${f ? "" : UI.seg("kind", [["food", "Alimento"], ["dish", "Piatto"]], kind)}
         <label>Nome<input name="name" maxlength="80" required autofocus value="${U.esc(f ? f.name : "")}" placeholder="${kind === "dish" ? "Es. Frittata di zucchine" : kind === "meal" ? "Es. Colazione keto A" : "Es. Salmone"}"></label>
         <div class="k-food" ${kind === "food" ? "" : "hidden"}>
-          <div class="row2"><label>Quantità abituale<input name="qty" type="number" step="any" min="0" inputmode="decimal" value="${f && f.kind === "food" ? f.qty ?? "" : ""}" placeholder="150"></label>
+          <div class="row2"><label>Quantità abituale<input name="qty" type="number" step="any" min="0" inputmode="decimal" value="${f && f.kind === "food" ? U.esc(f.qty ?? "") : ""}" placeholder="150"></label>
             <label>Unità<select name="unit">${this.UNITS.filter((u) => u !== "porzione").map((u) => `<option ${u === (f && f.unit || "g") ? "selected" : ""}>${u}</option>`).join("")}</select></label></div>
         </div>
         <div class="field k-dish" ${kind === "dish" ? "" : "hidden"}><span class="lbl">Ingredienti per una porzione</span>
@@ -518,7 +524,7 @@ const Food = {
         </div>
         ${kind === "meal" ? `<div class="field"><span class="lbl">Cosa c'è nel pasto</span>
           <div class="ing-rows" id="meal-rows">${(f.items || []).map((i) => this.mealRow(i)).join("")}</div>
-          ${others.length ? `<select id="meal-add"><option value="">Aggiungi dal ricettario…</option>${others.map((x) => `<option value="${x.id}">${U.esc(x.name)}</option>`).join("")}</select>` : ""}
+          ${others.length ? `<select id="meal-add" aria-label="Aggiungi dal ricettario"><option value="">Aggiungi dal ricettario…</option>${others.map((x) => `<option value="${x.id}">${U.esc(x.name)}</option>`).join("")}</select>` : ""}
         </div>` : ""}
         <label class="check"><input name="favorite" type="checkbox" ${f && f.favorite ? "checked" : ""}><span><b>Preferito</b><small>Compare in cima quando aggiungi ai pasti.</small></span></label>
         <div class="btn-row"><button class="btn primary" type="submit">Salva</button>
@@ -597,23 +603,23 @@ const Food = {
     ]);
   },
 
-  saveMeal(slot) {
+  async saveMeal(slot) {
     const list = this.entriesOn(this.sel(), slot).filter((e) => !e.extra);
     if (!list.length) return;
-    const name = prompt("Nome del pasto", `${this.slotLabel(slot)} ${U.fmtShort(this.sel())}`);
+    const name = await UI.prompt({ title: "Salva come pasto", label: "Nome del pasto", value: `${this.slotLabel(slot)} ${U.fmtShort(this.sel())}` });
     if (!name || !name.trim()) return;
     Store.insert("foods", { kind: "meal", name: name.trim(), qty: null, unit: null, items: list.map((e) => this.core(e)), favorite: true });
     Sheet.close();
     U.toast("Pasto salvato: lo trovi in cima quando aggiungi");
   },
 
-  saveTemplate(kind) {
+  async saveTemplate(kind) {
     const day = this.sel(), mon = U.mondayOf(day);
     const src = kind === "day" ? this.entriesOn(day) : Store.d.meal_entries.filter((e) => e.entry_date >= mon && e.entry_date <= U.addDays(mon, 6));
     const entries = src.filter((e) => !e.extra).sort((a, b) => a.entry_date.localeCompare(b.entry_date) || this.slotIdx(a.slot) - this.slotIdx(b.slot) || a.position - b.position)
       .map((e) => ({ ...(kind === "week" ? { dow: U.dow(e.entry_date) } : {}), slot: e.slot, ...this.core(e) }));
     if (!entries.length) return;
-    const name = prompt("Nome del modello", kind === "day" ? "Giorno tipo" : "Settimana tipo");
+    const name = await UI.prompt({ title: kind === "day" ? "Salva il giorno come modello" : "Salva la settimana come modello", label: "Nome del modello", value: kind === "day" ? "Giorno tipo" : "Settimana tipo" });
     if (!name || !name.trim()) return;
     Store.insert("meal_templates", { name: name.trim(), kind, entries });
     Sheet.close();
@@ -713,9 +719,11 @@ const Food = {
       } });
   },
 
-  clear(slot = null) {
+  async clear(slot = null) {
     const day = this.sel();
-    if (!confirm(slot ? `Svuotare ${this.slotLabel(slot).toLowerCase()} del ${U.fmtShort(day)}?` : `Svuotare tutto il ${U.fmtShort(day)}?`)) return;
+    const ok = await UI.confirm({ title: slot ? `Svuotare ${this.slotLabel(slot).toLowerCase()} del ${U.fmtShort(day)}?` : `Svuotare tutto il ${U.fmtShort(day)}?`,
+      text: "Le pietanze in programma vengono tolte dal piano.", confirmLabel: "Svuota", danger: true });
+    if (!ok) return;
     Store.removeMany("meal_entries", this.entriesOn(day, slot).map((e) => e.id));
     this.syncHabit([day]);
     Sheet.close();
@@ -733,6 +741,8 @@ Actions["food-slot-menu"] = (el) => Food.slotMenu(el.dataset.slot);
 Actions["food-pick"] = (el) => Food.openPicker(el.dataset.date, el.dataset.slot);
 Actions["food-extra"] = () => Food.openPicker(U.today(), Food.currentSlot(), true);
 Actions["food-quick"] = () => Food.openPicker(U.today(), Food.currentSlot());
+// Dal piano: il giorno che stai guardando (oggi se non ne hai scelto un altro) e il pasto di adesso
+Actions["food-add-meal"] = () => Food.openPicker(Food.tab === "plan" ? Food.sel() : U.today(), Food.currentSlot());
 Actions["food-q"] = (el) => { if (Food.pick) { Food.pick.q = el.value; Food.refreshPicker(); } };
 Actions["food-pick-slot"] = (el) => { if (Food.pick) { Food.pick.slot = el.dataset.id; Food.refreshPicker(); } };
 Actions["food-pick-add"] = (el) => Food.pickAdd(el.dataset.id);
@@ -743,8 +753,8 @@ Actions["food-entry-delete"] = (el) => Food.removeEntry(el.dataset.id);
 Actions["food-new"] = () => Food.openForm(null, "food");
 Actions["food-edit"] = (el) => Food.openForm(el.dataset.id);
 Actions["food-fav"] = (el) => { const f = Store.d.foods.find((x) => x.id === el.dataset.id); if (f) Store.update("foods", f.id, { favorite: !f.favorite }); };
-Actions["food-delete"] = (el) => {
-  if (!confirm("Eliminare dal ricettario? I giorni già pianificati restano come sono.")) return;
+Actions["food-delete"] = async (el) => {
+  if (!(await UI.confirm({ title: "Eliminare dal ricettario?", text: "I giorni già pianificati restano come sono.", confirmLabel: "Elimina", danger: true }))) return;
   Store.remove("foods", el.dataset.id);
   Sheet.close();
 };
@@ -752,12 +762,14 @@ Actions["food-copy"] = (el) => Food.copy(el.dataset.kind, el.dataset.slot);
 Actions["food-save-meal"] = (el) => Food.saveMeal(el.dataset.slot);
 Actions["food-tpl-save"] = (el) => Food.saveTemplate(el.dataset.kind);
 Actions["food-tpl-apply"] = (el) => Food.applyTemplate(el.dataset.id);
-Actions["food-tpl-rename"] = (el) => {
+Actions["food-tpl-rename"] = async (el) => {
   const t = Store.d.meal_templates.find((x) => x.id === el.dataset.id);
-  const name = t && prompt("Nuovo nome", t.name);
+  const name = t && await UI.prompt({ title: "Rinomina il modello", label: "Nuovo nome", value: t.name });
   if (name && name.trim()) Store.update("meal_templates", t.id, { name: name.trim() });
 };
-Actions["food-tpl-delete"] = (el) => { if (confirm("Eliminare questo modello? I giorni già pianificati restano.")) Store.remove("meal_templates", el.dataset.id); };
+Actions["food-tpl-delete"] = async (el) => {
+  if (await UI.confirm({ title: "Eliminare questo modello?", text: "I giorni già pianificati restano.", confirmLabel: "Elimina", danger: true })) Store.remove("meal_templates", el.dataset.id);
+};
 Actions["food-target"] = (el) => Food.toggleTarget(el);
 Actions["food-target-go"] = () => Food.applyTargets();
 Actions["food-clear-day"] = () => Food.clear();

@@ -26,12 +26,10 @@ fi
 EMAIL="$(sed -n 's/.*ALLOWED_EMAIL: *"\([^"]*\)".*/\1/p' "$APP_DIR/js/config.js")"
 [ -n "$EMAIL" ] || { echo "ALLOWED_EMAIL mancante in js/config.js"; exit 1; }
 
-echo "Password di Supabase per $EMAIL (non compare a schermo mentre scrivi)."
-read -rsp "Password: " PW; echo
-[ -n "$PW" ] || { echo "Password vuota: riprova."; exit 1; }
-echo "Lunghezza inserita: ${#PW} caratteri."
-security add-generic-password -U -a "$EMAIL" -s "$SERVICE" -w "$PW"
-unset PW
+echo "Password di Supabase per $EMAIL: te la chiede il Portachiavi (due volte, non compare a schermo)."
+# "-w" per ultimo e senza valore: è "security" a chiedere la password, così non finisce
+# mai tra gli argomenti del comando (visibili a tutti con "ps").
+security add-generic-password -U -a "$EMAIL" -s "$SERVICE" -w
 
 echo "Prima sincronizzazione di prova…"
 "$PYTHON" "$APP_DIR/scripts/sync_second_brain.py" --vault "$VAULT"

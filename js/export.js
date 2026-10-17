@@ -1,6 +1,7 @@
 // ============================================================
 // Esportazione dei dati: Excel (tutti i fogli) e CSV (un foglio alla volta)
-// Usa SheetJS, caricato via CDN in index.html
+// SheetJS si scarica solo al primo export Excel (versione fissata + integrità SRI);
+// il CSV non ne ha bisogno.
 // ============================================================
 const Export = {
   area: (k) => (AREAS[k] ? AREAS[k].label : k),
@@ -55,11 +56,54 @@ const Export = {
 
   stamp() { return U.today(); },
 
-  excel() {
-    if (!window.XLSX) return U.toast("Libreria Excel non caricata: controlla la connessione");
+  XLSX_SRC: "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+  XLSX_SRI: "sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw",
+  _xlsx: null,
+  loadXlsx() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (!this._xlsx) {
+      U.toast("Preparo il file…");
+      this._xlsx = new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = this.XLSX_SRC;
+        s.integrity = this.XLSX_SRI;
+        s.crossOrigin = "anonymous";
+        s.onload = () => (window.XLSX ? resolve(window.XLSX) : reject(new Error("XLSX assente")));
+        s.onerror = () => reject(new Error("XLSX non scaricato"));
+        document.head.appendChild(s);
+      }).catch((e) => { this._xlsx = null; throw e; }); // al prossimo tentativo riprovo
+    }
+    return this._xlsx;
+  },
+
+  // Un testo che inizia con = + - @ (o tab / a capo) verrebbe letto come formula da Excel:
+  // lo faccio precedere da un apostrofo. I numeri restano numeri.
+  safeCell(v) {
+    if (typeof v !== "string") return v;
+    return /^[=+\-@\t\r]/.test(v) ? "'" + v : v;
+  },
+  safeRows(rows) {
+    return rows.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, this.safeCell(v)])));
+  },
+
+  toCsv(rows) {
+    const cols = Object.keys(rows[0]);
+    const cell = (v) => {
+      const s = v == null ? "" : String(v);
+      return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    return [cols.map(cell).join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\r\n");
+  },
+
+  async excel() {
+    try { await this.loadXlsx(); } catch (e) {
+      console.error(e);
+      return U.toast("Libreria Excel non caricata: controlla la connessione");
+    }
     const wb = XLSX.utils.book_new();
     const sets = this.datasets();
-    for (const [name, rows] of Object.entries(sets)) {
+    for (const [name, raw] of Object.entries(sets)) {
+      const rows = this.safeRows(raw);
       const ws = rows.length ? XLSX.utils.json_to_sheet(rows) : XLSX.utils.aoa_to_sheet([["Nessun dato"]]);
       if (rows.length) ws["!cols"] = Object.keys(rows[0]).map((k) => ({ wch: Math.max(k.length + 2, 14) }));
       XLSX.utils.book_append_sheet(wb, ws, name.replace(/_/g, " ").slice(0, 31));
@@ -68,12 +112,11 @@ const Export = {
   },
 
   csv(name) {
-    if (!window.XLSX) return U.toast("Libreria non caricata: controlla la connessione");
     const rows = this.datasets()[name];
     if (!rows) return;
     if (!rows.length) return U.toast("Questo elenco è ancora vuoto");
-    const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(rows));
+    const csv = this.toCsv(this.safeRows(rows));
     // BOM: Excel apre correttamente accenti e caratteri speciali
-    U.download(`kurashi_${name.toLowerCase()}_${this.stamp()}.csv`, new Blob(["﻿", csv], { type: "text/csv;charset=utf-8" }));
+    U.download(`kurashi_${name.toLowerCase()}_${this.stamp()}.csv`, new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" }));
   }
 };

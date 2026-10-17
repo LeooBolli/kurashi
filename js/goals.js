@@ -11,6 +11,8 @@ const Goals = {
   addingSub: null,     // id della tappa a cui si sta aggiungendo una sottotappa
 
   paceIcon(key) { return { ahead: "▲", on: "●", slight: "◐", behind: "▼", done: "✓" }[key]; },
+  // Etichetta del ritmo (qui "In ritardo" al posto di "Da recuperare")
+  paceLabel(p) { return p.key === "slight" ? "In ritardo" : p.label; },
 
   card(g) {
     const pace = Calc.goalPace(g);
@@ -19,9 +21,9 @@ const Goals = {
     const a = AREAS[g.area] || AREAS.progetti;
     const ms = Calc.milestonesOf(g);
     const kids = Calc.childGoals(g);
-    return `<article class="goal-card" data-act="goal-open" data-id="${g.id}">
-      <div class="goal-top">${UI.areaChip(g.area, true)}<span class="pace ${pace.key}" data-tip="Atteso ${Math.round(pace.expected)}% · reale ${Math.round(pace.progress)}%">${this.paceIcon(pace.key)} ${pace.label}</span></div>
-      <h3>${U.esc(g.title)}</h3>
+    return `<article class="goal-card" data-act="goal-open" data-id="${U.esc(g.id)}" role="button" tabindex="0" aria-label="${U.esc(g.title)}: ${Math.round(pace.progress)}%, ${this.paceLabel(pace)}. Apri il dettaglio">
+      <div class="goal-top">${UI.areaChip(g.area, true)}<span class="pace ${pace.key}" data-tip="Atteso ${Math.round(pace.expected)}% · reale ${Math.round(pace.progress)}%">${this.paceIcon(pace.key)} ${this.paceLabel(pace)}</span></div>
+      <h3 class="goal-title">${U.esc(g.title)}</h3>
       <div class="goal-prog">
         ${Charts.bar({ value: pace.progress, color: a.color, mark: g.status === "done" ? null : pace.expected, h: 8 })}
         <div class="goal-nums"><b>${Math.round(pace.progress)}%</b><span>${ms.length ? `${ms.filter((m) => Calc.msPct(m) === 100).length}/${ms.length} tappe · ` : ""}${kids.length ? `${kids.filter((k) => k.status === "done").length}/${kids.length} figli · ` : ""}${Calc.goalBooks(g) ? `${Calc.goalBooks(g).count}/${Calc.goalBooks(g).target} libri · ` : ""}${leftTxt}</span></div>
@@ -52,10 +54,10 @@ const Goals = {
         <button class="btn primary" data-act="goal-new">${Icon.svg("plus", 18)}<span>Nuovo</span></button>
       </div>
       <div class="seg tabs4" data-tabs="goals">${Object.entries(HORIZONS).map(([k, h]) =>
-        `<button class="${this.tab === k ? "on" : ""}" data-act="goal-tab" data-id="${k}">${h.label}<small>${h.sub}</small></button>`).join("")}</div>
+        `<button class="${this.tab === k ? "on" : ""}" data-act="goal-tab" data-id="${k}" aria-pressed="${this.tab === k}">${h.label}<small><span class="hz-sub">${h.sub} · </span>${active.filter((g) => g.horizon === k).length}</small></button>`).join("")}</div>
       <div class="goal-cols">${["short", "medium", "long", "recurring"].map(col).join("")}</div>
       <p class="legend-note">La tacca sulla barra è dove dovresti essere in base al tempo trascorso.</p>
-      ${done.length ? `<details class="archived"><summary>Completati (${done.length})</summary>${done.map((g) => `<div class="row-card slim" data-act="goal-open" data-id="${g.id}">${UI.glyph(g.area)}<div class="row-main"><h3>${U.esc(g.title)}</h3><p class="muted">${HORIZONS[g.horizon].label}</p></div></div>`).join("")}</details>` : ""}`;
+      ${done.length ? `<details class="archived"><summary>Completati (${done.length})</summary>${done.map((g) => `<div class="row-card slim" data-act="goal-open" data-id="${U.esc(g.id)}" role="button" tabindex="0" aria-label="${U.esc(g.title)} (completato): apri il dettaglio">${UI.glyph(g.area)}<div class="row-main"><h3>${U.esc(g.title)}</h3><p class="muted">${(HORIZONS[g.horizon] || HORIZONS.short).label}</p></div></div>`).join("")}</details>` : ""}`;
   },
 
   // ---------- dettaglio ----------
@@ -100,7 +102,7 @@ const Goals = {
     const period = g.horizon === "recurring" ? Calc.periodRange(g.period) : null;
     return `<div class="detail">
       <div class="chips-row">${UI.areaChip(g.area)}<span class="chip">${HORIZONS[g.horizon].label} · ${HORIZONS[g.horizon].sub}</span>
-        <span class="pace ${pace.key}">${this.paceIcon(pace.key)} ${pace.label}</span>
+        <span class="pace ${pace.key}">${this.paceIcon(pace.key)} ${this.paceLabel(pace)}</span>
         ${parent ? `<button class="chip link" data-act="goal-open" data-id="${parent.id}">${Icon.svg("right", 12)} ${U.esc(parent.title)}</button>` : ""}</div>
       ${g.description ? `<p class="desc">${U.esc(g.description)}</p>` : ""}
       <div class="goal-hero">
@@ -137,19 +139,19 @@ const Goals = {
         ${habits.length ? `<ul class="linked">${habits.map((h) => `<li>${UI.glyph(h.area)}<span>${U.esc(h.name)}<small class="muted"> · ${Habits.targetText(h)}</small></span>
           <button class="icon-btn sm" data-act="goal-unlink" data-id="${h.id}" aria-label="Scollega">${Icon.svg("x", 16)}</button></li>`).join("")}</ul>` : `<p class="muted small">Nessuna. Ogni giorno completato fa avanzare l'obiettivo.</p>`}
         <div class="btn-row">
-          ${free.length ? `<select id="link-habit" data-act-change="goal-link-change"><option value="">Collega un'abitudine…</option>${free.map((h) => `<option value="${h.id}">${U.esc(h.name)}</option>`).join("")}</select>` : ""}
+          ${free.length ? `<select id="link-habit" aria-label="Collega un'abitudine" data-act-change="goal-link-change"><option value="">Collega un'abitudine…</option>${free.map((h) => `<option value="${h.id}">${U.esc(h.name)}</option>`).join("")}</select>` : ""}
           <button class="btn ghost sm" data-act="goal-new-habit" data-id="${g.id}">${Icon.svg("plus", 16)} Nuova abitudine</button>
         </div>
       </div>
 
       ${canHaveKids ? `<div class="block">
         <div class="block-head"><h3>Obiettivi collegati</h3>${g.weight_linked && kids.length ? `<span class="muted small">non cambiano la % del peso</span>` : ""}</div>
-        ${kids.length ? `<ul class="linked">${kids.map((k) => `<li data-act="goal-open" data-id="${k.id}" role="button"><span>${U.esc(k.title)}<small class="muted"> · ${HORIZONS[k.horizon].label} · ${Math.round(Calc.goalProgress(k))}%</small></span>${Icon.svg("right", 14)}</li>`).join("")}</ul>`
+        ${kids.length ? `<ul class="linked">${kids.map((k) => `<li data-act="goal-open" data-id="${U.esc(k.id)}" role="button" tabindex="0"><span>${U.esc(k.title)}<small class="muted"> · ${HORIZONS[k.horizon].label} · ${Math.round(Calc.goalProgress(k))}%</small></span>${Icon.svg("right", 14)}</li>`).join("")}</ul>`
           : `<p class="muted small">Nessuno. Collega un obiettivo a breve o medio termine a questo scegliendolo come "genitore" dal suo modulo di modifica.</p>`}
       </div>` : ""}
 
       ${usesManual ? `<div class="block"><div class="block-head"><h3>Avanzamento manuale</h3><span class="muted small">senza tappe o abitudini</span></div>
-        <input type="range" min="0" max="100" step="5" value="${g.manual_progress}" data-act-change="goal-manual" data-id="${g.id}" class="range"></div>` : ""}
+        <input type="range" min="0" max="100" step="5" value="${Number(g.manual_progress) || 0}" aria-label="Avanzamento manuale" data-act-change="goal-manual" data-id="${g.id}" class="range"></div>` : ""}
 
       <div class="btn-row">
         ${g.status === "done"
@@ -223,7 +225,7 @@ const Goals = {
   // Riga compatta di una tappa-esame nella lista tappe: percentuale complessiva + link al gestore
   examStepHTML(m) {
     const pct = Calc.msPct(m);
-    return `<li class="step exam ${pct >= 100 ? "done" : ""}" data-act="exam-open" data-id="${m.id}" role="button">
+    return `<li class="step exam ${pct >= 100 ? "done" : ""}" data-act="exam-open" data-id="${U.esc(m.id)}" role="button" tabindex="0" aria-label="Esame ${U.esc(m.title)}: ${Math.round(pct)}%. Apri">
       <div class="step-row">
         <span class="exam-badge">${Icon.svg("book", 14)}</span>
         <span class="step-title">${U.esc(m.title)}</span>
@@ -260,7 +262,7 @@ const Goals = {
         ${Charts.ring({ value: pct / 100, size: 96, stroke: 9, color: "var(--blue-500)", inner: `<b>${Math.round(pct)}%</b><small>completato</small>` })}
         <dl class="kv">
           <div><dt>Appello</dt><dd>${m.exam_date ? U.fmtLong(m.exam_date) : "non fissato"}</dd></div>
-          <div><dt>CFU</dt><dd>${m.exam_cfu ?? "–"}</dd></div>
+          <div><dt>CFU</dt><dd>${m.exam_cfu != null ? U.num(Number(m.exam_cfu)) : "–"}</dd></div>
           <div><dt>Voto</dt><dd>${U.esc(m.exam_grade || "–")}</dd></div>
           ${studyMin ? `<div><dt>Focus dedicato</dt><dd>${U.fmtMin(studyMin)}</dd></div>` : ""}
         </dl>
@@ -268,8 +270,8 @@ const Goals = {
 
       <form class="form" data-act-submit="exam-meta-save" data-id="${m.id}">
         <div class="row2">
-          <label>Data appello<input type="date" name="exam_date" value="${m.exam_date || ""}"></label>
-          <label>CFU<input type="number" name="exam_cfu" min="0" max="60" step="0.5" value="${m.exam_cfu ?? ""}"></label>
+          <label>Data appello<input type="date" name="exam_date" value="${U.esc(m.exam_date || "")}"></label>
+          <label>CFU<input type="number" name="exam_cfu" min="0" max="60" step="0.5" value="${U.esc(m.exam_cfu ?? "")}"></label>
         </div>
         <label>Voto<input name="exam_grade" maxlength="10" placeholder="Es. 28" value="${U.esc(m.exam_grade || "")}"></label>
         <button class="btn ghost sm" type="submit">Salva</button>
@@ -278,7 +280,7 @@ const Goals = {
       ${Calc.EXAM_PHASES.map((p) => this.examPhaseHTML(m, p)).join("")}
 
       <div class="btn-row">
-        <button class="btn ghost sm" data-act="go" data-id="focus" data-close="1">${Icon.svg("tree", 14)} Dedica una sessione di focus</button>
+        <button class="btn ghost sm" data-act="go" data-id="focus" data-close="1">${Icon.svg("clock", 14)} Dedica una sessione di focus</button>
       </div>
       <div class="btn-row">
         <button class="btn ghost wide" data-act="exam-back">${Icon.svg("left", 14)} Torna all'obiettivo</button>
@@ -323,7 +325,7 @@ const Goals = {
       title: g ? "Modifica obiettivo" : "Nuovo obiettivo",
       body: `<form id="goal-form" class="form">
         <label>Cosa vuoi ottenere?<input name="title" required autofocus maxlength="100" placeholder="Es. Correre una mezza maratona" value="${U.esc(g ? g.title : "")}"></label>
-        <label>Area<select name="area">${UI.areaOptions(g ? g.area : "progetti")}</select></label>
+        <div class="field"><span class="lbl">Area</span>${UI.areaPicker("area", g ? g.area : "progetti")}</div>
         <div class="field"><span class="lbl">Orizzonte</span>${UI.seg("horizon", Object.entries(HORIZONS).map(([k, h]) => [k, `${h.label}<small>${h.sub}</small>`]), hz)}</div>
         <div class="row2">
           <label>Inizio<input type="date" name="start_date" required value="${start}"></label>
@@ -404,9 +406,10 @@ Actions["goal-complete"] = (el) => {
   U.toast("Obiettivo completato. Bel lavoro!");
 };
 Actions["goal-reopen"] = (el) => { Store.update("goals", el.dataset.id, { status: "active", done_at: null }); Goals.refreshDetail(); };
-Actions["goal-delete"] = (el) => {
+Actions["goal-delete"] = async (el) => {
   const g = Store.d.goals.find((x) => x.id === el.dataset.id);
-  if (!confirm(`Eliminare "${g.title}"? Le abitudini collegate restano, ma vengono scollegate.`)) return;
+  if (!g) return;
+  if (!(await UI.confirm({ title: `Eliminare «${g.title}»?`, text: "Le abitudini collegate restano, ma vengono scollegate.", confirmLabel: "Elimina", danger: true }))) return;
   Store.remove("goals", g.id);
   Goals.setBooks(g.id, 0);
   Sheet.close();
@@ -427,22 +430,22 @@ Actions["ms-toggle"] = (el) => {
   Goals.refreshDetail();
   Goals.refreshExam();
 };
-Actions["ms-delete"] = (el) => {
+Actions["ms-delete"] = async (el) => {
   const m = Store.d.milestones.find((x) => x.id === el.dataset.id);
   if (!m) return;
   const kids = Calc.childrenOf(m).length;
-  if (kids && !confirm(`Eliminare la tappa e le sue ${kids} sottotappe?`)) return;
+  if (kids && !(await UI.confirm({ title: "Eliminare la tappa?", text: `Con lei se ne vanno anche ${kids === 1 ? "la sua sottotappa" : `le sue ${kids} sottotappe`}.`, confirmLabel: "Elimina", danger: true }))) return;
   const pid = m.parent_id;
   Store.remove("milestones", m.id);
   if (pid) Goals.syncParent(pid);
   Goals.refreshDetail();
   Goals.refreshExam();
 };
-Actions["ms-exam"] = (el) => {
+Actions["ms-exam"] = async (el) => {
   const m = Store.d.milestones.find((x) => x.id === el.dataset.id);
   if (!m) return;
   if (m.is_exam) {
-    if (!confirm("Non è più un esame: gli argomenti restano come sottotappe semplici. Continuare?")) return;
+    if (!(await UI.confirm({ title: "Non è più un esame?", text: "Gli argomenti restano come sottotappe semplici.", confirmLabel: "Continua" }))) return;
     Store.update("milestones", m.id, { is_exam: false });
     Goals.examId = null;
     Goals.refreshDetail();

@@ -1,49 +1,17 @@
 // ============================================================
 // Oggi: la Home a widget (stile iOS). Ogni widget legge i dati veri
 // (Store/Calc) e si ridisegna a ogni modifica. La disposizione si salva
-// nelle impostazioni (homeLayout), quindi è la stessa su tutti i dispositivi.
+// nelle impostazioni (homeLayout: [{ id, type, size, opts }]), quindi è la stessa
+// su tutti i dispositivi; lo stesso widget può esserci più volte.
 // Modifica Home: trascina per spostare, × per togliere (con Annulla),
-// scegli il formato, + per aggiungere; da tastiera frecce e Canc.
+// «Formato» e «Personalizza» sotto ogni widget, + per aggiungere;
+// da tastiera frecce e Canc sulla maniglia del widget.
 // Su telefono: pressione lunga su un widget per entrare in modifica.
 // ============================================================
 const Today = (() => {
-  // ---------- Icone (stesso tratto del prototipo) ----------
-  const P = {
-    habit: '<rect x="4" y="4" width="16" height="16" rx="5"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
-    goal: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6" fill="currentColor"/>',
-    chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
-    timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',
-    bowl: '<path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M8 7c0-2 2-2 2-4M13 7c0-2 2-2 2-4"/>',
-    book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/>',
-    quote: '<path d="M7 7h4v4c0 3-2 5-4 6M14 7h4v4c0 3-2 5-4 6"/>',
-    cal: '<rect x="3" y="5" width="18" height="16" rx="4"/><path d="M8 3v4M16 3v4M3 10h18"/>',
-    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-    scale: '<rect x="3" y="4" width="18" height="16" rx="5"/><path d="M8 10a5 5 0 0 1 8 0l-3 2"/>',
-    flame: '<path d="M12 21a7 7 0 0 0 7-7c0-4-3-6-4-10-2 2-2 4-2 4s-2-2-2-4c-3 3-6 6-6 10a7 7 0 0 0 7 7z"/>',
-    plus: '<path d="M12 5v14M5 12h14"/>',
-    x: '<path d="M6 6l12 12M18 6L6 18"/>',
-    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
-    play: '<path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/>',
-    stop: '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/>',
-    image: '<rect x="3" y="4" width="18" height="16" rx="4"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
-    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
-    reset: '<path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4"/>',
-    left: '<path d="M15 6l-6 6 6 6"/>',
-    right: '<path d="M9 6l6 6-6 6"/>',
-    up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
-    down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
-    flat: '<path d="M5 12h14"/>',
-    run: '<circle cx="14" cy="4.5" r="2"/><path d="M8 21l3-6 3 3v-6l-3-2-3 3M14 12l3 3h3"/>',
-    hourglass: '<path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9"/>',
-    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-    cap: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>',
-    link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-    bolt: '<path d="M13 3L5 13h6l-1 8 8-10h-6z"/>',
-    grid: '<rect x="4" y="4" width="6" height="6" rx="3"/><rect x="14" y="4" width="6" height="6" rx="3"/><rect x="4" y="14" width="6" height="6" rx="3"/><rect x="14" y="14" width="6" height="6" rx="3"/>',
-    star: '<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5l-5.4 3 1.2-6-4.5-4.2 6.1-.7z"/>',
-    scaleAdd: '<rect x="3" y="4" width="18" height="16" rx="5"/><path d="M8 10a5 5 0 0 1 8 0l-3 2"/>'
-  };
-  const ic = (n, s = 18, w = 1.8) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ""}</svg>`;
+  // ---------- Icone: la raccolta comune (Icon), con i vecchi nomi della Home ----------
+  const ICON_ALIAS = { habit: "habitBox", goal: "target", chart: "bars", play: "playFill" };
+  const ic = (n, s = 18, w = 1.8) => Icon.svg(ICON_ALIAS[n] || n, s, "", w);
   const esc = (s) => U.esc(s);
   const reduceMotion = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const cap1 = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
@@ -55,22 +23,25 @@ const Today = (() => {
     layout: null,        // [[tipo, formato], ...]
     seen: null,          // JSON dell'ultima disposizione letta/salvata nelle impostazioni
     saveT: null,
-    calTab: "habits",
-    calOff: 0,
+    cal: {},             // stato di ciascun calendario: { [id]: { tab, off } }
     timerI: null,
     bound: false,
     drag: null,
     press: null,
     focusIdx: null,
+    focusFmt: false,
     suppressClick: false
   };
 
   const SIZE_NAMES = { c: "Cerchio", s: "Piccolo", p: "Capsula", mh: "Medio orizzontale", mv: "Medio verticale", lh: "Grande orizzontale", lv: "Grande verticale" };
   const SIZE_ORDER = ["c", "s", "p", "mh", "mv", "lh", "lv"];
   const NEW_WIDGETS = ["nextHabit", "points", "workouts", "deadline", "clock", "exam", "toRead", "quick", "heat"];
-  const unseenNew = () => { const seen = Store.cfg().seenWidgets || []; const used = new Set((st.layout || []).map((l) => l[0])); return NEW_WIDGETS.filter((k) => !seen.includes(k) && !used.has(k)); };
+  const unseenNew = () => { const seen = Store.cfg().seenWidgets || []; const used = new Set((st.layout || []).map((l) => l.type)); return NEW_WIDGETS.filter((k) => !seen.includes(k) && !used.has(k)); };
   const sizeIcon = (s) => ({ c: '<circle cx="12" cy="9" r="7.5"/>', p: '<rect x="1" y="4.5" width="22" height="9" rx="4.5"/>', s: '<rect x="7" y="4" width="10" height="10" rx="3"/>', mh: '<rect x="2" y="5" width="20" height="9" rx="3"/>', mv: '<rect x="7" y="1" width="10" height="16" rx="3"/>', lh: '<rect x="1" y="2" width="22" height="14" rx="3"/>', lv: '<rect x="4" y="0.5" width="16" height="17" rx="3"/>' })[s];
-  const DEFAULT = [["score", "c"], ["timer", "s"], ["calendar", "lv"], ["stats", "mh"], ["habits", "mv"], ["weight", "c"], ["streak", "c"], ["goals", "lh"], ["focusStats", "p"], ["quick", "p"], ["reading", "mh"], ["recall", "mh"], ["meals", "mh"], ["clock", "c"], ["points", "c"], ["deadline", "c"], ["nextHabit", "c"]];
+  // Lo Storico parte compatto: la settimana su telefono, il mese a pallini sugli schermi larghi
+  const DEFAULT = [["score", "c"], ["timer", "s"], ["calendar", "mv"], ["stats", "mh"], ["habits", "mv"], ["weight", "c"], ["streak", "c"], ["goals", "lh"], ["focusStats", "p"], ["quick", "p"], ["reading", "mh"], ["recall", "mh"], ["meals", "mh"], ["clock", "c"], ["points", "c"], ["deadline", "c"], ["nextHabit", "c"]];
+  const isPhone = () => !!(window.matchMedia && matchMedia("(max-width: 720px)").matches);
+  const defaults = () => DEFAULT.map(([k, z]) => ({ id: k, type: k, size: k === "calendar" && isPhone() ? "mh" : z }));
 
   // ---------- Pezzi comuni ----------
   const head = (icon, title, sub, right = "") => `<header class="d-wh"><span class="d-ic">${ic(icon, 17)}</span><div class="d-tt"><h3>${title}</h3>${sub ? `<p>${sub}</p>` : ""}</div>${right ? `<div class="d-right">${right}</div>` : ""}</header>`;
@@ -79,7 +50,7 @@ const Today = (() => {
   const cta = (label, act, extra = "") => `<button type="button" class="d-btn deep sm" data-act="${act}" ${extra}>${ic("plus", 14, 2.4)}${label}</button>`;
   const ring = (size, p, label, small) => {
     const r = 40, c = 2 * Math.PI * r, v = p == null ? 0 : U.clamp(p, 0, 1);
-    return `<div class="d-ring" style="width:${size}px;height:${size}px"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--line, rgba(35,39,46,.14))" stroke-width="10"/>${v > 0 ? `<circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--hot, #E8792F)" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(c * v).toFixed(1)} ${c.toFixed(1)}"/>` : ""}</svg><div class="d-lbl"><span><b>${label}</b>${small ? `<small>${small}</small>` : ""}</span></div></div>`;
+    return `<div class="d-ring" style="width:${size}px;height:${size}px"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="${r}" class="t"/>${v > 0 ? `<circle cx="50" cy="50" r="${r}" class="v" stroke-dasharray="${(c * v).toFixed(1)} ${c.toFixed(1)}"/>` : ""}</svg><div class="d-lbl"><span><b>${label}</b>${small ? `<small>${small}</small>` : ""}</span></div></div>`;
   };
   const track = (pct, label) => `<div class="d-track" role="img" aria-label="${label || Math.round(pct) + "%"}"><i style="width:${U.clamp(pct, 0, 100)}%"></i></div>`;
   const hours = (min) => U.num(min / 60, 1);
@@ -101,9 +72,13 @@ const Today = (() => {
   }
 
   // ---------- Dati ----------
-  const todayData = () => {
+  const inArea = (o) => (h) => !o || !o.area || h.area === o.area;
+  const areaTitle = (o) => (o && o.area && AREAS[o.area] ? `Abitudini · ${AREAS[o.area].label}` : "Abitudini");
+  const pickHabit = (o) => (o && o.habit && Calc.activeHabits().find((h) => h.id === o.habit)) || null;
+  const pickGoal = (o) => (o && o.goal && Calc.activeGoals().find((g) => g.id === o.goal)) || null;
+  const todayData = (o) => {
     const today = U.today();
-    const due = Calc.habitsDueOn(today);
+    const due = Calc.habitsDueOn(today).filter(inArea(o));
     return { today, due, stats: Calc.dayStats(today, due) };
   };
   const habitLeft = (d) => d.stats.due - d.stats.done;
@@ -137,29 +112,49 @@ const Today = (() => {
     });
   }
 
-  // Ultimi 7 mesi: costanza di quest'anno e degli stessi mesi dell'anno scorso
+  // Primo giorno con dati per ciascuna scheda (prima non c'è niente da mostrare)
+  function firstDataDay(tab) {
+    const today = U.today();
+    let min = today;
+    const take = (d) => { if (d && d < min) min = d; };
+    if (tab === "focus") Calc.focusDone().forEach((s) => take(U.dateOf(s.started_at)));
+    else {
+      const diet = tab === "diet" && typeof Food !== "undefined" && Food.habit ? Food.habit() : null;
+      Store.d.habit_logs.forEach((l) => { if (!diet || l.habit_id === diet.id) take(l.log_date); });
+      if (min === today) Store.d.habits.forEach((h) => { if (!diet || h.id === diet.id) take(h.start_date || (h.created_at ? U.dateOf(h.created_at) : null)); });
+    }
+    return min;
+  }
+
+  // Ultimi 7 mesi: costanza di quest'anno e degli stessi mesi dell'anno scorso.
+  // I mesi prima del primo dato non si mostrano (pallini grigi vuoti sembrano un caricamento).
   function monthly(today) {
     const out = [];
-    const first = today.slice(0, 8) + "01";
+    const first = today.slice(0, 8) + "01", since = firstDataDay("habits").slice(0, 8) + "01";
     for (let i = 6; i >= 0; i--) {
       const from = U.addMonths(first, -i);
       const to0 = U.addDays(U.addMonths(from, 1), -1), to = to0 > today ? today : to0;
       const pFrom = U.addMonths(from, -12), pTo = U.addDays(U.addMonths(pFrom, 1), -1);
       const m = U.parse(from).getMonth();
-      out.push({ label: cap1(U.MONTHS[m]), v: Calc.rate(from, to), prev: Calc.rate(pFrom, pTo) });
+      const v = Calc.rate(from, to);
+      if (!out.length && i > 0 && (from < since || v == null)) continue;
+      out.push({ label: cap1(U.MONTHS[m]), v, prev: Calc.rate(pFrom, pTo) });
     }
     return out;
   }
 
+  // Barre dei mesi (bianche sul widget blu: currentColor) e linea dell'anno scorso.
+  // Con meno di 7 mesi le barre restano larghe uguali e si centrano.
   function barChart(wide, data) {
-    const W = wide ? 470 : 330, H = wide ? 132 : 170, base = H - 26, bw = wide ? 40 : 30, gap = (W - 20 - bw * 7) / 6;
-    const x = (i) => 10 + i * (bw + gap), y = (v) => base - (v / 100) * (base - 14);
+    const W = wide ? 470 : 330, H = wide ? 132 : 170, base = H - 26, bw = wide ? 40 : 30, step = (W - 20 - bw) / 6;
+    const x0 = (W - ((data.length - 1) * step + bw)) / 2;
+    const x = (i) => x0 + i * step, y = (v) => base - (v / 100) * (base - 14);
     const bars = data.map((d, i) => {
       const v = d.v == null ? 0 : d.v;
       const hh = Math.max(bw, base - y(v));
       return i === data.length - 1
-        ? `<rect x="${x(i)}" y="${y(100)}" width="${bw}" height="${base - y(100)}" rx="${bw / 2}" fill="#FFFFFF" fill-opacity=".16"/><rect x="${x(i) + 4}" y="${base - Math.max(bw - 8, base - y(v) - 8) - 4}" width="${bw - 8}" height="${Math.max(bw - 8, base - y(v) - 8)}" rx="${bw / 2 - 4}" fill="#FFFFFF" fill-opacity="${d.v == null ? .35 : 1}"/>`
-        : `<rect x="${x(i)}" y="${base - hh}" width="${bw}" height="${hh}" rx="${bw / 2}" fill="#FFFFFF" fill-opacity="${d.v == null ? .25 : 1}"/>`;
+        ? `<rect x="${x(i)}" y="${y(100)}" width="${bw}" height="${base - y(100)}" rx="${bw / 2}" fill="currentColor" fill-opacity=".16"/><rect x="${x(i) + 4}" y="${base - Math.max(bw - 8, base - y(v) - 8) - 4}" width="${bw - 8}" height="${Math.max(bw - 8, base - y(v) - 8)}" rx="${bw / 2 - 4}" fill="currentColor" fill-opacity="${d.v == null ? .35 : 1}"/>`
+        : `<rect x="${x(i)}" y="${base - hh}" width="${bw}" height="${hh}" rx="${bw / 2}" fill="currentColor" fill-opacity="${d.v == null ? .25 : 1}"/>`;
     }).join("");
     const pts = data.map((d, i) => (d.prev == null ? null : [x(i) + bw / 2, y(d.prev)]));
     let path = "", prevPt = null;
@@ -170,36 +165,57 @@ const Today = (() => {
       prevPt = p;
     }
     const gid = "dlg" + (wide ? "w" : "");
-    const labels = data.map((d, i) => `<text x="${x(i) + bw / 2}" y="${H - 6}" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF" fill-opacity="${i === data.length - 1 ? 1 : .8}" font-family="Manrope, sans-serif">${d.label}</text>`).join("");
+    const labels = data.map((d, i) => `<text x="${x(i) + bw / 2}" y="${H - 6}" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor" fill-opacity="${i === data.length - 1 ? 1 : .8}">${d.label}</text>`).join("");
     const aria = data.map((d) => `${d.label} ${d.v == null ? "nessun dato" : Math.round(d.v) + "%"}`).join(", ");
-    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Abitudini completate per mese: ${aria}"><defs><linearGradient id="${gid}" x1="0" x2="1"><stop offset="0" stop-color="#C9DCF1"/><stop offset="1" style="stop-color:var(--hot, #E8792F)"/></linearGradient></defs>${bars}${path ? `<path d="${path.trim()}" fill="none" stroke="url(#${gid})" stroke-width="6" stroke-linecap="round"/>` : ""}${labels}</svg>`;
+    return `<svg class="d-bars" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Abitudini completate per mese: ${aria}"><defs><linearGradient id="${gid}" x1="0" x2="1"><stop offset="0" class="s0"/><stop offset="1" class="s1"/></linearGradient></defs>${bars}${path ? `<path d="${path.trim()}" fill="none" stroke="url(#${gid})" stroke-width="6" stroke-linecap="round"/>` : ""}${labels}</svg>`;
   }
 
   // Calendario: quali giorni sono "pieni" per ciascuna scheda
+  // Calendario attivo: ogni istanza ha scheda e mese suoi (la scheda parte da quella scelta in Personalizza)
+  let cs = { tab: "habits", off: 0 };
+  const calState = (o) => (cs = st.cal[o.id] || (st.cal[o.id] = { tab: o.tab || "habits", off: 0 }));
   function calTabs() {
     const tabs = [["habits", "Abitudini"]];
     if (Store.d.focus_sessions.some((s) => s.completed)) tabs.push(["focus", "Focus"]);
     const diet = typeof Food !== "undefined" && Food.habit ? Food.habit() : null;
     if (diet) tabs.push(["diet", "Dieta"]);
-    if (!tabs.some(([k]) => k === st.calTab)) st.calTab = "habits";
+    if (!tabs.some(([k]) => k === cs.tab)) cs.tab = "habits";
     return { tabs, diet };
   }
 
-  function calendar(tight) {
+  // Quanti mesi indietro si può andare: non prima del mese del primo dato
+  function calMinOff() {
+    const t = U.parse(U.today()), f = U.parse(firstDataDay(cs.tab));
+    return -((t.getFullYear() - f.getFullYear()) * 12 + t.getMonth() - f.getMonth());
+  }
+  function fullTest(diet) {
+    if (cs.tab === "focus") { const days = new Set(Calc.focusDone().map((s) => U.dateOf(s.started_at))); return (d) => days.has(d); }
+    if (cs.tab === "diet") return (d) => (diet ? Calc.isDone(diet, d) : false);
+    return (d) => { const s = Calc.dayStats(d); return s.pct != null && s.pct >= 1; };
+  }
+  // la serie conta all'indietro da ieri (oggi è ancora in corso), anche oltre l'inizio del mese
+  function runOf(isFull, today) {
+    let run = 0, d = isFull(today) ? today : U.addDays(today, -1);
+    for (let i = 0; i < 400 && isFull(d); i++, d = U.addDays(d, -1)) run++;
+    return run;
+  }
+  const tabsOf = (tabs) => tabs.length > 1 ? `<div class="d-tabs" role="group" aria-label="Cosa mostrare">${tabs.map(([k, l]) => `<button type="button" data-dash-tab="${k}" aria-pressed="${cs.tab === k}">${l}</button>`).join("")}</div>` : "";
+
+  // Giorni pieni nel mese in corso (per cerchio e piccolo)
+  function monthCount() {
+    const { diet } = calTabs(), today = U.today(), isFull = fullTest(diet), first = today.slice(0, 8) + "01";
+    const days = U.range(first, today);
+    return { count: days.filter(isFull).length, elapsed: days.length, m: U.parse(today).getMonth(), run: runOf(isFull, today) };
+  }
+  function calendar(mode) {
     const { tabs, diet } = calTabs();
     const today = U.today();
-    const base = U.addMonths(today.slice(0, 8) + "01", st.calOff);
+    cs.off = U.clamp(cs.off, Math.min(0, calMinOff()), 0);
+    const base = U.addMonths(today.slice(0, 8) + "01", cs.off);
     const Y = U.parse(base).getFullYear(), M = U.parse(base).getMonth();
     const days = new Date(Y, M + 1, 0).getDate();
     const first = U.dow(base) - 1;
-    let focusDays = null;
-    if (st.calTab === "focus") focusDays = new Set(Calc.focusDone().map((s) => U.dateOf(s.started_at)));
-    const isFull = (d) => {
-      if (st.calTab === "focus") return focusDays.has(d);
-      if (st.calTab === "diet") return diet ? Calc.isDone(diet, d) : false;
-      const s = Calc.dayStats(d);
-      return s.pct != null && s.pct >= 1;
-    };
+    const isFull = fullTest(diet);
     let h = U.DOW_SHORT.map((d) => `<span class="d-dn" aria-hidden="true">${d}</span>`).join(""), count = 0;
     for (let i = 0; i < first; i++) h += `<span class="d-d pad"></span>`;
     for (let n = 1; n <= days; n++) {
@@ -208,17 +224,24 @@ const Today = (() => {
       if (f) count++;
       h += `<span class="d-d ${fut ? "fut" : f ? "full" : ""} ${isToday ? "today" : ""}">${n}</span>`;
     }
-    // la serie conta all'indietro da ieri (oggi è ancora in corso), anche oltre l'inizio del mese
-    let run = 0;
-    if (st.calOff === 0) {
-      let d = isFull(today) ? today : U.addDays(today, -1);
-      for (let i = 0; i < 400 && isFull(d); i++, d = U.addDays(d, -1)) run++;
-    }
+    const run = cs.off === 0 ? runOf(isFull, today) : 0;
     const name = `${cap1(U.MONTHS_LONG[M])} ${Y}`;
-    const tabsHTML = tabs.length > 1 ? `<div class="d-tabs" role="group" aria-label="Cosa mostrare">${tabs.map(([k, l]) => `<button type="button" data-dash-tab="${k}" aria-pressed="${st.calTab === k}">${l}</button>`).join("")}</div>` : "";
-    return { grid: `<div class="d-cal ${tight ? "tight" : ""}" role="img" aria-label="${plural(count, "giorno completato", "giorni completati")} in ${name}">${h}</div>`, name, count, run, tabsHTML };
+    return { grid: `<div class="d-cal ${mode}" role="img" aria-label="${plural(count, "giorno completato", "giorni completati")} in ${name}">${h}</div>`, name, count, run, tabsHTML: tabsOf(tabs) };
   }
-  const calNav = () => `<button type="button" class="d-navbtn" data-dash-cal="-1" aria-label="Mese precedente">${ic("left", 18, 2.2)}</button><button type="button" class="d-navbtn" data-dash-cal="1" aria-label="Mese successivo" ${st.calOff >= 0 ? "disabled" : ""}>${ic("right", 18, 2.2)}</button>`;
+  // Versione compatta: solo la settimana in corso
+  function calWeek() {
+    const { tabs, diet } = calTabs();
+    const today = U.today(), mon = U.mondayOf(today), isFull = fullTest(diet);
+    let h = U.DOW_SHORT.map((d) => `<span class="d-dn" aria-hidden="true">${d}</span>`).join(""), count = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = U.addDays(mon, i), fut = d > today, f = !fut && isFull(d);
+      if (f) count++;
+      h += `<span class="d-d ${fut ? "fut" : f ? "full" : ""} ${d === today ? "today" : ""}">${U.parse(d).getDate()}</span>`;
+    }
+    const tab = tabs.find(([k]) => k === cs.tab)[1];
+    return { grid: `<div class="d-cal week" role="img" aria-label="${tab}: ${plural(count, "giorno completato", "giorni completati")} questa settimana">${h}</div>`, count, run: runOf(isFull, today), tab };
+  }
+  const calNav = () => `<button type="button" class="d-navbtn" data-dash-cal="-1" aria-label="Mese precedente" ${cs.off <= calMinOff() ? "disabled" : ""}>${ic("left", 18, 2.2)}</button><button type="button" class="d-navbtn" data-dash-cal="1" aria-label="Mese successivo" ${cs.off >= 0 ? "disabled" : ""}>${ic("right", 18, 2.2)}</button>`;
 
   function goalInfo(g) {
     const pace = Calc.goalPace(g);
@@ -226,11 +249,10 @@ const Today = (() => {
     const left = Calc.daysLeft(g);
     const ms = Calc.milestonesOf(g);
     const steps = ms.map((m) => [m.title, Calc.msPct(m) >= 100]);
-    const next = ms.find((m) => Calc.msPct(m) < 100);
-    let nextTxt = next ? next.title : "";
-    if (next) { const kid = Calc.childrenOf(next).find((k) => !k.done); if (kid && !next.is_exam) nextTxt = `${next.title} · ${kid.title}`; }
-    return { pct: Math.round(pace.progress), pace, due, left, steps, next: nextTxt };
+    const nexts = ms.filter((m) => Calc.msPct(m) < 100).slice(0, 2).map((m) => ({ title: m.title, date: m.exam_date || m.due_date || null }));
+    return { pct: Math.round(pace.progress), pace, due, left, steps, nexts, doneSteps: steps.filter((x) => x[1]).length };
   }
+  const leftChip = (gi) => gi.due ? `<span class="d-chip ${gi.left < 0 ? "late" : gi.left <= 7 ? "soon" : ""}">${ic("hourglass", 12, 2.2)}${gi.left > 0 ? plural(gi.left, "giorno", "giorni") : gi.left === 0 ? "Oggi" : "Scaduto"}</span>` : "";
   const dueTxt = (gi) => gi.due ? `Scade il ${U.fmtShort(gi.due)} · ${gi.left > 0 ? `tra ${plural(gi.left, "giorno", "giorni")}` : gi.left === 0 ? "oggi" : `scaduto da ${plural(-gi.left, "giorno", "giorni")}`}` : "";
 
   function linkLabel(run) {
@@ -240,7 +262,10 @@ const Today = (() => {
     return (typeof Focus.linkName === "function" && Focus.linkName(s)) || "In corso";
   }
   const focusOk = () => typeof Focus !== "undefined";
-  const remainingSec = () => (focusOk() && Focus.run ? Focus.run.durationMin * 60 - Focus.elapsedSec() : (focusOk() ? Focus.minutes : 25) * 60);
+  const minOf = (o) => Number(o && o.min) || (focusOk() ? Focus.minutes : 25);
+  const remainingSec = (o) => (focusOk() && Focus.run ? Focus.run.durationMin * 60 - Focus.elapsedSec() : minOf(o) * 60);
+  // avvio dal widget: con la durata scelta per quel widget (se c'è)
+  const startBtn = (o, cls, size) => `<button type="button" ${cls ? `class="${cls}"` : ""} data-act="dash-focus" data-min="${minOf(o)}" aria-label="Avvia una sessione di ${minOf(o)} minuti">${ic("play", size, 2.6)}</button>`;
 
   function weightSeries() {
     const logs = [...Store.d.weight_logs].sort((a, b) => a.log_date.localeCompare(b.log_date));
@@ -275,15 +300,15 @@ const Today = (() => {
     },
     habits: {
       title: "Abitudini", icon: "habit", sizes: ["p", "mh", "mv", "lh", "lv"], go: "habits",
-      mini() {
-        const d = todayData(), next = d.due.find((h) => !Calc.isDone(h, d.today));
-        return { icon: "habit", title: "Abitudini", value: `${d.stats.done}/${d.stats.due}`, cap: next ? `Prossima: ${esc(next.name)}` : d.stats.due ? "Tutte fatte" : "Oggi riposo", p: d.stats.due ? d.stats.pct || 0 : null, action: next ? nextBtn(next, d.today) : "" };
+      mini(o) {
+        const d = todayData(o), next = d.due.find((h) => !Calc.isDone(h, d.today));
+        return { icon: "habit", title: areaTitle(o), value: `${d.stats.done}/${d.stats.due}`, cap: next ? `Prossima: ${esc(next.name)}` : d.stats.due ? "Tutte fatte" : "Oggi riposo", p: d.stats.due ? d.stats.pct || 0 : null, action: next ? nextBtn(next, d.today) : "" };
       },
-      render(sz) {
-        const d = todayData();
+      render(sz, o) {
+        const d = todayData(o), title = areaTitle(o);
         if (!d.due.length) {
-          const none = !Calc.activeHabits().length;
-          return { html: head("habit", "Abitudini", none ? "Nessuna abitudine" : "Oggi riposo") + `<div class="d-wb">${empty(none ? "Inizia con una sola: piccola e chiara." : "Niente in programma oggi: goditi il riposo.", cta("Nuova abitudine", "habit-new"))}</div>` };
+          const none = !Calc.activeHabits().filter(inArea(o)).length;
+          return { html: head("habit", title, none ? "Nessuna abitudine" : "Oggi riposo") + `<div class="d-wb">${empty(none ? "Inizia con una sola: piccola e chiara." : "Niente in programma oggi: goditi il riposo.", cta("Nuova abitudine", "habit-new"))}</div>` };
         }
         const n = { mh: 2, mv: 4, lh: 8, lv: 7 }[sz];
         const order = [...d.due].sort((a, b) => Calc.isDone(a, d.today) - Calc.isDone(b, d.today));
@@ -291,7 +316,7 @@ const Today = (() => {
         const rest = d.due.length - n, left = habitLeft(d);
         const pct = Math.round((d.stats.pct || 0) * 100);
         const foot = sz === "lv" ? `<div class="d-row"><div class="d-legend"><span>Fatte ${d.stats.done}</span><span class="b">Da fare ${left}</span></div>${big(pct, "%")}</div>` : rest > 0 ? `<span class="d-more">Altre ${rest} nella sezione Abitudini</span>` : "";
-        return { html: head("habit", "Abitudini", left ? `${left} da fare oggi` : "Tutte fatte") + `<div class="d-wb"><div class="d-habits ${sz === "lh" ? "two" : ""}">${list}</div>${foot}</div>` };
+        return { html: head("habit", title, left ? `${left} da fare oggi` : "Tutte fatte") + `<div class="d-wb"><div class="d-habits ${sz === "lh" ? "two" : ""}">${list}</div>${foot}</div>` };
       }
     },
     focusStats: {
@@ -313,45 +338,52 @@ const Today = (() => {
     },
     timer: {
       title: "Sessione di focus", icon: "timer", sizes: ["c", "s", "p", "mh"], go: "focus",
-      mini() {
+      mini(o) {
         const running = focusOk() && !!Focus.run;
         const btn = running
           ? `<button type="button" class="d-cbtn" data-act="focus-giveup" aria-label="Interrompi la sessione">${ic("stop", 14)}</button>`
-          : `<button type="button" class="d-cbtn" data-act="focus-start" aria-label="Avvia una sessione di ${focusOk() ? Focus.minutes : 25} minuti">${ic("play", 15, 2.6)}</button>`;
+          : startBtn(o, "d-cbtn", 15);
         const p = running ? Focus.elapsedSec() / (Focus.run.durationMin * 60) : null;
-        return { cls: "blue", icon: "timer", title: "Sessione di focus", value: `<span data-dash-timer data-running="${running}" role="timer">${mmss(remainingSec())}</span>`, cap: running ? esc(linkLabel(Focus.run)) : `Pronta · ${focusOk() ? Focus.minutes : 25} min`, p, action: btn };
+        return { cls: "blue", icon: "timer", title: "Sessione di focus", value: `<span data-dash-timer data-running="${running}" role="timer">${mmss(remainingSec(o))}</span>`, cap: running ? esc(linkLabel(Focus.run)) : `Pronta · ${minOf(o)} min`, p, action: btn };
       },
-      render(sz) {
+      render(sz, o) {
         const running = focusOk() && !!Focus.run;
         const btns = `<div class="d-tbtns">${running
           ? `<button type="button" data-act="focus-giveup" aria-label="Interrompi la sessione">${ic("stop", 16)}</button>`
-          : `<button type="button" data-act="focus-start" aria-label="Avvia una sessione di ${focusOk() ? Focus.minutes : 25} minuti">${ic("play", 18, 2.6)}</button>`}</div>`;
-        const state = running ? linkLabel(Focus.run) : `Pronta · ${focusOk() ? Focus.minutes : 25} min`;
-        const time = `<span class="d-timer" data-dash-timer data-running="${running}" role="timer" aria-label="${running ? "Tempo rimanente" : "Durata"}">${mmss(remainingSec())}</span>`;
+          : startBtn(o, "", 18)}</div>`;
+        const state = running ? linkLabel(Focus.run) : `Pronta · ${minOf(o)} min`;
+        const time = `<span class="d-timer" data-dash-timer data-running="${running}" role="timer" aria-label="${running ? "Tempo rimanente" : "Durata"}">${mmss(remainingSec(o))}</span>`;
         if (sz === "s") return { cls: "blue", html: head("timer", "Focus", esc(state)) + `<div class="d-wb end" style="gap:10px">${time}${btns}</div>` };
         return { cls: "blue", html: head("timer", "Sessione di focus", esc(state)) + `<div class="d-wb"><div class="d-row">${time}${btns}</div></div>` };
       }
     },
     goals: {
       title: "Obiettivi", icon: "goal", sizes: ["c", "p", "mh", "mv", "lh", "lv"], go: "goals",
-      mini() {
-        const g = Calc.activeGoals().slice().sort((a, b) => (goalInfo(a).due || "9999").localeCompare(goalInfo(b).due || "9999"))[0];
+      mini(o) {
+        const g = pickGoal(o) || Calc.activeGoals().slice().sort((a, b) => (goalInfo(a).due || "9999").localeCompare(goalInfo(b).due || "9999"))[0];
         if (!g) return { icon: "goal", title: "Obiettivi", value: "0", cap: "Nessun obiettivo attivo", p: null };
         const gi = goalInfo(g);
         return { icon: "goal", title: esc(g.title), value: gi.pct, unit: "%", cap: gi.due ? `Scade il ${U.fmtShort(gi.due)} · ${gi.pace.label}` : gi.pace.label, p: gi.pct / 100 };
       },
-      render(sz) {
-        const goals = Calc.activeGoals().slice().sort((a, b) => (goalInfo(a).due || "9999").localeCompare(goalInfo(b).due || "9999"));
+      render(sz, o) {
+        const one = pickGoal(o);
+        const goals = one ? [one] : Calc.activeGoals().slice().sort((a, b) => (goalInfo(a).due || "9999").localeCompare(goalInfo(b).due || "9999"));
         if (!goals.length) return { html: head("goal", "Obiettivi", "Nessuno attivo") + `<div class="d-wb">${empty("Definisci dove vuoi arrivare in 1, 4 o 12 mesi.", cta("Nuovo obiettivo", "goal-new"))}</div>` };
-        const n = { mh: 2, mv: 3, lh: 3, lv: 4 }[sz], steps = sz === "lh" || sz === "lv";
+        const n = { mh: 2, mv: 3, lh: 3, lv: 4 }[sz];
         const items = goals.slice(0, n).map((g) => {
           const gi = goalInfo(g);
-          const stepsHTML = steps && gi.steps.length ? `<div class="d-steps">${gi.steps.slice(0, sz === "lh" ? 4 : 5).map(([s, d]) => `<span class="d-step ${d ? "done" : ""}">${d ? ic("check", 12, 2.8) : ""}${esc(s)}</span>`).join("")}${gi.steps.length > (sz === "lh" ? 4 : 5) ? `<span class="d-step">+${gi.steps.length - (sz === "lh" ? 4 : 5)}</span>` : ""}</div>` : "";
-          return `<div class="d-goal"><div class="d-t"><span>${esc(g.title)}</span>${sz === "lh" ? "" : `<span class="d-p">${gi.pct}%</span>`}</div>${sz === "lh" ? `<div class="d-pbig">${gi.pct}<span class="d-u">%</span></div>` : ""}${track(gi.pct, `${gi.pct}%, ${gi.pace.label}`)}${stepsHTML}${sz === "lh" && gi.next ? `<div class="d-nx"><small>Prossima tappa</small><b>${esc(gi.next)}</b></div>` : ""}<span class="d-meta">${dueTxt(gi)} · ${gi.pace.label}</span></div>`;
+          if (sz === "lh") {
+            // scheda piena: % grande e giorni rimasti, poi le prossime 2 tappe, in fondo ritmo e tappe fatte
+            const nx = gi.nexts.length ? `<div class="d-nx"><small>${gi.nexts.length > 1 ? "Prossime tappe" : "Prossima tappa"}</small><ul>${gi.nexts.map((m) => `<li><span>${esc(m.title)}</span>${m.date ? `<em>${U.fmtShort(m.date)}</em>` : ""}</li>`).join("")}</ul></div>` : `<div class="d-nx"><small>Tappe</small><b>${gi.steps.length ? "Tutte completate" : "Nessuna tappa"}</b></div>`;
+            const meta = [gi.pace.label, gi.steps.length ? `${gi.doneSteps} di ${gi.steps.length} tappe` : "", gi.due ? `scade il ${U.fmtShort(gi.due)}` : ""].filter(Boolean).join(" · ");
+            return `<div class="d-goal"><div class="d-t"><span>${esc(g.title)}</span></div><div class="d-gtop"><div class="d-pbig">${gi.pct}<span class="d-u">%</span></div>${leftChip(gi)}</div>${track(gi.pct, `${gi.pct}%, ${gi.pace.label}`)}${nx}<span class="d-meta">${meta}</span></div>`;
+          }
+          const stepsHTML = sz === "lv" && gi.steps.length ? `<div class="d-steps">${gi.steps.slice(0, 5).map(([t, d]) => `<span class="d-step ${d ? "done" : ""}">${d ? ic("check", 12, 2.8) : ""}${esc(t)}</span>`).join("")}${gi.steps.length > 5 ? `<span class="d-step">+${gi.steps.length - 5}</span>` : ""}</div>` : "";
+          return `<div class="d-goal"><div class="d-t"><span>${esc(g.title)}</span><span class="d-p">${gi.pct}%</span></div>${track(gi.pct, `${gi.pct}%, ${gi.pace.label}`)}${stepsHTML}<span class="d-meta">${dueTxt(gi)} · ${gi.pace.label}</span></div>`;
         }).join("");
         const g0 = goalInfo(goals[0]);
-        const sub = `${goals.length} ${goals.length === 1 ? "attivo" : "attivi"}${g0.due ? ` · il prossimo scade il ${U.fmtShort(g0.due)}` : ""}`;
-        return { html: head("goal", "Obiettivi", sub) + `<div class="d-wb"><div class="d-goals ${sz === "lh" ? "three" : ""}">${items}</div></div>` };
+        const sub = one ? (dueTxt(g0) || g0.pace.label) : `${goals.length} ${goals.length === 1 ? "attivo" : "attivi"}${g0.due ? ` · il prossimo scade il ${U.fmtShort(g0.due)}` : ""}`;
+        return { html: head("goal", "Obiettivi", sub) + `<div class="d-wb"><div class="d-goals ${sz === "lh" ? (goals.length > 1 ? "three" : "three one") : ""}">${items}</div></div>` };
       }
     },
     stats: {
@@ -380,12 +412,28 @@ const Today = (() => {
       }
     },
     calendar: {
-      title: "Storico", icon: "cal", sizes: ["lv", "lh"],
-      get go() { return st.calTab === "focus" ? "focus" : st.calTab === "diet" ? "food" : "habits"; },
-      render(sz) {
-        const c = calendar(sz === "lh");
-        const sum = `<div class="d-sum"><b>${plural(c.count, "giorno completato", "giorni completati")}</b><span>${st.calOff !== 0 ? "Mese passato" : c.run ? `Serie in corso: ${plural(c.run, "giorno", "giorni")}` : "Nessuna serie in corso"}</span></div>`;
-        if (sz === "lh") return { html: head("cal", "Storico", c.name, c.tabsHTML + calNav()) + `<div class="d-wb" style="flex-direction:row;gap:24px;align-items:stretch"><div style="flex:1;min-width:0">${c.grid}</div><div class="d-calfoot" style="flex-direction:column;align-items:flex-start;justify-content:flex-end">${sum}</div></div>` };
+      title: "Storico", icon: "cal", sizes: ["c", "s", "mh", "mv", "lh", "lv"],
+      go(o) { const t = calState(o).tab; return t === "focus" ? "focus" : t === "diet" ? "food" : "habits"; },
+      // cerchio: giorni pieni di questo mese, l'anello è la quota sui giorni passati
+      mini(o) {
+        calState(o);
+        const c = monthCount(), tab = calTabs().tabs.find(([k]) => k === cs.tab)[1];
+        return { icon: "cal", title: `Storico · ${tab}`, value: c.count, unit: c.count === 1 ? "giorno" : "giorni", cap: `pieni a ${U.MONTHS_LONG[c.m]}`, p: c.count / c.elapsed };
+      },
+      render(sz, o) {
+        calState(o);
+        if (sz === "s") {
+          const c = monthCount();
+          return { html: head("cal", "Storico", cap1(U.MONTHS_LONG[c.m])) + `<div class="d-wb end">${big(c.count, c.count === 1 ? "giorno" : "giorni")}<span class="d-cap">${c.run ? `Serie in corso: ${plural(c.run, "giorno", "giorni")}` : "pieni questo mese"}</span></div>` };
+        }
+        if (sz === "mh") {
+          const c = calWeek();
+          return { html: head("cal", "Storico", `${c.tab} · ${plural(c.count, "giorno pieno", "giorni pieni")} questa settimana`) + `<div class="d-wb end">${c.grid}<span class="d-cap">${c.run ? `Serie in corso: ${plural(c.run, "giorno", "giorni")}` : "Nessuna serie in corso"}</span></div>` };
+        }
+        const c = calendar(sz === "lh" ? "tight" : sz === "mv" ? "dots" : "");
+        const sum = `<div class="d-sum"><b>${plural(c.count, "giorno completato", "giorni completati")}</b><span>${cs.off !== 0 ? "Mese passato" : c.run ? `Serie in corso: ${plural(c.run, "giorno", "giorni")}` : "Nessuna serie in corso"}</span></div>`;
+        if (sz === "mv") return { html: head("cal", "Storico", c.name) + `<div class="d-wb">${c.grid}<div class="d-calfoot col">${sum}<div class="d-navs">${calNav()}</div></div></div>` };
+        if (sz === "lh") return { html: head("cal", "Storico", c.name, c.tabsHTML + calNav()) + `<div class="d-wb d-calrow"><div class="d-calgrid">${c.grid}</div><div class="d-calfoot col">${sum}</div></div>` };
         return { html: head("cal", "Storico", c.name) + `<div class="d-wb" style="gap:18px">${c.tabsHTML}${c.grid}<div class="d-calfoot">${sum}<div class="d-navs">${calNav()}</div></div></div>` };
       }
     },
@@ -411,7 +459,7 @@ const Today = (() => {
           const mn = lo - 0.3, mx = hi + 0.3;
           const X = (i) => 4 + (i / (v.length - 1)) * 292, Y = (k) => 50 - ((k - mn) / (mx - mn)) * 44;
           const line = v.map((k, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(k).toFixed(1)}`).join(" ");
-          spark = `<svg class="d-spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true"><path d="${line} L296,54 L4,54 Z" fill="var(--hot, #E8792F)" fill-opacity=".16"/><path d="${line}" fill="none" stroke="var(--hot, #E8792F)" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+          spark = `<svg class="d-spark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true"><path d="${line} L296,54 L4,54 Z" class="a"/><path d="${line}" class="l" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
         }
         const dl = w.delta == null ? "" : ` · ${w.delta > 0 ? "+" : w.delta < 0 ? "−" : ""}${U.num(Math.abs(w.delta))} kg`;
         return { html: head("scale", "Peso", `${w.label}${dl}`) + `<div class="d-wb end" style="flex-direction:row;align-items:flex-end;gap:16px"><div style="display:grid;gap:4px;flex:none">${big(U.num(w.last), "kg")}<span class="d-cap">${miss}</span></div>${spark}</div>` };
@@ -432,7 +480,7 @@ const Today = (() => {
         if (!r) return { html: head("book", "Sto leggendo", "Nessun libro in corso") + `<div class="d-wb">${empty("Aggiungi il libro che stai leggendo e segna le pagine.", cta("Libro", "book-add"))}</div>` };
         const p = r.pages ? U.clamp(Math.round(((r.current_page || 0) / r.pages) * 100), 0, 100) : null;
         const url = r.cover ? U.safeUrl(r.cover) : "";
-        const cover = url ? `<div class="d-cover img"><img src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()"><span>${esc(r.title)}</span></div>` : `<div class="d-cover"><span>${esc(r.title)}</span></div>`;
+        const cover = url ? `<div class="d-cover img"><img src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer"><span>${esc(r.title)}</span></div>` : `<div class="d-cover"><span>${esc(r.title)}</span></div>`;
         const sub = p == null ? esc(r.author || "") : `${p}%${books.length > 1 ? ` · altri ${books.length - 1} in corso` : ""}`;
         return { html: head("book", "Sto leggendo", sub) + `<div class="d-wb"><div class="d-book ${sz === "mv" ? "col" : ""}">${cover}<div class="d-info"><b>${esc(r.title)}</b><span class="d-muted">${esc(r.author || "Autore sconosciuto")}</span>${p != null ? `${track(p)}<span class="d-cap tnum">Pagina ${r.current_page || 0} di ${r.pages}</span>` : `<span class="d-cap">Pagine totali da aggiungere</span>`}</div></div></div>` };
       }
@@ -452,59 +500,75 @@ const Today = (() => {
       }
     },
     meals: {
-      title: "Pasti", icon: "bowl", sizes: ["mv", "mh", "lv"], go: "food",
-      render(sz) {
+      title: "Pasti", icon: "bowl", sizes: ["mh", "mv", "lv"], go: "food",
+      render(sz, o) {
         if (typeof Food === "undefined") return { html: head("bowl", "Pasti di oggi") + `<div class="d-wb">${empty("Sezione non disponibile.")}</div>` };
-        const today = U.today(), list = Food.entriesOn(today);
+        const want = o && Array.isArray(o.slots) && o.slots.length ? o.slots : null;
+        const today = U.today(), list = Food.entriesOn(today).filter((e) => !want || want.includes(e.slot));
         if (!list.length) return { html: head("bowl", "Pasti di oggi", "Niente in programma") + `<div class="d-wb">${empty("Pianifica i pasti o segna cosa hai mangiato.", `<div class="d-acts"><button type="button" class="d-btn deep sm" data-act="go" data-id="food">Pianifica</button><button type="button" class="d-btn glassy sm" data-act="food-extra">${ic("plus", 14, 2.4)}Fuori programma</button></div>`)}</div>` };
         const planned = list.filter((e) => !e.extra), eaten = planned.filter((e) => e.eaten).length;
         const slots = Food.SLOTS.filter(([k]) => list.some((e) => e.slot === k));
-        const max = sz === "lv" ? 5 : 3;
-        const shown = sz === "lv" ? slots : slots.filter(([k]) => list.some((e) => e.slot === k && !e.eaten)).concat(slots.filter(([k]) => !list.some((e) => e.slot === k && !e.eaten))).slice(0, max)
-          .sort((a, b) => Food.slotIdx(a[0]) - Food.slotIdx(b[0]));
+        // fino a 4 pasti (prima quelli ancora da mangiare), tutti nel formato grande
+        const open = ([k]) => list.some((e) => e.slot === k && !e.eaten);
+        const shown = sz === "lv" ? slots : slots.filter(open).concat(slots.filter((x) => !open(x))).slice(0, 4).sort((a, b) => Food.slotIdx(a[0]) - Food.slotIdx(b[0]));
+        // ogni pasto è un interruttore: segna mangiati (o no) tutti i piatti in programma di quel pasto
         const cells = shown.map(([k, l]) => {
-          const es = list.filter((e) => e.slot === k), all = es.every((e) => e.eaten);
-          return `<div class="d-meal ${all ? "done" : ""}"><small>${all ? ic("check", 11, 3) : ""}${l}</small><span>${esc(es.map((e) => e.name).join(", "))}</span></div>`;
+          const es = list.filter((e) => e.slot === k), all = es.every((e) => e.eaten), names = esc(es.map((e) => e.name).join(", "));
+          return `<button type="button" class="d-meal ${all ? "done" : ""}" data-act="dash-meal" data-slot="${k}" aria-pressed="${all}" aria-label="${l}: ${names}. ${all ? "Mangiato, tocca per annullare" : "Segna come mangiato"}"><span class="d-mck">${ic("check", 13, 3)}</span><span class="d-mtx"><small>${l}</small><span>${names}</span></span></button>`;
         }).join("");
         const diet = Food.dayState(today);
         let sub = planned.length ? (diet ? "Dieta rispettata" : `${eaten} di ${planned.length} mangiati`) : "Solo fuori programma";
         const g = Food.goal && Food.goal();
-        if (g && sz !== "s") sub += ` · ${esc(g.title)}`;
+        if (g) sub += ` · ${esc(g.title)}`;
         const foot = sz === "lv" ? (() => {
           const ad = Food.adherence(U.addDays(today, -6));
           return `<div class="d-row col"><b class="d-subhead">Ultimi 7 giorni</b><div class="d-macros"><span>${ad.ok} di ${ad.planned} giorni rispettati</span></div><button type="button" class="d-btn glassy sm" data-act="food-extra">${ic("plus", 14, 2.4)}Fuori programma</button></div>`;
         })() : "";
-        return { html: head("bowl", "Pasti di oggi", sub) + `<div class="d-wb"><div class="d-meals ${sz === "mh" ? "three" : ""}">${cells}</div>${foot}</div>` };
+        return { html: head("bowl", "Pasti di oggi", sub) + `<div class="d-wb"><div class="d-meals ${sz === "mh" ? "two" : ""}">${cells}</div>${foot}</div>` };
       }
     },
     streak: {
-      title: "Serie migliore", icon: "flame", sizes: ["c", "s", "p"], go: "habits",
-      mini() {
-        const best = Calc.activeHabits().map((h) => ({ h, s: Calc.streak(h) })).sort((a, b) => b.s - a.s)[0];
-        return { cls: "orange", icon: "flame", title: "Serie migliore", value: best ? best.s : 0, unit: best && best.s === 1 ? "giorno" : "giorni", cap: best && best.s ? esc(best.h.name) : "Completa un'abitudine", p: null };
+      title: "Serie", icon: "flame", sizes: ["c", "s", "p"], go: "habits",
+      best(o) {
+        const h = pickHabit(o);
+        if (h) return { h, s: Calc.streak(h), fixed: true };
+        return Calc.activeHabits().map((x) => ({ h: x, s: Calc.streak(x) })).sort((a, b) => b.s - a.s)[0];
       },
-      render() {
-        const best = Calc.activeHabits().map((h) => ({ h, s: Calc.streak(h) })).sort((a, b) => b.s - a.s)[0];
-        if (!best || !best.s) return { cls: "orange", html: head("flame", "Serie") + `<div class="d-wb end">${big(0, "giorni")}<span class="d-cap">${best ? "Completa un'abitudine per iniziare" : "Nessuna abitudine"}</span></div>` };
+      mini(o) {
+        const best = this.best(o);
+        return { cls: "orange", icon: "flame", title: best && best.fixed ? esc(best.h.name) : "Serie migliore", value: best ? best.s : 0, unit: best && best.s === 1 ? "giorno" : "giorni", cap: best && (best.s || best.fixed) ? esc(best.h.name) : "Completa un'abitudine", p: null };
+      },
+      render(sz, o) {
+        const best = this.best(o);
+        const title = best && best.fixed ? "Serie" : "Serie migliore";
+        if (!best || (!best.s && !best.fixed)) return { cls: "orange", html: head("flame", title) + `<div class="d-wb end">${big(0, "giorni")}<span class="d-cap">${best ? "Completa un'abitudine per iniziare" : "Nessuna abitudine"}</span></div>` };
         const rec = Calc.bestStreak(best.h);
-        return { cls: "orange", html: head("flame", "Serie") + `<div class="d-wb end">${big(best.s, best.s === 1 ? "giorno" : "giorni")}<span class="d-cap">${esc(best.h.name)}${rec > best.s ? ` · record ${rec}` : " · è il record"}</span></div>` };
+        return { cls: "orange", html: head("flame", title) + `<div class="d-wb end">${big(best.s, best.s === 1 ? "giorno" : "giorni")}<span class="d-cap">${esc(best.h.name)}${rec > best.s ? ` · record ${rec}` : best.s ? " · è il record" : ""}</span></div>` };
       }
     },
 
     // ---------- Widget nuovi ----------
     nextHabit: {
       title: "Prossima abitudine", icon: "habit", sizes: ["c", "s", "p", "mh"], go: "habits",
-      mini() {
-        const d = todayData(), next = d.due.find((h) => !Calc.isDone(h, d.today));
-        if (!next) return { icon: "check", title: "Prossima abitudine", value: d.stats.due ? "Fatto" : "—", cap: d.stats.due ? "Tutte le abitudini di oggi" : "Oggi riposo", p: d.stats.due ? 1 : null };
-        return { icon: "habit", title: esc(next.name), value: Calc.streak(next), unit: Calc.streak(next) === 1 ? "giorno" : "giorni", cap: esc(next.name), p: null, action: nextBtn(next, d.today) };
+      // con un'abitudine scelta mostra sempre quella; altrimenti la prima ancora da fare oggi
+      pick(o) {
+        const d = todayData(), h = pickHabit(o);
+        if (h) return { d, h, due: d.due.includes(h), done: Calc.isDone(h, d.today), fixed: true };
+        const n = d.due.find((x) => !Calc.isDone(x, d.today));
+        return { d, h: n || null, due: !!n, done: false };
       },
-      render(sz) {
-        const d = todayData(), next = d.due.find((h) => !Calc.isDone(h, d.today));
-        if (!next) return { html: head("habit", "Prossima abitudine") + `<div class="d-wb">${empty(d.stats.due ? "Hai fatto tutto per oggi." : "Niente in programma oggi.")}</div>` };
-        const s = Calc.streak(next), qty = next.kind !== "check";
-        const info = qty ? `${U.num(Calc.value(next, d.today))} di ${U.num(next.target)} ${esc(next.unit || "")}` : s ? `${plural(s, "giorno", "giorni")} di fila` : "Da iniziare";
-        return { html: head("habit", "Prossima", `${d.stats.due - d.stats.done} da fare oggi`) + `<div class="d-wb end"><b class="d-hname">${esc(next.name)}</b><div class="d-row"><span class="d-cap">${info}</span>${nextBtn(next, d.today, true)}</div></div>` };
+      mini(o) {
+        const { d, h, due, done, fixed } = this.pick(o);
+        if (!h) return { icon: "check", title: "Prossima abitudine", value: d.stats.due ? "Fatto" : "—", cap: d.stats.due ? "Tutte le abitudini di oggi" : "Oggi riposo", p: d.stats.due ? 1 : null };
+        const s = Calc.streak(h);
+        return { icon: done ? "check" : "habit", title: esc(h.name), value: s, unit: s === 1 ? "giorno" : "giorni", cap: fixed && !due ? "Non in programma oggi" : esc(h.name), p: done ? 1 : null, action: due && !done ? nextBtn(h, d.today) : "" };
+      },
+      render(sz, o) {
+        const { d, h, due, done, fixed } = this.pick(o);
+        if (!h) return { html: head("habit", "Prossima abitudine") + `<div class="d-wb">${empty(d.stats.due ? "Hai fatto tutto per oggi." : "Niente in programma oggi.")}</div>` };
+        const s = Calc.streak(h), qty = h.kind !== "check";
+        const info = !due ? "Non in programma oggi" : done ? "Fatta oggi" : qty ? `${U.num(Calc.value(h, d.today))} di ${U.num(h.target)} ${esc(h.unit || "")}` : s ? `${plural(s, "giorno", "giorni")} di fila` : "Da iniziare";
+        return { html: head("habit", fixed ? "Abitudine" : "Prossima", fixed ? (s ? `${plural(s, "giorno", "giorni")} di fila` : "") : `${d.stats.due - d.stats.done} da fare oggi`) + `<div class="d-wb end"><b class="d-hname">${esc(h.name)}</b><div class="d-row"><span class="d-cap">${info}</span>${due && !done ? nextBtn(h, d.today, true) : ""}</div></div>` };
       }
     },
     points: {
@@ -528,7 +592,7 @@ const Today = (() => {
       },
       mini() {
         const x = this.data();
-        return { icon: "run", title: "Allenamenti", value: x.wk.length, unit: x.wk.length === 1 ? "questa sett." : "questa sett.", cap: x.last ? `Ultimo: ${esc(x.last.kind)} · ${U.fmtShort(x.last.workout_date)}` : "Nessun allenamento", p: Math.min(1, x.days.size / 4), action: `<button type="button" class="d-cbtn" data-act="workout-add" aria-label="Registra un allenamento">${ic("plus", 15, 2.4)}</button>` };
+        return { icon: "run", title: "Allenamenti", value: x.wk.length, unit: "questa sett.", cap: x.last ? `Ultimo: ${esc(x.last.kind)} · ${U.fmtShort(x.last.workout_date)}` : "Nessun allenamento", p: Math.min(1, x.days.size / 4), action: `<button type="button" class="d-cbtn" data-act="workout-add" aria-label="Registra un allenamento">${ic("plus", 15, 2.4)}</button>` };
       },
       render(sz) {
         const x = this.data();
@@ -540,18 +604,20 @@ const Today = (() => {
     },
     deadline: {
       title: "Prossima scadenza", icon: "hourglass", sizes: ["c", "s", "p"], go: "goals",
-      pick() {
-        return Calc.activeGoals().map((g) => ({ g, gi: goalInfo(g) })).filter((x) => x.gi.due && x.gi.left >= 0).sort((a, b) => a.gi.left - b.gi.left)[0];
+      pick(o) {
+        const g = pickGoal(o);
+        if (g) { const gi = goalInfo(g); return gi.due ? { g, gi } : null; }
+        return Calc.activeGoals().map((x) => ({ g: x, gi: goalInfo(x) })).filter((x) => x.gi.due && x.gi.left >= 0).sort((a, b) => a.gi.left - b.gi.left)[0];
       },
-      mini() {
-        const x = this.pick();
+      mini(o) {
+        const x = this.pick(o);
         if (!x) return { icon: "hourglass", title: "Prossima scadenza", value: "—", cap: "Nessuna scadenza", p: null };
-        return { cls: "orange", icon: "hourglass", title: esc(x.g.title), value: x.gi.left, unit: x.gi.left === 1 ? "giorno" : "giorni", cap: esc(x.g.title), p: x.gi.pct / 100 };
+        return { cls: "orange", icon: "hourglass", title: esc(x.g.title), value: Math.abs(x.gi.left), unit: x.gi.left < 0 ? "di ritardo" : x.gi.left === 1 ? "giorno" : "giorni", cap: esc(x.g.title), p: x.gi.pct / 100 };
       },
-      render() {
-        const x = this.pick();
+      render(sz, o) {
+        const x = this.pick(o);
         if (!x) return { html: head("hourglass", "Scadenza") + `<div class="d-wb">${empty("Nessun obiettivo con una data.")}</div>` };
-        return { cls: "orange", html: head("hourglass", "Scadenza", `${x.gi.pct}% fatto`) + `<div class="d-wb end">${big(x.gi.left, x.gi.left === 1 ? "giorno" : "giorni")}<span class="d-cap">${esc(x.g.title)}</span></div>` };
+        return { cls: "orange", html: head("hourglass", "Scadenza", `${x.gi.pct}% fatto`) + `<div class="d-wb end">${big(Math.abs(x.gi.left), x.gi.left < 0 ? "di ritardo" : x.gi.left === 1 ? "giorno" : "giorni")}<span class="d-cap">${esc(x.g.title)}</span></div>` };
       }
     },
     clock: {
@@ -591,7 +657,7 @@ const Today = (() => {
       list() { return Store.d.reading_items.filter((r) => r.kind !== "book" && r.status !== "done").sort((a, b) => (b.created_at || "").localeCompare(a.created_at || "")); },
       mini() {
         const l = this.list();
-        return { icon: "link", title: "Da leggere", value: l.length, unit: l.length === 1 ? "link" : "link", cap: l[0] ? esc(l[0].title || l[0].url || "") : "Lista vuota", p: null, action: `<button type="button" class="d-cbtn" data-act="read-add" aria-label="Aggiungi da leggere">${ic("plus", 15, 2.4)}</button>` };
+        return { icon: "link", title: "Da leggere", value: l.length, unit: "link", cap: l[0] ? esc(l[0].title || l[0].url || "") : "Lista vuota", p: null, action: `<button type="button" class="d-cbtn" data-act="read-add" aria-label="Aggiungi da leggere">${ic("plus", 15, 2.4)}</button>` };
       },
       render() {
         const l = this.list();
@@ -600,7 +666,7 @@ const Today = (() => {
     },
     quick: {
       title: "Azioni rapide", icon: "bolt", sizes: ["s", "p", "mh"],
-      acts: [["scaleAdd", "Peso", "weight-add"], ["run", "Allenamento", "workout-add"], ["bowl", "Pasto", "food-quick"], ["timer", "Focus", "focus-start"], ["book", "Da leggere", "read-add"], ["habit", "Abitudine", "habit-new"]],
+      acts: [["scale", "Peso", "weight-add"], ["run", "Allenamento", "workout-add"], ["bowl", "Pasto", "food-quick"], ["timer", "Focus", "focus-start"], ["book", "Da leggere", "read-add"], ["habit", "Abitudine", "habit-new"]],
       render(sz) {
         const n = sz === "s" ? 4 : sz === "p" ? 5 : 6;
         const btns = this.acts.slice(0, n).map(([i, l, a]) => `<button type="button" class="d-qa" data-act="${a}" aria-label="${l}"><span>${ic(i, 20)}</span>${sz === "s" ? "" : `<small>${l}</small>`}</button>`).join("");
@@ -623,25 +689,36 @@ const Today = (() => {
           cells += `<i class="l${lv} ${d === today ? "today" : ""}" title="${U.fmtShort(d)}: ${p == null ? "riposo" : Math.round(p * 100) + "%"}"></i>`;
         }
         const r = Calc.rate(start, today);
-        return { html: head("grid", "Ultime settimane", `${weeks} settimane · ${r == null ? "nessun dato" : Math.round(r) + "% di abitudini fatte"}`) + `<div class="d-wb center"><div class="d-heat" style="--w:${weeks}" role="img" aria-label="Costanza giorno per giorno nelle ultime ${weeks} settimane">${cells}</div></div>` };
+        return { html: head("grid", "Ultime settimane", `${weeks} settimane · ${r == null ? "nessun dato" : Math.round(r) + "% di abitudini fatte"}`) + `<div class="d-wb center"><div class="d-heat" role="img" aria-label="Costanza giorno per giorno nelle ultime ${weeks} settimane">${cells}</div></div>` };
       }
     }
   };
 
   // ---------- Disposizione ----------
-  const valid = (l) => Array.isArray(l) && W[l[0]] && W[l[0]].sizes.includes(l[1]);
+  // Ogni voce è { id, type, size, opts? }: lo stesso tipo può comparire più volte (id diversi).
+  // Le vecchie voci [tipo, formato] si convertono alla lettura (id = tipo).
+  const TINTS = [["glass", "Vetro"], ["blue", "Blu"], ["orange", "Arancio"]];
+  const newId = (type) => (st.layout || []).some((l) => l.id === type) ? `${type}-${Math.random().toString(36).slice(2, 7)}` : type;
+  function toEntry(l) {
+    const e = Array.isArray(l) ? { id: l[0], type: l[0], size: l[1] } : l && typeof l === "object" ? { id: l.id || l.type, type: l.type, size: l.size, opts: l.opts } : null;
+    if (!e || !W[e.type] || !W[e.type].sizes.includes(e.size) || typeof e.id !== "string") return null;
+    const opts = e.opts && typeof e.opts === "object" ? { ...e.opts } : null;
+    return opts && Object.keys(opts).length ? { id: e.id, type: e.type, size: e.size, opts } : { id: e.id, type: e.type, size: e.size };
+  }
   function sanitize(arr) {
     if (!Array.isArray(arr)) return null;
     const seen = new Set(), out = [];
-    for (const l of arr) if (valid(l) && !seen.has(l[0])) { seen.add(l[0]); out.push([l[0], l[1]]); }
+    for (const l of arr) { const e = toEntry(l); if (e && !seen.has(e.id)) { seen.add(e.id); out.push(e); } }
     return out.length ? out : null;
   }
+  const clone = (l) => ({ ...l, ...(l.opts ? { opts: { ...l.opts } } : {}) });
+  const optsOf = (l) => ({ ...(l.opts || {}), id: l.id });
   function syncLayout() {
     const raw = Store.cfg().homeLayout;
     const json = JSON.stringify(raw || null);
     // Prima lettura, oppure cambiata da un altro dispositivo (e non ho modifiche in sospeso)
     if (!st.layout || (json !== st.seen && !st.saveT && !st.drag)) {
-      st.layout = sanitize(raw) || DEFAULT.map((l) => [...l]);
+      st.layout = sanitize(raw) || defaults();
       st.seen = json;
     }
   }
@@ -649,7 +726,7 @@ const Today = (() => {
     clearTimeout(st.saveT);
     const run = () => {
       st.saveT = null;
-      const data = st.layout.map((l) => [...l]);
+      const data = st.layout.map(clone);
       st.seen = JSON.stringify(data);
       Store.setSettings({ homeLayout: data });
     };
@@ -657,27 +734,7 @@ const Today = (() => {
   }
   function commit(focusIdx) { st.focusIdx = focusIdx; save(); App.render(); }
 
-  // ---------- Toast con "Annulla" e annunci per lettori di schermo ----------
-  function toast(msg, action, fn) {
-    let t = document.getElementById("dash-toast");
-    if (!t) {
-      t = document.createElement("div");
-      t.id = "dash-toast"; t.className = "dash-toast"; t.setAttribute("role", "status"); t.setAttribute("aria-live", "polite");
-      document.body.appendChild(t);
-    }
-    t.innerHTML = `<span></span>`;
-    t.firstChild.textContent = msg;
-    t.classList.toggle("act", !!action);
-    if (action) {
-      const b = document.createElement("button");
-      b.type = "button"; b.textContent = action;
-      b.onclick = () => { clearTimeout(toast.t); t.classList.remove("on"); fn(); };
-      t.appendChild(b);
-    }
-    requestAnimationFrame(() => t.classList.add("on"));
-    clearTimeout(toast.t);
-    toast.t = setTimeout(() => t.classList.remove("on"), action ? 5000 : 2400);
-  }
+  // ---------- Annunci per lettori di schermo ----------
   function live(msg) {
     let l = document.getElementById("dash-live");
     if (!l) { l = document.createElement("div"); l.id = "dash-live"; l.className = "dash-sr"; l.setAttribute("aria-live", "assertive"); document.body.appendChild(l); }
@@ -685,30 +742,59 @@ const Today = (() => {
   }
 
   // ---------- Disegno ----------
-  function widgetHTML([type, sz], idx) {
-    const def = W[type];
+  function inner(l) {
+    const def = W[l.type], sz = l.size, o = optsOf(l);
     let r;
-    try { r = (sz === "c" || sz === "p") && def.mini && !(type === "clock" && sz === "c") && type !== "quick" ? shapeHTML(sz, def, def.mini()) : def.render(sz); } catch (e) { console.error(e); r = { html: head(def.icon, def.title) + `<div class="d-wb">${empty("Non riesco a mostrare questi dati.")}</div>` }; }
-    const sizes = def.sizes.length > 1 ? `<div class="d-sizes" role="group" aria-label="Formato di ${def.title}">${SIZE_ORDER.filter((x) => def.sizes.includes(x)).map((s) => `<button type="button" data-dash-size="${s}" aria-pressed="${s === sz}" aria-label="${SIZE_NAMES[s]}" title="${SIZE_NAMES[s]}"><svg width="22" height="18" viewBox="0 0 24 18" aria-hidden="true">${sizeIcon(s)}</svg></button>`).join("")}</div>` : "";
+    try { r = (sz === "c" || sz === "p") && def.mini && !(l.type === "clock" && sz === "c") && l.type !== "quick" ? shapeHTML(sz, def, def.mini(o)) : def.render(sz, o); }
+    catch (e) { console.error(e); r = { html: head(def.icon, def.title) + `<div class="d-wb">${empty("Non riesco a mostrare questi dati.")}</div>` }; }
+    // colore scelto in Personalizza ("glass" = vetro semplice)
+    if (o.tint) r.cls = o.tint === "glass" ? "" : o.tint;
+    return r;
+  }
+  const sizesOf = (def) => SIZE_ORDER.filter((x) => def.sizes.includes(x));
+  const shape = (s) => `<svg class="d-shape" width="22" height="18" viewBox="0 0 24 18" aria-hidden="true">${sizeIcon(s)}</svg>`;
+  const goOf = (l) => { const g = W[l.type].go; return typeof g === "function" ? W[l.type].go(optsOf(l)) : g; };
+
+  // Ogni widget ha un pulsante "maniglia" (.d-go) che copre la scheda: fuori dalla modifica apre
+  // la sezione (Invio/Spazio), in modifica si sposta con le frecce. I pulsanti interni restano
+  // fermate di tabulazione separate. Il clic sulla scheda è gestito dall'ascoltatore delegato.
+  function widgetHTML(l, idx) {
+    const def = W[l.type], sz = l.size, r = inner(l), go = !!def.go;
+    let handle = "", ctl = "";
+    if (st.editing) {
+      handle = `<button type="button" class="d-go" aria-label="${def.title}, ${SIZE_NAMES[sz].toLowerCase()}, posizione ${idx + 1} di ${st.layout.length}. Frecce per spostare, Canc per rimuovere"></button>`;
+      ctl = `<button type="button" class="d-x" data-dash-remove aria-label="Rimuovi ${def.title}">${ic("x", 15, 2.6)}</button><div class="d-ectl">`
+        + (def.sizes.length > 1 ? `<button type="button" class="d-ebtn" data-dash-fmt aria-haspopup="menu" aria-expanded="false" aria-label="Formato di ${def.title}: ${SIZE_NAMES[sz]}">Formato</button>` : "")
+        + `<button type="button" class="d-ebtn" data-dash-custom aria-haspopup="dialog" aria-label="Personalizza ${def.title}">Personalizza</button></div>`;
+    } else if (go) handle = `<button type="button" class="d-go" aria-label="${def.title}: apri la sezione"></button>`;
     const jd = st.editing ? `style="--jd:-${((idx * 37) % 14) / 100}s"` : "";
-    const lbl = st.editing ? `${def.title}, ${SIZE_NAMES[sz].toLowerCase()}, posizione ${idx + 1} di ${st.layout.length}. Frecce per spostare, Canc per rimuovere` : `${def.title}: apri la sezione`;
-    return `<article class="d-w d-glass ${r.cls || ""}" data-idx="${idx}" data-size="${sz}" data-type="${type}" tabindex="0" aria-label="${lbl}" ${jd}>${st.editing ? `<button type="button" class="d-x" data-dash-remove aria-label="Rimuovi ${def.title}">${ic("x", 15, 2.6)}</button>` : ""}${r.html}${st.editing ? sizes : ""}</article>`;
+    return `<article class="d-w d-glass ${r.cls || ""} ${go ? "" : "nogo"}" data-idx="${idx}" data-id="${esc(l.id)}" data-size="${sz}" data-type="${l.type}" aria-label="${def.title}" ${jd}>${handle}${ctl}${r.html}</article>`;
   }
 
   function render(el) {
     syncLayout();
     bindOnce();
+    // un ridisegno "di fondo" (sincronizzazione, orologio) non deve chiudere il menu Formato aperto
+    const open = document.getElementById("dash-fmt"), reopen = open && open._btn && open._btn.closest(".d-w").dataset.id;
+    const refocus = open && open.contains(document.activeElement) ? document.activeElement.dataset.size : null;
+    closeFmt(false);
+    const fresh = unseenNew().length;
     const tools = st.editing
       ? `<button class="d-btn glassy" type="button" data-dash-tool="reset">${ic("reset", 16)}Ripristina</button><button class="d-btn glassy" type="button" data-dash-tool="add">${ic("plus", 16)}Widget</button><button class="d-btn deep" type="button" data-dash-tool="done">Fine</button>`
-      : `${unseenNew().length ? `<button class="d-btn orange-btn" type="button" data-dash-tool="add">${ic("star", 16)}${unseenNew().length} widget nuovi</button>` : ""}<button class="d-btn glassy" type="button" data-act="look-open">${ic("image", 16)}Aspetto</button><button class="d-btn deep" type="button" data-dash-tool="edit">${ic("edit", 16)}Modifica Home</button>`;
+      : `${fresh ? `<button class="d-btn orange-btn" type="button" data-dash-tool="add">${ic("star", 16)}${fresh} widget nuovi</button>` : ""}<button class="d-btn glassy" type="button" data-act="look-open">${ic("image", 16)}Aspetto</button><button class="d-btn deep" type="button" data-dash-tool="edit">${ic("edit", 16)}Modifica Home</button>`;
     el.innerHTML = `<div class="dash">
       <div class="d-bar"><h2>${st.editing ? "Modifica la Home" : "La tua giornata"}</h2><div class="d-tools">${tools}</div></div>
       <section class="d-grid ${st.editing ? "editing" : ""}" aria-label="Widget della Home">${st.layout.map(widgetHTML).join("")}${st.editing ? `<button type="button" class="d-w d-adder" data-size="s" data-dash-tool="add"><span class="d-plus">${ic("plus", 22, 2.4)}</span>Aggiungi widget</button>` : ""}</section>
     </div>`;
     if (st.focusIdx != null) {
-      const f = el.querySelector(`.d-w[data-idx="${st.focusIdx}"]`);
-      st.focusIdx = null;
-      if (f) f.focus({ preventScroll: false });
+      const w = el.querySelector(`.d-w[data-idx="${st.focusIdx}"]`);
+      const f = w && (st.focusFmt && w.querySelector("[data-dash-fmt]") || w.querySelector(".d-go"));
+      st.focusIdx = null; st.focusFmt = false;
+      if (f) f.focus();
+    }
+    if (reopen && st.editing) {
+      const b = el.querySelector(`.d-w[data-id="${CSS.escape(reopen)}"] [data-dash-fmt]`);
+      if (b) openFmt(b, refocus);
     }
     startTicker();
   }
@@ -730,6 +816,7 @@ const Today = (() => {
       if (!nodes.length) return;
       const running = focusOk() && !!Focus.run;
       if (nodes[0].dataset.running !== String(running)) return App.render();
+      if (!running) return;
       const txt = mmss(remainingSec());
       nodes.forEach((n) => { if (n.textContent !== txt) n.textContent = txt; });
     }, 1000);
@@ -738,48 +825,149 @@ const Today = (() => {
   function setEditing(v) {
     st.editing = v;
     App.render();
-    if (v) toast("Trascina per spostare · tocca un formato per ridimensionare");
+    if (v) U.toast("Trascina per spostare · «Formato» e «Personalizza» sotto ogni widget");
     else if (st.saveT) save(true);
   }
   function removeAt(i) {
     const [item] = st.layout.splice(i, 1);
     commit(Math.min(i, st.layout.length - 1));
-    toast(`${W[item[0]].title} rimosso`, "Annulla", () => { st.layout.splice(Math.min(i, st.layout.length), 0, item); commit(i); });
+    U.toast(`${W[item.type].title} rimosso`, { action: "Annulla", fn: () => { st.layout.splice(Math.min(i, st.layout.length), 0, item); commit(i); } });
   }
   function resetLayout() {
-    const prev = st.layout.map((l) => [...l]);
-    st.layout = DEFAULT.map((l) => [...l]);
+    const prev = st.layout.map(clone);
+    st.layout = defaults();
     commit();
-    toast("Disposizione iniziale ripristinata", "Annulla", () => { st.layout = prev; commit(); });
+    U.toast("Disposizione iniziale ripristinata", { action: "Annulla", fn: () => { st.layout = prev; commit(); } });
+  }
+
+  // ---------- Menu "Formato" (uno per widget, sotto la scheda) ----------
+  function closeFmt(refocus) {
+    const m = document.getElementById("dash-fmt");
+    if (!m) return;
+    const b = m._btn;
+    m.remove();
+    if (b && b.isConnected) { b.setAttribute("aria-expanded", "false"); if (refocus) b.focus(); }
+  }
+  // sotto il pulsante (o sopra, se sotto non c'è spazio), dentro la finestra
+  function placeMenu(m) {
+    const r = m._btn.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
+    const below = r.bottom + 8 + mh <= window.innerHeight || r.top - 8 - mh < 0;
+    m.style.left = `${U.clamp(r.left + r.width / 2 - mw / 2, 8, document.documentElement.clientWidth - mw - 8) + window.scrollX}px`;
+    m.style.top = `${(below ? r.bottom + 8 : r.top - 8 - mh) + window.scrollY}px`;
+  }
+  function openFmt(btn, focusSize) {
+    closeFmt(false);
+    const i = Number(btn.closest(".d-w").dataset.idx), l = st.layout[i], def = W[l.type];
+    const m = document.createElement("div");
+    m.id = "dash-fmt"; m.className = "dash-menu"; m.setAttribute("role", "menu"); m.setAttribute("aria-label", `Formato di ${def.title}`);
+    m.innerHTML = sizesOf(def).map((s) => `<button type="button" role="menuitemradio" tabindex="-1" aria-checked="${s === l.size}" data-size="${s}">${shape(s)}<span>${SIZE_NAMES[s]}</span>${s === l.size ? ic("check", 16, 2.4) : ""}</button>`).join("");
+    m._btn = btn;
+    document.body.appendChild(m);
+    placeMenu(m);
+    btn.setAttribute("aria-expanded", "true");
+    const items = [...m.querySelectorAll("button")];
+    (items.find((b) => b.dataset.size === focusSize) || items.find((b) => b.getAttribute("aria-checked") === "true") || items[0]).focus();
+    m.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-size]");
+      if (!b) return;
+      l.size = b.dataset.size;
+      st.focusFmt = true;
+      closeFmt(false);
+      commit(st.layout.indexOf(l));
+      live(`${def.title}: ${SIZE_NAMES[l.size].toLowerCase()}`);
+    });
+    m.addEventListener("keydown", (e) => {
+      const k = items.indexOf(document.activeElement);
+      const to = { ArrowDown: k + 1, ArrowRight: k + 1, ArrowUp: k - 1, ArrowLeft: k - 1, Home: 0, End: items.length - 1 }[e.key];
+      if (to != null) { e.preventDefault(); items[(to + items.length) % items.length].focus(); }
+      else if (e.key === "Escape" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); closeFmt(true); }
+    });
+  }
+
+  // ---------- Foglio "Personalizza": colore e opzioni del singolo widget ----------
+  const radios = (name, legend, list, cur) => `<fieldset class="d-field"><legend>${legend}</legend><div class="d-seg">${list.map(([v, t]) => `<label><input type="radio" name="${name}" value="${v}" ${String(v) === String(cur) ? "checked" : ""}><span>${t}</span></label>`).join("")}</div></fieldset>`;
+  const select = (name, legend, list, cur) => `<label class="d-field"><span class="d-lg">${legend}</span><select name="${name}">${list.map(([v, t]) => `<option value="${esc(v)}" ${v === (cur || "") ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
+  function customFields(l) {
+    const o = l.opts || {}, t = l.type;
+    const base = inner({ ...l, opts: { ...o, tint: "" } }).cls || "glass";
+    let h = radios("tint", "Colore", TINTS, o.tint || base);
+    const habits = Calc.activeHabits().map((x) => [x.id, x.name]);
+    const goals = Calc.activeGoals().map((x) => [x.id, x.title]);
+    if (t === "habits") {
+      const used = [...new Set(Calc.activeHabits().map((x) => x.area).filter((a) => AREAS[a]))];
+      h += select("area", "Abitudini da mostrare", [["", "Tutte"], ...used.map((a) => [a, `Solo ${AREAS[a].label}`])], o.area);
+    }
+    if (t === "nextHabit" || t === "streak") h += select("habit", "Abitudine", [["", t === "streak" ? "Automatica (la serie più lunga)" : "Automatica (la prossima da fare)"], ...habits], o.habit);
+    if (t === "goals" || t === "deadline") h += select("goal", "Obiettivo", [["", t === "goals" ? "Tutti gli obiettivi attivi" : "Automatico (la scadenza più vicina)"], ...goals], o.goal);
+    if (t === "timer") h += radios("min", "Durata della sessione", [["", "Come in Focus"], ...[15, 25, 45, 60].map((m) => [m, `${m} min`])], o.min || "");
+    if (t === "meals" && typeof Food !== "undefined") h += `<fieldset class="d-field"><legend>Pasti da mostrare</legend><p class="d-note">Nessuno scelto = tutti.</p><div class="d-seg wrap">${Food.SLOTS.map(([k, n]) => `<label><input type="checkbox" name="slots" value="${k}" ${(o.slots || []).includes(k) ? "checked" : ""}><span>${n}</span></label>`).join("")}</div></fieldset>`;
+    if (t === "calendar") { calState(optsOf(l)); const tabs = calTabs().tabs; if (tabs.length > 1) h += radios("tab", "Scheda all'apertura", tabs, o.tab || "habits"); }
+    return h;
+  }
+  function openCustom(btn) {
+    const i = Number(btn.closest(".d-w").dataset.idx), l = st.layout[i], def = W[l.type];
+    Sheet.open({
+      title: `Personalizza · ${def.title}`,
+      body: `<form class="dash-sheet d-form" data-dash-custom-form>${customFields(l)}<p class="d-note">Le modifiche si vedono subito nella Home.</p></form>`,
+      onMount: (root) => {
+        const f = root.querySelector("form");
+        f.addEventListener("submit", (e) => e.preventDefault());
+        f.addEventListener("change", () => {
+          const fd = new FormData(f), o = {};
+          for (const k of ["tint", "area", "habit", "goal", "min", "tab"]) { const v = fd.get(k); if (v) o[k] = k === "min" ? Number(v) : v; }
+          const slots = fd.getAll("slots");
+          if (slots.length) o.slots = slots;
+          if (o.tint === (inner({ ...l, opts: { ...o, tint: "" } }).cls || "glass")) delete o.tint; // il colore di serie non si salva
+          if (Object.keys(o).length) l.opts = o; else delete l.opts;
+          if (st.cal[l.id]) st.cal[l.id].tab = o.tab || "habits";
+          save(); App.render();
+        });
+        const h = root.querySelector(".sheet-head h2");
+        if (h) { h.tabIndex = -1; setTimeout(() => h.focus(), 30); }
+      },
+      // alla chiusura il focus torna al pulsante Personalizza di quel widget
+      onClose: () => setTimeout(() => { const w = document.querySelector(`.view-today .d-w[data-id="${CSS.escape(l.id)}"] [data-dash-custom]`); if (w) w.focus(); }, 0)
+    });
+  }
+
+  // ---------- Foglio "Aggiungi un widget", con un'anteprima viva di ciascuno ----------
+  const addSize = (k) => (W[k].sizes.includes("c") ? "c" : W[k].sizes[0]);
+  const SPAN = { c: [1, 1], s: [1, 1], p: [2, 1], mh: [2, 1], mv: [1, 2], lh: [4, 2], lv: [2, 4] };
+  function preview(k) {
+    const sz = addSize(k), [cw, rh] = SPAN[sz], cell = 176, gap = 16;
+    const w = cw * cell + (cw - 1) * gap, h = rh * cell + (rh - 1) * gap, f = Math.min(168 / w, 104 / h);
+    const r = inner({ id: `preview-${k}`, type: k, size: sz });
+    return `<div class="d-prev" aria-hidden="true" inert><div class="dash" style="width:${Math.round(w * f)}px;height:${Math.round(h * f)}px"><article class="d-w d-glass ${r.cls || ""}" data-size="${sz}" data-type="${k}" style="width:${w}px;height:${h}px;transform:scale(${f.toFixed(4)})">${r.html}</article></div></div>`;
   }
   function openAdd() {
-    const used = new Set(st.layout.map((l) => l[0]));
+    const used = new Set(st.layout.map((l) => l.type));
     const fresh = unseenNew();
-    const free = Object.entries(W).filter(([k]) => !used.has(k)).sort((a, b) => fresh.includes(b[0]) - fresh.includes(a[0]));
+    // prima i nuovi, poi quelli non ancora in Home; anche quelli già presenti si possono aggiungere di nuovo
+    const rank = (k) => (fresh.includes(k) ? 0 : used.has(k) ? 2 : 1);
+    const all = Object.entries(W).sort((a, b) => rank(a[0]) - rank(b[0]));
     if (fresh.length) Store.setSettings({ seenWidgets: [...new Set([...(Store.cfg().seenWidgets || []), ...fresh])] });
     Sheet.open({
       title: "Aggiungi un widget",
-      body: `<div class="dash-sheet">${free.length
-        ? `<div class="d-picks">${free.map(([k, d]) => `<button class="d-pick" type="button" data-pick="${k}"><span class="d-ic">${ic(d.icon, 17)}</span><b>${d.title}${fresh.includes(k) ? ` <em class="d-new">Nuovo</em>` : ""}</b><small>${SIZE_ORDER.filter((x) => d.sizes.includes(x)).map((x) => SIZE_NAMES[x]).join(" · ")}</small></button>`).join("")}</div>`
-        : `<p class="d-note">Tutti i widget sono già nella Home. Rimuovine uno per spostarlo altrove.</p>`}</div>`,
+      body: `<div class="dash-sheet"><div class="d-picks">${all.map(([k, d]) => `<div class="d-pick">${preview(k)}<button class="d-pickbtn" type="button" data-pick="${k}"><span class="d-ic">${ic(d.icon, 17)}</span><span class="d-pt"><b>${d.title}${fresh.includes(k) ? ` <em class="d-new">Nuovo</em>` : ""}</b><small>${used.has(k) ? "Già nella Home · aggiungine un altro" : sizesOf(d).map((x) => SIZE_NAMES[x]).join(" · ")}</small></span></button></div>`).join("")}</div></div>`,
       onMount: (root) => {
         root.addEventListener("click", (e) => {
           const p = e.target.closest("[data-pick]");
           if (!p) return;
           const k = p.dataset.pick;
-          st.layout.push([k, W[k].sizes.includes("c") ? "c" : W[k].sizes[0]]);
+          st.layout.push({ id: newId(k), type: k, size: addSize(k) });
           Sheet.close();
           commit(st.layout.length - 1);
-          toast(`${W[k].title} aggiunto in fondo`);
+          U.toast(`${W[k].title} aggiunto in fondo`);
         });
-        const first = root.querySelector("[data-pick]");
-        if (first) setTimeout(() => first.focus(), 30);
+        // il focus va al titolo del foglio, non alla prima scheda (sembrerebbe già scelta)
+        const h = root.querySelector(".sheet-head h2");
+        if (h) { h.tabIndex = -1; setTimeout(() => h.focus(), 30); }
       }
     });
   }
   function goTo(i) {
-    const def = W[st.layout[i] && st.layout[i][0]];
-    if (def && def.go) App.go(def.go);
+    const l = st.layout[i];
+    if (l && W[l.type].go) App.go(goOf(l));
   }
 
   // ---------- Eventi (delegati, installati una volta sola) ----------
@@ -787,6 +975,12 @@ const Today = (() => {
     if (st.bound) return;
     st.bound = true;
     const inDash = (t) => t && t.closest && t.closest(".view-today .dash");
+
+    // copertine che non si caricano: via l'immagine, resta il titolo (niente onerror inline, per la CSP)
+    document.addEventListener("error", (e) => {
+      const t = e.target;
+      if (t && t.tagName === "IMG" && t.closest(".dash, .dash-sheet")) t.remove();
+    }, true);
 
     document.addEventListener("click", (e) => {
       if (!inDash(e.target)) return;
@@ -802,11 +996,16 @@ const Today = (() => {
       const w = e.target.closest(".d-w[data-idx]");
       if (!w) return;
       const i = Number(w.dataset.idx);
-      if (t) {
+      if (t && !t.classList.contains("d-go")) {
         if (t.hasAttribute("data-dash-remove")) return removeAt(i);
-        if (t.dataset.dashSize) { st.layout[i][1] = t.dataset.dashSize; return commit(i); }
-        if (t.dataset.dashTab) { st.calTab = t.dataset.dashTab; return App.render(); }
-        if (t.dataset.dashCal) { st.calOff = Math.min(0, st.calOff + Number(t.dataset.dashCal)); return App.render(); }
+        if (t.hasAttribute("data-dash-custom")) return openCustom(t);
+        if (t.hasAttribute("data-dash-fmt")) return document.getElementById("dash-fmt") && t.getAttribute("aria-expanded") === "true" ? closeFmt(true) : openFmt(t);
+        if (t.dataset.dashTab || t.dataset.dashCal) {
+          calState(optsOf(st.layout[i]));
+          if (t.dataset.dashTab) { cs.tab = t.dataset.dashTab; cs.off = 0; }
+          else cs.off = U.clamp(cs.off + Number(t.dataset.dashCal), Math.min(0, calMinOff()), 0);
+          return App.render();
+        }
         return; // gli altri pulsanti hanno data-act e li gestisce App
       }
       if (e.target.closest("[data-act], a, input, select")) return;
@@ -814,10 +1013,9 @@ const Today = (() => {
     }, true);
 
     document.addEventListener("keydown", (e) => {
-      const w = e.target.closest && e.target.closest(".view-today .dash .d-w[data-idx]");
-      if (!w || e.target !== w) return;
-      const i = Number(w.dataset.idx);
-      if (!st.editing) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goTo(i); } return; }
+      const g = e.target.closest && e.target.closest(".view-today .dash .d-go");
+      if (!g || !st.editing) return;
+      const i = Number(g.closest(".d-w").dataset.idx);
       const mv = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
       if (mv) {
         e.preventDefault();
@@ -825,11 +1023,18 @@ const Today = (() => {
         if (j < 0 || j >= st.layout.length) return;
         [st.layout[i], st.layout[j]] = [st.layout[j], st.layout[i]];
         commit(j);
-        live(`${W[st.layout[j][0]].title} in posizione ${j + 1} di ${st.layout.length}`);
+        live(`${W[st.layout[j].type].title} in posizione ${j + 1} di ${st.layout.length}`);
       }
       if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeAt(i); }
       if (e.key === "Escape") { e.preventDefault(); setEditing(false); }
     });
+
+    // il menu Formato si chiude toccando altrove; se la finestra cambia misura si riposiziona
+    document.addEventListener("pointerdown", (e) => {
+      const m = document.getElementById("dash-fmt");
+      if (m && !m.contains(e.target) && !(m._btn && m._btn.contains(e.target))) closeFmt(false);
+    }, true);
+    window.addEventListener("resize", () => { const m = document.getElementById("dash-fmt"); if (m && m._btn.isConnected) placeMenu(m); });
 
     // trascinamento (mouse e dita); pressione lunga su telefono per entrare in modifica
     document.addEventListener("pointerdown", (e) => {
@@ -844,7 +1049,7 @@ const Today = (() => {
       if (e.target.closest("button")) return;
       e.preventDefault();
       const r = w.getBoundingClientRect();
-      st.drag = { el: w, grid: w.parentElement, dx: e.clientX - r.left, dy: e.clientY - r.top, last: null, moved: false, sx: e.clientX, sy: e.clientY };
+      st.drag = { el: w, grid: w.parentElement, dx: e.clientX - r.left, dy: e.clientY - r.top, last: null };
       w.classList.add("dragging");
       moveDrag(e);
     });
@@ -864,7 +1069,7 @@ const Today = (() => {
       const changed = order.some((l, k) => l !== st.layout[k]);
       st.layout = order;
       const ni = nodes.indexOf(d.el);
-      if (changed) { commit(ni); live(`${W[order[ni][0]].title} in posizione ${ni + 1} di ${order.length}`); }
+      if (changed) { commit(ni); live(`${W[order[ni].type].title} in posizione ${ni + 1} di ${order.length}`); }
       else App.render();
     });
     window.addEventListener("pointercancel", () => { endPress(); if (st.drag) { st.drag = null; App.render(); } });
@@ -898,7 +1103,16 @@ const Today = (() => {
     place(el, e);
   }
 
-  return { render, W, DEFAULT, state: st };
+  return { render };
 })();
 
 Actions["go"] = (el) => App.go(el.dataset.id);
+// Pasti dal widget: un tocco segna mangiati (o di nuovo da mangiare) i piatti in programma di quel pasto
+Actions["dash-meal"] = (el) => {
+  const today = U.today(), es = Food.entriesOn(today, el.dataset.slot), planned = es.filter((e) => !e.extra);
+  const list = planned.length ? planned : es, all = list.every((e) => e.eaten);
+  list.forEach((e) => { if (!!e.eaten === all) Store.update("meal_entries", e.id, { eaten: !all }); });
+  Food.syncHabit([today]);
+};
+// Sessione di focus dal widget, con la durata scelta per quel widget
+Actions["dash-focus"] = (el) => { if (el.dataset.min) Focus.minutes = Number(el.dataset.min); Focus.start(); };

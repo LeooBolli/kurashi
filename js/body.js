@@ -14,7 +14,7 @@ const Body = {
         <div><p class="eyebrow">Benessere</p><h1 class="title">Corpo e <em>mente</em></h1></div>
         <button class="btn primary" data-act="body-add">${Icon.svg("plus", 18)}<span>Registra</span></button>
       </div>
-      <div class="seg tabs4">${this.TABS.map(([k, l]) => `<button class="${this.tab === k ? "on" : ""}" data-act="body-tab" data-id="${k}">${l}</button>`).join("")}</div>
+      <div class="seg tabs4">${this.TABS.map(([k, l]) => `<button class="${this.tab === k ? "on" : ""}" data-act="body-tab" data-id="${k}" aria-pressed="${this.tab === k}">${l}</button>`).join("")}</div>
       <div class="body-pane">${this[this.tab + "HTML"]()}</div>`;
   },
 
@@ -29,21 +29,24 @@ const Body = {
     return `
       <div class="grid2">
         <section class="card">
-          <div class="block-head"><h3>Ultimi 14 giorni</h3></div>
+          <div class="block-head"><h2 class="h3">Ultimi 14 giorni</h2></div>
           ${Charts.legend([{ color: "var(--blue)", label: "Umore" }, { color: "var(--orange)", label: "Energia" }])}
           ${Charts.lines({ series: [{ name: "Umore", color: "var(--blue)", vals: mv }, { name: "Energia", color: "var(--orange)", vals: ev }], labels, min: 1, max: 5, dec: 1, labelEvery: 2, aria: "Umore ed energia negli ultimi 14 giorni" })}
         </section>
         <section class="card stats-col">
-          <div><b>${mAvg == null ? "–" : U.num(mAvg)}</b><span>umore medio /5</span></div>
-          <div><b>${eAvg == null ? "–" : U.num(eAvg)}</b><span>energia media /5</span></div>
-          <button class="btn primary" data-act="mood-add">${Icon.svg("smile", 16)} Nuovo check-in</button>
+          <div class="stats-pair">
+            <div><b>${mAvg == null ? "–" : U.num(mAvg)}<small>/5</small></b><span>umore medio</span></div>
+            <div><b>${eAvg == null ? "–" : U.num(eAvg)}<small>/5</small></b><span>energia media</span></div>
+          </div>
+          <button class="btn primary" data-act="mood-add">${Icon.svg("smile", 16)} Registra l'umore</button>
         </section>
       </div>
-      <section class="card"><div class="block-head"><h3>Check-in recenti</h3></div>
-        ${recent.length ? `<ul class="log">${recent.map((m) => `<li><span class="when">${U.fmtShort(U.dateOf(m.logged_at))} · ${U.fmtTime(m.logged_at)}</span>
-          <span class="vals">${m.mood ? `<i class="dot mood">${m.mood}</i>` : ""}${m.energy ? `<i class="dot energy">${m.energy}</i>` : ""}</span>
+      <section class="card"><div class="block-head"><h2 class="h3">Umore registrato</h2></div>
+        ${recent.length ? `<ul class="log">${recent.map((m) => { const mo = Number(m.mood) || 0, en = Number(m.energy) || 0;
+          return `<li><span class="when">${U.fmtShort(U.dateOf(m.logged_at))} · ${U.fmtTime(m.logged_at)}</span>
+          <span class="vals mood-vals">${mo ? `<span class="mv" title="${MOOD_LABELS[mo - 1] || ""}"><i class="dot mood">${mo}</i>Umore</span>` : ""}${en ? `<span class="mv" title="${ENERGY_LABELS[en - 1] || ""}"><i class="dot energy">${en}</i>Energia</span>` : ""}</span>
           <span class="note">${U.esc(m.note || "")}</span>
-          <button class="icon-btn sm" data-act="log-delete" data-table="mood_logs" data-id="${m.id}" aria-label="Elimina">${Icon.svg("x", 16)}</button></li>`).join("")}</ul>` : `<p class="muted small">Nessun check-in. Puoi farlo anche dalla schermata Oggi.</p>`}
+          <button class="icon-btn sm hit" data-act="log-delete" data-table="mood_logs" data-id="${U.esc(m.id)}" aria-label="Elimina la registrazione del ${U.fmtShort(U.dateOf(m.logged_at))} alle ${U.fmtTime(m.logged_at)}">${Icon.svg("x", 16)}</button></li>`; }).join("")}</ul>` : `<p class="muted small">Ancora niente. Puoi registrare l'umore anche dalla Home.</p>`}
       </section>`;
   },
 
@@ -58,12 +61,14 @@ const Body = {
     return `
       <div class="grid2">
         <section class="card">
-          <div class="block-head"><h3>Ore dormite</h3><span class="muted small">ultimi 14 giorni</span></div>
+          <div class="block-head"><h2 class="h3">Ore dormite</h2><span class="muted small">ultimi 14 giorni</span></div>
           ${Charts.cols({ data, h: 160, max: 10, target: cfg.sleepTarget, unit: "h", labelEvery: 2, aria: "Ore di sonno negli ultimi 14 giorni" })}
         </section>
         <section class="card stats-col">
-          <div><b>${avg == null ? "–" : U.num(avg) + " h"}</b><span>media 14 giorni</span></div>
-          <div><b>${last ? U.num(last.hours, 2) + " h" : "–"}</b><span>ultima notte</span></div>
+          <div class="stats-pair">
+            <div><b>${avg == null ? "–" : U.num(avg) + " h"}</b><span>media 14 giorni</span></div>
+            <div><b>${last ? U.num(Number(last.hours), 2) + " h" : "–"}</b><span>ultima notte</span></div>
+          </div>
           <button class="btn primary" data-act="sleep-add">${Icon.svg("moon", 16)} Registra il sonno</button>
         </section>
       </div>`;
@@ -79,23 +84,25 @@ const Body = {
     const weightGoals = Calc.activeGoals().filter((g) => g.weight_linked);
     return `
       ${weightGoals.map((g) => { const pct = Calc.weightProgress(g), start = Goals.weightStart(g);
-        return `<div class="goal-banner" data-act="goal-open" data-id="${g.id}" role="button">
+        return `<div class="goal-banner" data-act="goal-open" data-id="${U.esc(g.id)}" role="button" tabindex="0" aria-label="${U.esc(g.title)}: apri l'obiettivo">
           <div><b>${U.esc(g.title)}</b><span>${start != null && latest ? `${U.num(start)} → ${U.num(Number(latest.kg))} kg · ` : ""}peso ideale ${U.num(cfg.weightTarget)} kg${pct == null ? "" : ` · ${Math.round(pct)}%`}</span></div>
           ${Charts.bar({ value: pct || 0, color: "var(--orange-500)", h: 6 })}</div>`; }).join("")}
       <div class="grid2">
         <section class="card">
-          <div class="block-head"><h3>Andamento</h3><span class="muted small">ultime ${recent.length} pesate</span></div>
+          <div class="block-head"><h2 class="h3">Andamento</h2><span class="muted small">ultime ${recent.length} pesate</span></div>
           ${recent.length ? Charts.lines({ series: [{ name: "Peso", color: "var(--blue)", vals: recent.map((w) => Number(w.kg)) }], labels: recent.map((w) => String(U.parse(w.log_date).getDate())), area: true, target: cfg.weightTarget || null, dec: 1, labelEvery: Math.ceil(recent.length / 8), aria: "Andamento del peso" })
             : `<div class="empty-chart">Registra la prima pesata</div>`}
         </section>
         <section class="card stats-col">
-          <div><b>${latest ? U.num(latest.kg) + " kg" : "–"}</b><span>ultima pesata</span></div>
-          <div><b>${delta == null ? "–" : (delta > 0 ? "+" : "") + U.num(delta) + " kg"}</b><span>nel periodo</span></div>
+          <div class="stats-pair">
+            <div><b>${latest ? U.num(Number(latest.kg)) + " kg" : "–"}</b><span>ultima pesata</span></div>
+            <div><b>${delta == null ? "–" : (delta > 0 ? "+" : "") + U.num(delta) + " kg"}</b><span>nel periodo</span></div>
+          </div>
           <button class="btn primary" data-act="weight-add">${Icon.svg("scale", 16)} Registra il peso</button>
         </section>
       </div>
-      ${recent.length ? `<section class="card"><div class="block-head"><h3>Pesate</h3></div><ul class="log">${[...recent].reverse().slice(0, 8).map((w) => `<li><span class="when">${U.fmtLong(w.log_date)}</span><span class="vals"><b>${U.num(w.kg)} kg</b></span><span class="note"></span>
-        <button class="icon-btn sm" data-act="log-delete" data-table="weight_logs" data-id="${w.id}" aria-label="Elimina">${Icon.svg("x", 16)}</button></li>`).join("")}</ul></section>` : ""}`;
+      ${recent.length ? `<section class="card"><div class="block-head"><h2 class="h3">Pesate</h2></div><ul class="log">${[...recent].reverse().slice(0, 8).map((w) => `<li><span class="when">${U.fmtLong(w.log_date)}</span><span class="vals"><b>${U.num(Number(w.kg))} kg</b></span><span class="note"></span>
+        <button class="icon-btn sm hit" data-act="log-delete" data-table="weight_logs" data-id="${U.esc(w.id)}" aria-label="Elimina la pesata del ${U.fmtLong(w.log_date)}">${Icon.svg("x", 16)}</button></li>`).join("")}</ul></section>` : ""}`;
   },
 
   // ---------- allenamenti ----------
@@ -112,18 +119,20 @@ const Body = {
     return `
       <div class="grid2">
         <section class="card">
-          <div class="block-head"><h3>Allenamenti a settimana</h3></div>
+          <div class="block-head"><h2 class="h3">Allenamenti a settimana</h2></div>
           ${Charts.cols({ data: weeks, h: 150, aria: "Allenamenti per settimana" })}
         </section>
         <section class="card stats-col">
-          <div><b>${thisWeek.length}</b><span>questa settimana</span></div>
-          <div><b>${U.fmtMin(U.sum(thisWeek.map((w) => w.minutes)))}</b><span>tempo totale</span></div>
-          <button class="btn primary" data-act="workout-add">${Icon.svg("dumbbell", 16)} Registra allenamento</button>
+          <div class="stats-pair">
+            <div><b>${thisWeek.length}</b><span>questa settimana</span></div>
+            <div><b>${U.fmtMin(U.sum(thisWeek.map((w) => Number(w.minutes) || 0)))}</b><span>tempo totale</span></div>
+          </div>
+          <button class="btn primary" data-act="workout-add">${Icon.svg("dumbbell", 16)} Registra l'allenamento</button>
         </section>
       </div>
-      <section class="card"><div class="block-head"><h3>Recenti</h3></div>
-        ${recent.length ? `<ul class="log">${recent.map((w) => `<li><span class="when">${U.fmtShort(w.workout_date)}</span><span class="vals"><b>${U.esc(w.kind)}</b> · ${w.minutes} min${w.intensity ? ` · intensità ${w.intensity}/5` : ""}</span><span class="note">${U.esc(w.note || "")}</span>
-          <button class="icon-btn sm" data-act="log-delete" data-table="workouts" data-id="${w.id}" aria-label="Elimina">${Icon.svg("x", 16)}</button></li>`).join("")}</ul>` : `<p class="muted small">Ancora nessun allenamento registrato.</p>`}
+      <section class="card"><div class="block-head"><h2 class="h3">Allenamenti recenti</h2></div>
+        ${recent.length ? `<ul class="log">${recent.map((w) => `<li><span class="when">${U.fmtShort(w.workout_date)}</span><span class="vals"><b>${U.esc(w.kind)}</b> · ${Number(w.minutes) || 0} min${w.intensity ? ` · intensità ${Number(w.intensity)}/5` : ""}</span><span class="note">${U.esc(w.note || "")}</span>
+          <button class="icon-btn sm hit" data-act="log-delete" data-table="workouts" data-id="${U.esc(w.id)}" aria-label="Elimina l'allenamento del ${U.fmtShort(w.workout_date)}">${Icon.svg("x", 16)}</button></li>`).join("")}</ul>` : `<p class="muted small">Ancora nessun allenamento registrato.</p>`}
       </section>`;
   },
 
@@ -136,7 +145,7 @@ const Body = {
         <div class="field"><span class="lbl">Umore</span>${UI.scale("mood", 3, MOOD_LABELS)}<div class="scale-labels"><span>Giù</span><span>Ottimo</span></div></div>
         <div class="field"><span class="lbl">Energia</span>${UI.scale("energy", 3, ENERGY_LABELS)}<div class="scale-labels"><span>Esausto</span><span>Al massimo</span></div></div>
         <label>Nota (facoltativa)<input name="note" maxlength="140" placeholder="Cosa sta influenzando come ti senti?"></label>
-        <button class="btn primary wide" type="submit">Salva check-in</button></form>`,
+        <button class="btn primary wide" type="submit">Registra</button></form>`,
       onMount: (root) => {
         const form = root.querySelector("form");
         UI.wire(form);
@@ -144,7 +153,7 @@ const Body = {
           e.preventDefault();
           const f = new FormData(form);
           Store.insert("mood_logs", { logged_at: new Date().toISOString(), mood: Number(f.get("mood")), energy: Number(f.get("energy")), note: (f.get("note") || "").trim() || null });
-          Sheet.close(); U.toast("Check-in salvato");
+          Sheet.close(); U.toast("Umore registrato");
         });
       }
     });
@@ -158,7 +167,7 @@ const Body = {
         <label>Ore dormite<input name="hours" type="number" step="0.25" min="0" max="16" inputmode="decimal" required autofocus value="${ex ? ex.hours : 7.5}"></label>
         <div class="field"><span class="lbl">Qualità del riposo</span>${UI.scale("quality", ex && ex.quality || 3, ["Pessima", "Scarsa", "Ok", "Buona", "Ottima"])}<div class="scale-labels"><span>Pessima</span><span>Ottima</span></div></div>
         <label>Giorno del risveglio<input name="date" type="date" value="${t}" max="${t}"></label>
-        <button class="btn primary wide" type="submit">Salva</button></form>`,
+        <button class="btn primary wide" type="submit">Registra</button></form>`,
       onMount: (root) => {
         const form = root.querySelector("form");
         UI.wire(form);
@@ -179,7 +188,7 @@ const Body = {
       body: `<form class="form" id="weight-form">
         <label>Peso in kg<input name="kg" type="number" step="0.1" min="20" max="400" inputmode="decimal" required autofocus value="${latest ? latest.kg : ""}"></label>
         <label>Data<input name="date" type="date" value="${t}" max="${t}"></label>
-        <button class="btn primary wide" type="submit">Salva</button></form>`,
+        <button class="btn primary wide" type="submit">Registra</button></form>`,
       onMount: (root) => {
         const form = root.querySelector("form");
         form.addEventListener("submit", (e) => {
@@ -204,7 +213,7 @@ const Body = {
         <label>Data<input name="date" type="date" value="${t}" max="${t}"></label></div>
         <div class="field"><span class="lbl">Intensità</span>${UI.scale("intensity", 3, ["Leggera", "Facile", "Media", "Dura", "Massima"])}<div class="scale-labels"><span>Leggera</span><span>Massima</span></div></div>
         <label>Nota<input name="note" maxlength="140" placeholder="Es. 8 km, ritmo 5:40"></label>
-        <button class="btn primary wide" type="submit">Salva</button></form>`,
+        <button class="btn primary wide" type="submit">Registra</button></form>`,
       onMount: (root) => {
         const form = root.querySelector("form");
         UI.wire(form);
@@ -225,4 +234,7 @@ Actions["mood-add"] = () => Body.openMood();
 Actions["sleep-add"] = () => Body.openSleep();
 Actions["weight-add"] = () => Body.openWeight();
 Actions["workout-add"] = () => Body.openWorkout();
-Actions["log-delete"] = (el) => { if (confirm("Eliminare questa registrazione?")) Store.remove(el.dataset.table, el.dataset.id); };
+Actions["log-delete"] = async (el) => {
+  const { table, id } = el.dataset;
+  if (await UI.confirm({ title: "Eliminare questa registrazione?", text: "Non si può annullare.", confirmLabel: "Elimina", danger: true })) Store.remove(table, id);
+};

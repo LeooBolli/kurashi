@@ -199,17 +199,23 @@ const Focus = {
     const p = running ? U.clamp(this.elapsedSec() / (this.run.durationMin * 60), 0, 1) : 0;
     const remaining = running ? this.run.durationMin * 60 - this.elapsedSec() : this.minutes * 60;
     const rs = Math.ceil(remaining);
+    // Ultimi 7 giorni, per il grafico a colonne accanto al timer
+    const week = U.range(U.addDays(today, -6), today).map((d) => {
+      const m = Calc.focusMinutes(d, d);
+      return { label: U.DOW_SHORT[U.dow(d) - 1], v: m, tip: `${U.fmtShort(d)}: ${U.fmtMin(m)}`, color: d === today ? "var(--orange-500)" : null };
+    });
+    const goalPct = cfg.focusWeeklyMin ? Math.round((weekMin / cfg.focusWeeklyMin) * 100) : 0;
     const runLink = running ? this.linkName({ goal_id: (this.run.link || "").startsWith("g:") ? this.run.link.slice(2) : null,
       milestone_id: (this.run.link || "").startsWith("m:") ? this.run.link.slice(2) : null,
       habit_id: (this.run.link || "").startsWith("h:") ? this.run.link.slice(2) : null }) : "";
 
     el.innerHTML = `
       <div class="page-head">
-        <div><p class="eyebrow">Focus</p><h1 class="title">Sessione di <em>focus</em></h1></div>
+        <div><p class="eyebrow">Focus</p><h1 class="title">Tempo di <em>concentrazione</em></h1></div>
       </div>
 
       <div class="focus-layout">
-        <section class="card timer-card ${running ? "running" : ""}">
+        <section class="card timer-card ${running ? "running" : ""}" aria-label="Timer">
           <div class="timer">
             <svg viewBox="0 0 100 100" class="timer-ring" aria-hidden="true">
               <circle cx="50" cy="50" r="46" fill="none" style="stroke:var(--line)" stroke-width="3"/>
@@ -217,7 +223,7 @@ const Focus = {
                 stroke-dasharray="${(2 * Math.PI * 46 * p).toFixed(1)} 999" opacity="${p > 0 ? 1 : 0}"/>
             </svg>
             <div class="timer-in">
-              <div id="f-time" class="timer-time">${U.pad(Math.floor(rs / 60))}:${U.pad(rs % 60)}</div>
+              <div id="f-time" class="timer-time" role="timer" aria-live="off">${U.pad(Math.floor(rs / 60))}:${U.pad(rs % 60)}</div>
               <p class="muted small center">${running ? `${this.run.durationMin} min${runLink ? ` · ${U.esc(runLink)}` : ""}` : `${this.minutes} min`}</p>
             </div>
           </div>
@@ -228,37 +234,41 @@ const Focus = {
               : "Puoi cambiare app o bloccare lo schermo: il timer va avanti comunque."}</p>
             <div class="btn-row center-row">
               ${this.strict() ? `<button class="btn primary" data-act="focus-lock">${Icon.svg("lock", 16)} Blocco lo schermo</button>` : ""}
-              <button class="btn ghost" data-act="focus-giveup">Interrompi</button>
+              <button class="btn ghost" data-act="focus-giveup">Interrompi la sessione</button>
             </div>
           ` : `
             ${this.result ? this.resultHTML() : ""}
-            <div class="dur">
-              ${[15, 25, 45, 60].map((m) => `<button class="pill ${this.minutes === m ? "on" : ""}" data-act="focus-min" data-id="${m}">${m}′</button>`).join("")}
-              <span class="dur-step"><button class="round plus sm" data-act="focus-step" data-id="-5" aria-label="Meno 5 minuti">${Icon.svg("minus", 14)}</button>
-              <button class="round plus sm" data-act="focus-step" data-id="5" aria-label="Più 5 minuti">${Icon.svg("plus", 14)}</button></span>
+            <div class="dur" role="group" aria-label="Durata">
+              ${[15, 25, 45, 60].map((m) => `<button class="pill ${this.minutes === m ? "on" : ""}" data-act="focus-min" data-id="${m}" aria-pressed="${this.minutes === m}" aria-label="${m} minuti">${m}′</button>`).join("")}
+              <span class="dur-step"><button class="round plus sm hit" data-act="focus-step" data-id="-5" aria-label="Meno 5 minuti">${Icon.svg("minus", 14)}</button>
+              <button class="round plus sm hit" data-act="focus-step" data-id="5" aria-label="Più 5 minuti">${Icon.svg("plus", 14)}</button></span>
             </div>
             <label class="link-sel">Dedica questa sessione a<select data-act-change="focus-link">${this.linkOptions()}</select></label>
-            <button class="btn primary big" data-act="focus-start">${Icon.svg("play", 18)} Avvia</button>
+            <button class="btn primary big" data-act="focus-start">${Icon.svg("play", 18)} Avvia la sessione</button>
           `}
         </section>
 
         <div class="focus-side">
           <section class="card stats-mini">
             <div><b>${U.fmtMin(todayMin)}</b><span>oggi</span></div>
-            <div><b>${doneToday}</b><span>sessioni oggi</span></div>
+            <div><b>${doneToday}</b><span>${doneToday === 1 ? "sessione completata" : "sessioni completate"}</span></div>
             <div><b>${U.fmtMin(weekMin)}</b><span>questa settimana</span></div>
           </section>
           <section class="card">
-            <div class="block-head"><h3>Minuti questa settimana</h3><span class="muted small">${Math.round((weekMin / cfg.focusWeeklyMin) * 100)}%</span></div>
-            ${Charts.bar({ value: (weekMin / cfg.focusWeeklyMin) * 100, color: "var(--blue-500)", h: 8 })}
-            <p class="muted small">${U.fmtMin(weekMin)} su ${U.fmtMin(cfg.focusWeeklyMin)}. Puoi cambiare l'obiettivo dalle impostazioni.</p>
+            <div class="block-head"><h2 class="h3">Obiettivo della settimana</h2><span class="muted small">${goalPct}%</span></div>
+            ${Charts.bar({ value: goalPct, color: "var(--blue-500)", h: 8 })}
+            <p class="muted small focus-goal-note">${U.fmtMin(weekMin)} su ${U.fmtMin(cfg.focusWeeklyMin)} · si cambia in <button class="link" data-act="go" data-id="settings">Impostazioni</button></p>
           </section>
           <section class="card">
-            <div class="block-head"><h3>Sessioni di oggi</h3></div>
+            <div class="block-head"><h2 class="h3">Ultimi 7 giorni</h2><span class="muted small">minuti al giorno</span></div>
+            ${Charts.cols({ data: week, h: 130, aria: `Minuti di focus negli ultimi 7 giorni: ${week.map((w) => `${w.label} ${Math.round(w.v)}`).join(", ")}` })}
+          </section>
+          <section class="card">
+            <div class="block-head"><h2 class="h3">Sessioni di oggi</h2>${todaySessions.length ? `<span class="muted small">${todaySessions.length}</span>` : ""}</div>
             ${todaySessions.length ? `<ul class="linked">${todaySessions.map((s) => {
               const name = this.linkName(s);
               return `<li>${Icon.svg(s.completed ? "check" : "x", 16)}<span>${U.fmtTime(s.started_at)} · ${U.fmtMin(s.duration_min)}${name ? ` · ${U.esc(name)}` : ""}<small class="muted"> · ${s.completed ? "completata" : "interrotta"}</small></span></li>`;
-            }).join("")}</ul>` : `<p class="muted small">Nessuna sessione oggi.</p>`}
+            }).join("")}</ul>` : `<p class="muted small">Ancora nessuna sessione oggi: scegli la durata e avvia.</p>`}
           </section>
         </div>
       </div>
@@ -274,7 +284,9 @@ const Focus = {
 Actions["focus-start"] = () => Focus.start();
 Actions["focus-lock"] = () => Focus.lockNow();
 Actions["focus-lock-cancel"] = () => Focus.cancelLock();
-Actions["focus-giveup"] = () => { if (confirm("Interrompere la sessione?")) Focus.finish(false, "giveup"); };
+Actions["focus-giveup"] = async () => {
+  if (await UI.confirm({ title: "Interrompere la sessione?", text: "Resta nello storico come non completata.", confirmLabel: "Interrompi", cancelLabel: "Continua", danger: true })) Focus.finish(false, "giveup");
+};
 Actions["focus-min"] = (el) => { Focus.minutes = Number(el.dataset.id); App.render(); };
 Actions["focus-step"] = (el) => { Focus.minutes = U.clamp(Focus.minutes + Number(el.dataset.id), 5, 180); App.render(); };
 Actions["focus-link"] = (el) => { Focus.link = el.value; };

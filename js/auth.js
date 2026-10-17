@@ -45,25 +45,43 @@ const Auth = {
       status.textContent = error ? "Email o password non corrette." : "";
     });
 
-    let started = false;
+    // onReady parte una sola volta per caricamento di pagina. Se dopo un'uscita (SIGNED_OUT)
+    // rientri senza ricaricare, o cambia utente, ricarico la pagina: niente stato vecchio in giro.
+    let started = false, signedOut = false;
     const handle = (session) => {
       const user = session ? session.user : null;
-      const changed = (user && user.id) !== (this.currentUser && this.currentUser.id);
+      const prev = this.currentUser;
       this.currentUser = user;
+      if (!user) {
+        if (started) signedOut = true;
+        this.updateUI();
+        return;
+      }
+      if (started && (signedOut || (prev && prev.id !== user.id))) { location.reload(); return; }
       this.updateUI();
-      if (user && changed && !started) { started = true; onReady(); }
-      if (!user) started = false;
+      if (!started) { started = true; onReady(); }
     };
     sb.auth.onAuthStateChange((_e, session) => handle(session));
     sb.auth.getSession().then(({ data }) => handle(data.session));
   },
 
+  // Dati di questo dispositivo da non lasciare in giro dopo l'uscita (il tema chiaro/scuro resta)
+  DEVICE_KEYS: ["kurashi-weather", "kurashi-bg-local", "kurashi-look", "kurashi-focus-run"],
+  clearDeviceData() {
+    for (const k of this.DEVICE_KEYS) { try { localStorage.removeItem(k); } catch { /* storage bloccato */ } }
+  },
+
   async logout() {
     if (DEMO) {
-      if (confirm("Cancellare i dati demo e ricominciare?")) { localStorage.removeItem(LocalBackend.KEY); location.reload(); }
+      if (await UI.confirm({ title: "Azzerare i dati demo?", text: "Cancelli tutti i dati di prova di questo browser e ricominci da capo.", confirmLabel: "Azzera", danger: true })) {
+        try { localStorage.removeItem(LocalBackend.KEY); } catch { /* storage bloccato */ }
+        this.clearDeviceData();
+        location.reload();
+      }
       return;
     }
-    await sb.auth.signOut();
+    try { await sb.auth.signOut(); } catch (e) { console.error(e); }
+    this.clearDeviceData();
     location.reload();
   },
 

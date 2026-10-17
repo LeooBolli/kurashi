@@ -123,30 +123,46 @@ const Charts = {
   },
 
   // Mappa di calore (settimane in colonna, lunedì in alto). cells: {date: 0..1|null}
-  heat({ cells, end = U.today(), weeks = 15, onCell = "", name = "" }) {
+  // start: primo giorno da mostrare (es. il primo giorno registrato): le settimane vuote prima non si disegnano.
+  // onCell: caselle attivabili (Tab su una sola casella, frecce per muoversi, Invio per correggere).
+  heat({ cells, end = U.today(), weeks = 15, onCell = "", name = "", start = null }) {
     const cs = 13, gap = 3;
     const lastMonday = U.mondayOf(end);
-    const start = U.addDays(lastMonday, -(weeks - 1) * 7);
+    let first = U.addDays(lastMonday, -(weeks - 1) * 7), trimmed = false;
+    if (start && start > first) {
+      trimmed = true;
+      first = U.mondayOf(start > end ? end : start);
+      weeks = U.diffDays(first, lastMonday) / 7 + 1;
+    }
     const W = weeks * (cs + gap), H = 7 * (cs + gap);
-    let out = "";
+    let out = "", due = 0, full = 0;
     for (let w = 0; w < weeks; w++) {
       for (let d = 0; d < 7; d++) {
-        const date = U.addDays(start, w * 7 + d);
+        const date = U.addDays(first, w * 7 + d);
         if (date > end) continue;
         const v = cells[date];
+        if (v != null) { due++; if (v >= 1) full++; }
         const lvl = v == null ? 0 : v <= 0 ? 1 : v < 0.34 ? 2 : v < 0.67 ? 3 : v < 1 ? 4 : 5;
         const tip = `${U.fmtShort(date)}: ${v == null ? "nulla in programma" : Math.round(v * 100) + "%"}`;
-        out += `<rect x="${w * (cs + gap)}" y="${d * (cs + gap)}" width="${cs}" height="${cs}" rx="4" class="heat l${lvl}" data-tip="${U.esc(tip)}"${onCell ? ` data-date="${date}" data-act="heat-cell"` : ""}/>`;
+        out += onCell
+          ? `<rect x="${w * (cs + gap)}" y="${d * (cs + gap)}" width="${cs}" height="${cs}" rx="4" class="heat l${lvl}" data-tip="${U.esc(tip)}" data-date="${date}" data-act="heat-cell" role="button" tabindex="${date === end ? 0 : -1}" aria-label="${U.esc(U.fmtLong(date) + ": " + (v == null ? "nulla in programma" : Math.round(v * 100) + "%"))}"/>`
+          : `<rect x="${w * (cs + gap)}" y="${d * (cs + gap)}" width="${cs}" height="${cs}" rx="4" class="heat l${lvl}" data-tip="${U.esc(tip)}"/>`;
       }
     }
-    return `<svg viewBox="0 0 ${W} ${H}" class="heatmap" role="img" aria-label="${U.esc(name)}">${out}</svg>`;
+    const summary = `${name ? name + ": " : ""}${full} di ${due} giorni completati`;
+    // Poche settimane: le caselle restano della misura normale invece di allargarsi a tutta la scheda
+    const size = trimmed ? `style="width:${W * 2.6}px;max-width:100%;min-width:0"` : "";
+    // Con caselle attivabili l'SVG è un gruppo (i figli restano raggiungibili); altrimenti un'immagine con il riepilogo
+    return onCell
+      ? `<svg viewBox="0 0 ${W} ${H}" class="heatmap" role="group" aria-label="${U.esc(summary + ". Frecce per spostarti, Invio per correggere un giorno")}" ${size}>${out}</svg>`
+      : `<svg viewBox="0 0 ${W} ${H}" class="heatmap" role="img" aria-label="${U.esc(summary)}" ${size}>${out}</svg>`;
   },
 
   // Barre orizzontali con etichetta. rows: [{label, icon, color, v(0-100), tip}]
   hbars(rows) {
     return `<div class="hbars">${rows.map((r) => `
       <div class="hbar"${this._tip(r.tip)}>
-        <span class="hbar-l"><i class="glyph" style="background:${r.tint || "var(--blue-100)"};color:var(--ink-2)">${r.icon ? Icon.svg(r.icon, 14) : ""}</i>${U.esc(r.label)}</span>
+        <span class="hbar-l"><i class="glyph area-glyph" style="--a:${r.color}" aria-hidden="true">${r.icon ? Icon.svg(r.icon, 14) : ""}</i>${U.esc(r.label)}</span>
         <span class="hbar-t"><i style="width:${U.clamp(r.v, 0, 100)}%;background:${r.color}"></i></span>
         <span class="hbar-v">${Math.round(r.v)}%</span>
       </div>`).join("")}</div>`;

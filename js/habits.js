@@ -13,12 +13,12 @@ const Habits = {
   },
 
   targetText(h) {
-    return h.kind === "check" ? this.daysText(h) : `${U.num(h.target)} ${h.unit || ""} · ${this.daysText(h)}`;
+    return h.kind === "check" ? this.daysText(h) : `${U.num(h.target)} ${U.esc(h.unit || "")} · ${this.daysText(h)}`;
   },
 
   valueText(h, date) {
     const v = Calc.value(h, date);
-    return h.kind === "check" ? (v >= 1 ? "Fatto" : "Da fare") : `${U.num(v)} / ${U.num(h.target)} ${h.unit || ""}`;
+    return h.kind === "check" ? (v >= 1 ? "Fatto" : "Da fare") : `${U.num(v)} / ${U.num(h.target)} ${U.esc(h.unit || "")}`;
   },
 
   // Sette pallini: ultimi 7 giorni
@@ -37,10 +37,10 @@ const Habits = {
     if (!Calc.isDue(h, date)) return `<span class="rest">riposo</span>`;
     if (h.kind === "check") {
       const on = Calc.isDone(h, date);
-      return `<button class="round ${on ? "on" : ""}" data-act="habit-toggle" data-id="${h.id}" aria-label="${on ? "Segna come non fatta" : "Segna come fatta"}">${Icon.svg("check", 18)}</button>`;
+      return `<button class="round hit ${on ? "on" : ""}" data-act="habit-toggle" data-id="${U.esc(h.id)}" aria-pressed="${on}" aria-label="${U.esc(h.name)}: ${on ? "segna come non fatta" : "segna come fatta"}">${Icon.svg("check", 18)}</button>`;
     }
     const done = Calc.isDone(h, date);
-    return `<button class="round plus ${done ? "on" : ""}" data-act="habit-inc" data-id="${h.id}" data-dir="1" aria-label="Aggiungi ${U.num(h.step)} ${U.esc(h.unit || "")}">${Icon.svg(done ? "check" : "plus", 18)}</button>`;
+    return `<button class="round plus hit ${done ? "on" : ""}" data-act="habit-inc" data-id="${U.esc(h.id)}" data-dir="1" aria-label="${U.esc(h.name)}: aggiungi ${U.num(h.step)} ${U.esc(h.unit || "")}">${Icon.svg(done ? "check" : "plus", 18)}</button>`;
   },
 
   render(el) {
@@ -56,28 +56,28 @@ const Habits = {
         <button class="btn primary" data-act="habit-new">${Icon.svg("plus", 18)}<span>Nuova</span></button>
       </div>
       ${usedAreas.length > 1 ? `<div class="chips-row filters">
-        <button class="pill ${this.filter === "all" ? "on" : ""}" data-act="habit-filter" data-id="all">Tutte</button>
-        ${usedAreas.map((a) => `<button class="pill ${this.filter === a ? "on" : ""}" data-act="habit-filter" data-id="${a}">${UI.areaIcon(a, 14)} ${AREAS[a].label}</button>`).join("")}
+        <button class="pill ${this.filter === "all" ? "on" : ""}" data-act="habit-filter" data-id="all" aria-pressed="${this.filter === "all"}">Tutte</button>
+        ${usedAreas.filter((a) => AREAS[a]).map((a) => `<button class="pill ${this.filter === a ? "on" : ""}" data-act="habit-filter" data-id="${U.esc(a)}" aria-pressed="${this.filter === a}">${UI.areaIcon(a, 14)} ${AREAS[a].label}</button>`).join("")}
       </div>` : ""}
       ${list.length ? `<div class="list">${list.map((h) => {
         const streak = Calc.streak(h);
-        return `<article class="row-card" data-act="habit-open" data-id="${h.id}">
+        return `<article class="row-card" data-act="habit-open" data-id="${U.esc(h.id)}" role="button" tabindex="0" aria-label="${U.esc(h.name)}: apri il dettaglio">
           ${UI.glyph(h.area)}
           <div class="row-main">
-            <h3>${U.esc(h.name)}</h3>
+            <h2 class="row-title">${U.esc(h.name)}</h2>
             <p>${Calc.isDue(h, today) ? this.valueText(h, today) : "Oggi riposo"} · <span class="muted">${this.daysText(h)}</span></p>
             ${this.weekDots(h)}
           </div>
           <div class="row-side">
-            ${streak >= 2 ? `<span class="streak" data-tip="${streak} giorni di fila">${Icon.svg("flame", 15)}${streak}</span>` : ""}
+            ${streak >= 2 ? `<span class="streak" data-tip="${streak} giorni di fila" aria-label="Serie di ${streak} giorni">${Icon.svg("flame", 15)}${streak}</span>` : ""}
             ${this.quick(h)}
           </div>
         </article>`;
       }).join("")}</div>` : UI.empty("habit", "Nessuna abitudine", "Inizia con una sola: piccola e chiara. Il resto viene dopo.",
         `<button class="btn primary" data-act="habit-new">Crea la prima abitudine</button>`)}
       ${archived.length ? `<details class="archived"><summary>Archiviate (${archived.length})</summary>
-        ${archived.map((h) => `<div class="row-card slim" data-act="habit-open" data-id="${h.id}">${UI.glyph(h.area)}<div class="row-main"><h3>${U.esc(h.name)}</h3></div>
-        <button class="btn ghost sm" data-act="habit-restore" data-id="${h.id}">Ripristina</button></div>`).join("")}</details>` : ""}`;
+        ${archived.map((h) => `<div class="row-card slim" data-act="habit-open" data-id="${U.esc(h.id)}" role="button" tabindex="0" aria-label="${U.esc(h.name)} (archiviata): apri il dettaglio">${UI.glyph(h.area)}<div class="row-main"><h2 class="row-title">${U.esc(h.name)}</h2></div>
+        <button class="btn ghost sm" data-act="habit-restore" data-id="${U.esc(h.id)}">Ripristina</button></div>`).join("")}</details>` : ""}`;
   },
 
   // ---------- dettaglio ----------
@@ -103,7 +103,7 @@ const Habits = {
     const due = Calc.isDue(h, today);
     const v = Calc.value(h, today);
     return `
-      <div class="detail" data-habit="${h.id}">
+      <div class="detail" data-habit="${U.esc(h.id)}">
         <div class="chips-row">${UI.areaChip(h.area)}<span class="chip">${this.targetText(h)}</span>${goal ? `<span class="chip">${Icon.svg("goal", 14)} ${U.esc(goal.title)}</span>` : ""}</div>
         <div class="stats4">
           <div><b>${Calc.streak(h)}</b><span>serie attuale</span></div>
@@ -123,7 +123,7 @@ const Habits = {
         </div>` : `<p class="muted center">Oggi è un giorno di riposo per questa abitudine.</p>`}
         <div class="block">
           <div class="block-head"><h3>Ultime 15 settimane</h3><span class="muted small">tocca un giorno per correggerlo</span></div>
-          <div class="heat-wrap">${Charts.heat({ cells, weeks: 15, onCell: true, name: `Andamento di ${h.name}` })}</div>
+          <div class="heat-wrap">${Charts.heat({ cells, weeks: 15, onCell: true, name: `Andamento di ${h.name}`, start: h.start_date || null })}</div>
         </div>
         <div class="btn-row">
           <button class="btn ghost" data-act="habit-edit" data-id="${h.id}">${Icon.svg("edit", 16)} Modifica</button>
@@ -155,7 +155,7 @@ const Habits = {
     const body = `
       <form id="habit-form" class="form">
         <label>Nome<input name="name" required autofocus maxlength="80" placeholder="Es. Bere acqua" value="${U.esc(h ? h.name : "")}"></label>
-        <label>Area<select name="area">${UI.areaOptions(h ? h.area : "salute")}</select></label>
+        <div class="field"><span class="lbl" id="habit-area-l">Area</span>${UI.areaPicker("area", h ? h.area : "salute")}</div>
         <div class="field"><span class="lbl">Tipo</span>${UI.seg("kind", [["check", "Sì / No"], ["qty", "Quantità"]], kind)}</div>
         <div class="qty-only ${kind === "qty" ? "" : "hidden"}">
           <div class="row2">
@@ -217,14 +217,16 @@ Actions["habit-archive"] = (el) => {
   U.toast(h.archived ? "Abitudine archiviata" : "Abitudine ripristinata");
 };
 Actions["habit-restore"] = (el) => Store.update("habits", el.dataset.id, { archived: false });
-Actions["habit-delete"] = (el) => {
+Actions["habit-delete"] = async (el) => {
   const h = Store.d.habits.find((x) => x.id === el.dataset.id);
-  if (!confirm(`Eliminare "${h.name}" e tutto il suo storico? Non si può annullare.`)) return;
+  if (!h) return;
+  const ok = await UI.confirm({ title: `Eliminare «${h.name}»?`, text: "Si cancella anche tutto il suo storico. Non si può annullare.", confirmLabel: "Elimina", danger: true });
+  if (!ok) return;
   Store.remove("habits", h.id);
   Sheet.close();
 };
 // Correzione di un giorno passato dalla mappa di calore
-Actions["heat-cell"] = (el) => {
+Actions["heat-cell"] = async (el) => {
   const box = el.closest("[data-habit]");
   if (!box) return;
   const h = Store.d.habits.find((x) => x.id === box.dataset.habit);
@@ -232,7 +234,7 @@ Actions["heat-cell"] = (el) => {
   if (!h || !Calc.isDue(h, date)) return U.toast("Quel giorno non era in programma");
   if (h.kind === "check") Habits.toggle(h.id, date);
   else {
-    const val = prompt(`${U.fmtLong(date)}: quanti ${h.unit || ""}? (obiettivo ${U.num(h.target)})`, Calc.value(h, date));
+    const val = await UI.prompt({ title: U.fmtLong(date), label: `Quanti ${h.unit || ""}? (obiettivo ${U.num(h.target)})`, value: String(Calc.value(h, date)), inputmode: "decimal" });
     if (val === null) return;
     Store.setLog(h.id, date, Number(String(val).replace(",", ".")) || 0);
   }

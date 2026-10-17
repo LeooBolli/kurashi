@@ -73,8 +73,8 @@ create table if not exists habit_logs (
 );
 
 -- ------------------------------------------------------------
--- FOCUS (caccia allo yokai): ogni sessione completata sigilla uno yokai e dà XP e ryo;
--- se esci dall'app lo yokai scappa (completed = false) e perdi HP
+-- FOCUS: ogni sessione del timer, da dedicare a un obiettivo, un'abitudine o un esame.
+-- completed = false se è stata interrotta prima della fine.
 -- ------------------------------------------------------------
 create table if not exists focus_sessions (
   id uuid primary key default gen_random_uuid(),
@@ -82,9 +82,6 @@ create table if not exists focus_sessions (
   started_at timestamptz not null default now(),
   duration_min int not null,
   completed boolean not null default false,
-  xp int not null default 0,
-  ryo int not null default 0,
-  creature text,
   goal_id uuid references goals(id) on delete set null,
   habit_id uuid references habits(id) on delete set null,
   label text,
@@ -237,11 +234,27 @@ create table if not exists settings (
 );
 
 -- ------------------------------------------------------------
--- SICUREZZA: RLS - solo le proprie righe, e solo dall'account di Kurashi.
+-- SICUREZZA: RLS - solo le proprie righe, e solo dagli account di Kurashi.
 -- Il progetto Supabase è condiviso con PDTravel, che ha altri account:
 -- quelli possono fare login ma qui non leggono né scrivono nulla.
--- (Stessa email di ALLOWED_EMAIL in js/config.js.)
+-- Le email autorizzate vivono in UN solo posto: la funzione kurashi_allowed()
+-- (stesse email di USERS in js/config.js). Per cambiarle basta
+-- modificarle qui e rieseguire il file. Ognuno vede solo le proprie righe.
 -- ------------------------------------------------------------
+create or replace function public.kurashi_allowed()
+returns boolean
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select coalesce(lower(auth.jwt() ->> 'email') in ('23leo07@gmail.com', 'biagettimariachiara@gmail.com'), false)
+$$;
+revoke execute on function public.kurashi_allowed() from public, anon;
+grant execute on function public.kurashi_allowed() to authenticated;
+
+-- "(select …)" fa calcolare auth.uid() e il controllo dell'email una volta per query,
+-- non una per riga (consiglio di Supabase per le prestazioni delle policy).
 do $$
 declare t text;
 begin
@@ -254,12 +267,42 @@ begin
     execute format('drop policy if exists "own rows" on %I', t);
     execute format(
       'create policy "own rows" on %I for all to authenticated '
-      'using (user_id = auth.uid() and (auth.jwt() ->> ''email'') in (''23leo07@gmail.com'', ''biagettimariachiara@gmail.com'')) '
-      'with check (user_id = auth.uid() and (auth.jwt() ->> ''email'') in (''23leo07@gmail.com'', ''biagettimariachiara@gmail.com''))',
+      'using (user_id = (select auth.uid()) and (select public.kurashi_allowed())) '
+      'with check (user_id = (select auth.uid()) and (select public.kurashi_allowed()))',
       t
     );
   end loop;
 end $$;
+
+-- ------------------------------------------------------------
+-- IMPOSTAZIONI: salvataggio parziale. L'app manda solo le chiavi cambiate e il
+-- server le unisce a quelle esistenti in un colpo solo: due dispositivi che
+-- cambiano impostazioni diverse non si sovrascrivono a vicenda.
+-- security invoker = gira con i permessi di chi chiama, quindi valgono le policy RLS.
+-- ------------------------------------------------------------
+create or replace function public.kurashi_settings_patch(patch jsonb)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+#variable_conflict use_column
+declare merged jsonb;
+begin
+  if patch is null or jsonb_typeof(patch) <> 'object' then
+    raise exception 'patch deve essere un oggetto JSON' using errcode = '22023';
+  end if;
+  insert into public.settings as s (user_id, data, updated_at)
+  values ((select auth.uid()), patch, now())
+  on conflict (user_id) do update
+    set data = coalesce(s.data, '{}'::jsonb) || excluded.data,
+        updated_at = now()
+  returning s.data into merged;
+  return merged;
+end;
+$$;
+revoke execute on function public.kurashi_settings_patch(jsonb) from public, anon;
+grant execute on function public.kurashi_settings_patch(jsonb) to authenticated;
 
 -- ------------------------------------------------------------
 -- REALTIME: le modifiche arrivano in tempo reale su tutti i dispositivi
@@ -270,7 +313,7 @@ begin
   foreach t in array array[
     'goals','milestones','habits','habit_logs','focus_sessions',
     'mood_logs','sleep_logs','weight_logs','workouts','reading_items','highlights',
-    'foods','meal_entries','meal_templates'
+    'foods','meal_entries','meal_templates','settings'
   ] loop
     begin
       execute format('alter publication supabase_realtime add table %I', t);
@@ -285,13 +328,8 @@ create index if not exists focus_sessions_started_idx on focus_sessions (started
 create index if not exists mood_logs_logged_idx on mood_logs (logged_at);
 
 -- ------------------------------------------------------------
--- MIGRAZIONE: se avevi già eseguito una versione precedente dello schema
--- (focus con alberi), queste colonne mancano. Sicuro rieseguirlo.
+-- MIGRAZIONI: colonne aggiunte dopo la prima versione. Sicuro rieseguirle.
 -- ------------------------------------------------------------
-alter table focus_sessions add column if not exists xp int not null default 0;
-alter table focus_sessions add column if not exists ryo int not null default 0;
-alter table focus_sessions add column if not exists creature text;
-
 -- Sottotappe: una tappa può avere tappe figlie (parent_id). Eliminando la tappa, spariscono anche le figlie.
 alter table milestones add column if not exists parent_id uuid references milestones(id) on delete cascade;
 create index if not exists milestones_parent_idx on milestones (parent_id);
@@ -302,11 +340,6 @@ alter table reading_items add column if not exists author text;
 alter table reading_items add column if not exists pages int;
 alter table reading_items add column if not exists current_page int not null default 0;
 alter table reading_items add column if not exists goodreads_url text;
-
--- Boss (Dojo): una sessione può essere dedicata al boss della zona invece che a uno yokai comune;
--- "dmg" è il danno inflitto in quella sessione (minuti × attacco dell'arma, congelato come xp/ryo)
-alter table focus_sessions add column if not exists boss text;
-alter table focus_sessions add column if not exists dmg int not null default 0;
 
 -- Obiettivi ricorrenti (es. "leggi un libro al mese"): un 4° orizzonte, con un periodo che si
 -- rinnova da solo invece di inizio/scadenza fissi.
@@ -323,7 +356,6 @@ create index if not exists goals_parent_idx on goals (parent_goal_id);
 -- dal peso di partenza (al peso registrato più vicino all'inizio dell'obiettivo) verso il "peso
 -- ideale" impostato in Impostazioni (settings.data->>'weightTarget'), un'unica fonte di verità
 -- invece di un numero duplicato qui.
-alter table goals add column if not exists weight_target numeric(5,2);
 alter table goals add column if not exists weight_linked boolean not null default false;
 
 -- Esami (Studio): una tappa può essere marcata come esame, con tre fasi (primo studio, ripasso,
@@ -343,8 +375,22 @@ insert into storage.buckets (id, name, public) values ('kurashi-backgrounds', 'k
   on conflict (id) do nothing;
 drop policy if exists "kurashi backgrounds own" on storage.objects;
 create policy "kurashi backgrounds own" on storage.objects for all to authenticated
-  using (bucket_id = 'kurashi-backgrounds' and (storage.foldername(name))[1] = auth.uid()::text and (auth.jwt() ->> 'email') in ('23leo07@gmail.com', 'biagettimariachiara@gmail.com'))
-  with check (bucket_id = 'kurashi-backgrounds' and (storage.foldername(name))[1] = auth.uid()::text and (auth.jwt() ->> 'email') in ('23leo07@gmail.com', 'biagettimariachiara@gmail.com'));
+  using (bucket_id = 'kurashi-backgrounds' and (storage.foldername(name))[1] = (select auth.uid())::text and (select public.kurashi_allowed()))
+  with check (bucket_id = 'kurashi-backgrounds' and (storage.foldername(name))[1] = (select auth.uid())::text and (select public.kurashi_allowed()));
+
+-- ------------------------------------------------------------
+-- PULIZIA (ATTENZIONE: elimina colonne e i loro dati, in modo definitivo).
+-- Colonne del vecchio gioco del Focus (yokai, boss, XP, ryo) e il vecchio
+-- "peso obiettivo" per obiettivo (ora è settings.data->>'weightTarget'):
+-- l'app non le legge né le scrive più. Rieseguirlo non fa nulla se sono già sparite.
+-- ------------------------------------------------------------
+alter table focus_sessions
+  drop column if exists xp,
+  drop column if exists ryo,
+  drop column if exists creature,
+  drop column if exists boss,
+  drop column if exists dmg;
+alter table goals drop column if exists weight_target;
 
 -- Fa riconoscere subito le tabelle nuove all'API
 notify pgrst, 'reload schema';

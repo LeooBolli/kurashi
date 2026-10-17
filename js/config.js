@@ -22,12 +22,12 @@ window.APP_CONFIG = {
 // distinguibilità per daltonici); l'icona (vedi ICONS in util.js) accompagna
 // sempre il nome, così il colore non è mai l'unico modo per riconoscere un'area.
 window.AREAS = {
-  sport:    { label: "Sport",    icon: "dumbbell",  color: "#3F7CBF", tint: "#E3EDF7" },
-  salute:   { label: "Salute",   icon: "heart",     color: "#E8792F", tint: "#FCE9DA" },
-  lavoro:   { label: "Lavoro",   icon: "briefcase", color: "#3E9B72", tint: "#E1F1E9" },
-  studio:   { label: "Studio",   icon: "cap",       color: "#8A6FD0", tint: "#ECE7F8" },
-  progetti: { label: "Progetti", icon: "spark",     color: "#D8608A", tint: "#F8E3EB" },
-  hobby:    { label: "Hobby",    icon: "palette",   color: "#B48A12", tint: "#F5ECD0" }
+  sport:    { label: "Sport",    icon: "dumbbell",  color: "#3F7CBF" },
+  salute:   { label: "Salute",   icon: "heart",     color: "#E8792F" },
+  lavoro:   { label: "Lavoro",   icon: "briefcase", color: "#3E9B72" },
+  studio:   { label: "Studio",   icon: "cap",       color: "#8A6FD0" },
+  progetti: { label: "Progetti", icon: "spark",     color: "#D8608A" },
+  hobby:    { label: "Hobby",    icon: "palette",   color: "#B48A12" }
 };
 
 window.HORIZONS = {

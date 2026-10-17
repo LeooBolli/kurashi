@@ -166,3 +166,15 @@ supabase/functions/integrations   Raindrop + Notion
 ```
 
 Quando modifichi i file, incrementa `CACHE_NAME` in [sw.js](sw.js).
+
+## Test
+
+Senza dipendenze, con Node 18 o più recente, dalla cartella del progetto:
+
+```bash
+node --test tests/
+```
+
+I test caricano `js/util.js`, `js/calc.js` e `js/store.js` in una sandbox: controllano obiettivi
+collegati a cerchio, avanzamento, serie, periodi, date locali (anche col cambio d'ora), id,
+cancellazioni a cascata, salvataggio parziale delle impostazioni e aggiornamenti in tempo reale.

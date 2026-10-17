@@ -9,11 +9,25 @@ const Reading = {
   syncing: false,
   draft: null,      // stato dell'aggiunta di un libro: {goodreads, query, results, pick}
 
+  // Iniziali del titolo per il segnaposto della copertina (es. «Atomic Habits» → «AH»)
+  initials(title) {
+    const words = String(title || "").replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w && !/^(il|lo|la|i|gli|le|un|una|the|a|an|di|of)$/i.test(w));
+    return (words.slice(0, 2).map((w) => w[0]).join("") || "?").toUpperCase();
+  },
+
+  // Tinta del segnaposto, stabile per lo stesso titolo
+  hue(title) { let h = 0; for (const c of String(title || "")) h = (h * 31 + c.charCodeAt(0)) % 360; return h; },
+
+  // Copertina; se manca o non si carica, un segnaposto colorato con le iniziali del titolo.
+  // Niente onerror inline: ci pensa il gestore delegato in ui.js (img[data-fallback]).
   cover(r, cls = "") {
     const book = r.kind === "book" ? "book" : "";
-    return r.cover
-      ? `<img class="cover ${book} ${cls}" src="${U.esc(U.safeUrl(r.cover))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'cover ph ${book}'}))">`
-      : `<i class="cover ph ${book} ${cls}"></i>`;
+    const src = U.safeUrl(r.cover);
+    const ph = `cover ph ${book} ${cls}`.replace(/\s+/g, " ").trim();
+    const style = `style="--h:${this.hue(r.title)}"`;
+    return src
+      ? `<img class="cover ${book} ${cls}" src="${U.esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-fallback="${ph}" data-initials="${U.esc(this.initials(r.title))}" ${style}>`
+      : `<i class="${ph}" ${style} aria-hidden="true">${U.esc(this.initials(r.title))}</i>`;
   },
 
   pct(r) { return r.pages ? U.clamp(Math.round((r.current_page / r.pages) * 100), 0, 100) : null; },
@@ -24,7 +38,7 @@ const Reading = {
     const isBook = r.kind === "book";
     const p = isBook ? this.pct(r) : null;
     const meta = isBook
-      ? `${U.esc(r.author || "Autore sconosciuto")}${r.status === "reading" && r.pages ? ` · pag. ${r.current_page}/${r.pages} (${p}%)` : r.pages ? ` · ${r.pages} pag.` : ""}`
+      ? `${U.esc(r.author || "Autore sconosciuto")}${r.status === "reading" && r.pages ? ` · pag. ${Number(r.current_page) || 0}/${Number(r.pages)} (${p}%)` : r.pages ? ` · ${Number(r.pages)} pag.` : ""}`
       : `${U.esc(U.domain(r.url) || "manuale")}${r.source === "raindrop" ? " · Raindrop" : ""}${r.status === "reading" ? " · in corso" : ""}`;
     return `<div class="read-row">
       ${this.cover(r)}
@@ -36,7 +50,7 @@ const Reading = {
       ${compact ? "" : `<div class="read-act">
         ${r.status === "todo" ? `<button class="btn ghost sm" data-act="read-status" data-id="${r.id}" data-value="reading">Inizia</button>` : ""}
         ${r.status !== "done" ? `<button class="btn ghost sm" data-act="read-status" data-id="${r.id}" data-value="done">${Icon.svg("check", 14)} ${isBook ? "Finito" : "Letto"}</button>` : `<button class="btn ghost sm" data-act="read-status" data-id="${r.id}" data-value="todo">Rimetti in coda</button>`}
-        <button class="icon-btn sm" data-act="read-delete" data-id="${r.id}" aria-label="Elimina">${Icon.svg("x", 16)}</button>
+        <button class="icon-btn sm hit" data-act="read-delete" data-id="${U.esc(r.id)}" aria-label="Rimuovi «${U.esc(r.title)}» dalla lista">${Icon.svg("x", 16)}</button>
       </div>`}
     </div>`;
   },
@@ -49,7 +63,7 @@ const Reading = {
       <div class="bn-main">
         <h3>${U.esc(r.title)}</h3>
         <p class="muted small">${U.esc(r.author || "Autore sconosciuto")}</p>
-        ${r.pages ? `<div class="bn-prog">${Charts.bar({ value: p, color: "var(--orange-500)", h: 8 })}<span><b>${p}%</b> · pag. ${r.current_page} di ${r.pages}</span></div>`
+        ${r.pages ? `<div class="bn-prog">${Charts.bar({ value: p, color: "var(--orange-500)", h: 8 })}<span><b>${p}%</b> · pag. ${Number(r.current_page) || 0} di ${Number(r.pages)}</span></div>`
           : `<p class="muted small">Aggiungi il numero di pagine per vedere l'avanzamento.</p>`}
         <div class="btn-row">
           <button class="btn ghost sm" data-act="book-plus" data-id="${r.id}" data-n="10">+10 pag.</button>
@@ -75,7 +89,7 @@ const Reading = {
 
     el.innerHTML = `
       <div class="page-head">
-        <div><p class="eyebrow">Lettura</p><h1 class="title">Da <em>leggere</em></h1>
+        <div><p class="eyebrow">Lettura</p><h1 class="title">La tua <em>libreria</em></h1>
           <p class="sub">${booksDone} ${booksDone === 1 ? "libro finito" : "libri finiti"} · ${doneMonth} letti questo mese · ${counts.todo + counts.reading} in coda</p></div>
         <div class="btn-row nowrap">
           ${Auth.isOwner() ? `<button class="btn ghost" data-act="read-sync" aria-label="Sincronizza Raindrop" ${this.syncing ? "disabled" : ""}>${Icon.svg("sync", 16, this.syncing ? "spin" : "")}<span class="hide-sm">${this.syncing ? "Sincronizzo…" : "Raindrop"}</span></button>` : ""}
@@ -83,12 +97,13 @@ const Reading = {
           <button class="btn primary" data-act="book-add">${Icon.svg("book", 16)}<span>Libro</span></button>
         </div>
       </div>
-      ${Calc.activeGoals().filter((g) => Calc.goalBooks(g)).map((g) => { const b = Calc.goalBooks(g); return `<div class="goal-banner" data-act="goal-open" data-id="${g.id}" role="button">
+      ${Calc.activeGoals().filter((g) => Calc.goalBooks(g)).map((g) => { const b = Calc.goalBooks(g); return `<div class="goal-banner" data-act="goal-open" data-id="${U.esc(g.id)}" role="button" tabindex="0" aria-label="${U.esc(g.title)}: apri l'obiettivo">
         <div><b>${U.esc(g.title)}</b><span>${b.count} di ${b.target} libri · ${Math.round(b.pct)}%</span></div>${Charts.bar({ value: b.pct, color: "var(--orange-500)", h: 6 })}</div>`; }).join("")}
       ${this.tab === "todo" && nowBooks.length ? `<section class="now-reading"><h2 class="mini-h">Sto leggendo</h2>${nowBooks.map((r) => this.currentHTML(r)).join("")}</section>` : ""}
+      <h2 class="sr">${this.tab === "todo" ? "In coda" : "Già letti"}</h2>
       <div class="seg tabs2">
-        <button class="${this.tab === "todo" ? "on" : ""}" data-act="read-tab" data-id="todo">Da leggere<small>${counts.todo + counts.reading - nowBooks.length}</small></button>
-        <button class="${this.tab === "done" ? "on" : ""}" data-act="read-tab" data-id="done">Letti<small>${counts.done}</small></button>
+        <button class="${this.tab === "todo" ? "on" : ""}" data-act="read-tab" data-id="todo" aria-pressed="${this.tab === "todo"}">Da leggere<small>${counts.todo + counts.reading - nowBooks.length}</small></button>
+        <button class="${this.tab === "done" ? "on" : ""}" data-act="read-tab" data-id="done" aria-pressed="${this.tab === "done"}">Letti<small>${counts.done}</small></button>
       </div>
       ${list.length ? `<div class="card stack">${list.map((r) => this.rowHTML(r)).join("")}</div>`
         : UI.empty("book", this.tab === "todo" ? "Nessuna lettura in coda" : "Ancora niente di letto",
@@ -153,8 +168,8 @@ const Reading = {
   async searchOpenLibrary(q) {
     const j = await this.fetchJson(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=8&fields=title,author_name,cover_i,number_of_pages_median`);
     return (j.docs || []).filter((d) => d.title).map((d) => ({
-      title: d.title, author: (d.author_name || []).slice(0, 2).join(", "), pages: d.number_of_pages_median || null,
-      cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : ""
+      title: String(d.title), author: (d.author_name || []).slice(0, 2).join(", "), pages: Math.round(Number(d.number_of_pages_median)) || null,
+      cover: Number(d.cover_i) ? `https://covers.openlibrary.org/b/id/${Number(d.cover_i)}-M.jpg` : ""
     }));
   },
 
@@ -231,8 +246,8 @@ const Reading = {
         ? `<p style="margin-bottom:6px"><b>Non riesco a contattare i cataloghi dei libri.</b></p><p class="muted small" style="margin-bottom:12px">Controlla la connessione, oppure un blocco pubblicità/DNS che impedisce di raggiungere openlibrary.org e itunes.apple.com. Intanto puoi aggiungerlo lo stesso.</p>`
         : `<p style="margin-bottom:6px"><b>Nessun risultato per «${U.esc(query)}».</b></p><p class="muted small" style="margin-bottom:12px">Prova con titolo e autore insieme, oppure aggiungilo così com'è.</p>`;
     const list = res.length ? `<div class="book-results">${res.map((b, i) => `<button class="book-result" data-act="book-pick" data-i="${i}">
-           ${b.cover ? `<img class="cover book" src="${U.esc(U.safeUrl(b.cover))}" alt="" referrerpolicy="no-referrer">` : `<i class="cover ph book"></i>`}
-           <span><b>${U.esc(b.title)}</b><small>${U.esc(b.author || "Autore sconosciuto")}${b.pages ? ` · ${b.pages} pag.` : ""}</small></span></button>`).join("")}</div>` : "";
+           ${this.cover({ kind: "book", cover: b.cover, title: b.title })}
+           <span><b>${U.esc(b.title)}</b><small>${U.esc(b.author || "Autore sconosciuto")}${b.pages ? ` · ${Number(b.pages)} pag.` : ""}</small></span></button>`).join("")}</div>` : "";
     Sheet.setBody(`${header}${list}
       <div class="btn-row">
         <button class="btn primary" data-act="book-manual" data-title="${U.esc(asIs)}">Aggiungi «${U.esc(asIs)}» così com'è</button>
@@ -244,13 +259,13 @@ const Reading = {
     this.draft.pick = b;
     Sheet.setBody(`<form class="form" id="book-form">
       ${msg ? `<p class="muted small">${msg}</p>` : ""}
-      <div class="book-pick">${b.cover ? `<img class="cover book lg" src="${U.esc(U.safeUrl(b.cover))}" alt="" referrerpolicy="no-referrer">` : ""}
+      <div class="book-pick">${U.safeUrl(b.cover) ? this.cover({ kind: "book", cover: b.cover, title: b.title }, "lg") : ""}
         <div class="form" style="flex:1">
           <label>Titolo<input name="title" required maxlength="160" value="${U.esc(b.title)}"></label>
           <label>Autore<input name="author" maxlength="120" value="${U.esc(b.author || "")}"></label>
         </div></div>
       <div class="row2">
-        <label>Pagine totali<input name="pages" type="number" min="1" max="5000" inputmode="numeric" value="${b.pages || ""}"></label>
+        <label>Pagine totali<input name="pages" type="number" min="1" max="5000" inputmode="numeric" value="${Number(b.pages) || ""}"></label>
         <label>A che pagina sei<input name="current" type="number" min="0" max="5000" inputmode="numeric" value="0"></label>
       </div>
       <div class="field"><span class="lbl">Stato</span>${UI.seg("status", [["reading", "Lo sto leggendo"], ["todo", "Da leggere"], ["done", "Già letto"]], "reading")}</div>
@@ -269,7 +284,7 @@ const Reading = {
       Store.insert("reading_items", {
         source: gr ? "goodreads" : "manual", external_id: null, kind: "book",
         title: f.get("title").trim(), author: (f.get("author") || "").trim() || null, pages, current_page: status === "todo" ? 0 : current,
-        cover: b.cover || null, url: gr || null, goodreads_url: gr || null, status, done_at: status === "done" ? new Date().toISOString() : null
+        cover: U.safeUrl(b.cover) || null, url: gr || null, goodreads_url: gr || null, status, done_at: status === "done" ? new Date().toISOString() : null
       });
       Sheet.close();
       U.toast(status === "reading" ? "Buona lettura!" : "Libro aggiunto");
@@ -306,8 +321,8 @@ const Reading = {
       title: r.title,
       body: `<form class="form" id="page-form">
         <div class="row2">
-          <label>Pagina attuale<input name="current" type="number" min="0" inputmode="numeric" autofocus value="${r.current_page || 0}"></label>
-          <label>Pagine totali<input name="pages" type="number" min="1" inputmode="numeric" value="${r.pages || ""}"></label>
+          <label>Pagina attuale<input name="current" type="number" min="0" inputmode="numeric" autofocus value="${Number(r.current_page) || 0}"></label>
+          <label>Pagine totali<input name="pages" type="number" min="1" inputmode="numeric" value="${Number(r.pages) || ""}"></label>
         </div>
         <button class="btn primary wide" type="submit">Salva</button></form>`,
       onMount: (root) => {
@@ -369,7 +384,10 @@ Actions["read-status"] = (el) => {
   Store.update("reading_items", r.id, patch);
   if (v === "done" && r.kind === "book") U.toast(Reading.finishedMsg(r));
 };
-Actions["read-delete"] = (el) => { if (confirm("Rimuovere dalla lista?")) Store.remove("reading_items", el.dataset.id); };
+Actions["read-delete"] = async (el) => {
+  const r = Store.d.reading_items.find((x) => x.id === el.dataset.id);
+  if (r && await UI.confirm({ title: "Rimuovere dalla lista?", text: `«${r.title}» non comparirà più in Lettura.`, confirmLabel: "Rimuovi", danger: true })) Store.remove("reading_items", r.id);
+};
 Actions["read-open"] = (el) => {
   const r = Store.d.reading_items.find((x) => x.id === el.dataset.id);
   if (r && r.status === "todo") Store.update("reading_items", r.id, { status: "reading" });

@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#F6F2EA"/>
-  <rect x="96" y="96" width="320" height="320" rx="72" fill="#F08A48" transform="rotate(-4 256 256)"/>
-  <text x="256" y="338" font-family="'Hiragino Mincho ProN','Yu Mincho',serif" font-size="230" font-weight="700" fill="#fff" text-anchor="middle" transform="rotate(-4 256 256)">暮</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5D8CC0"/><stop offset="1" stop-color="#34689F"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#g)"/><path d="M136 384a120 120 0 0 1 240 0z" fill="#F08A48"/><rect x="136" y="128" width="54" height="180" rx="27" fill="#FFFFFF"/></svg>

@@ -62,14 +62,31 @@ const Calc = {
 
   // ---------- Obiettivi ----------
   activeGoals() { return Store.d.goals.filter((g) => g.status === "active"); },
-  childGoals(g) { return Store.d.goals.filter((x) => x.parent_goal_id === g.id && x.status !== "archived"); },
-  // Genitori possibili per un obiettivo: solo orizzonti più lunghi (breve→medio/lungo, medio→lungo), mai sé stesso
+  childGoals(g) { return Store.d.goals.filter((x) => x.parent_goal_id === g.id && x.id !== g.id && x.status !== "archived"); },
+  // Tutti i discendenti (figli, nipoti…) di un obiettivo, come Set di id. Il "visto" ferma
+  // eventuali cicli già presenti nei dati (A figlio di B e B figlio di A).
+  descendantIds(g) {
+    const out = new Set();
+    if (!g || !g.id) return out;
+    const stack = [g.id];
+    while (stack.length) {
+      const id = stack.pop();
+      for (const x of Store.d.goals) {
+        if (x.parent_goal_id === id && x.id !== g.id && !out.has(x.id)) { out.add(x.id); stack.push(x.id); }
+      }
+    }
+    return out;
+  },
+  // Genitori possibili per un obiettivo: solo orizzonti più lunghi (breve→medio/lungo, medio→lungo),
+  // mai sé stesso né un suo discendente (eviterebbe un ciclo)
   possibleParents(g) {
     const order = ["short", "medium", "long"];
     const i = order.indexOf(g ? g.horizon : "short");
     if (i < 0) return [];
     const longer = order.slice(i + 1);
-    return Store.d.goals.filter((x) => longer.includes(x.horizon) && x.status !== "archived" && (!g || x.id !== g.id));
+    const banned = this.descendantIds(g);
+    if (g && g.id) banned.add(g.id);
+    return Store.d.goals.filter((x) => longer.includes(x.horizon) && x.status !== "archived" && !banned.has(x.id));
   },
   // Tappe di primo livello di un obiettivo (le sottotappe, o gli argomenti di un esame, stanno dentro la tappa madre)
   milestonesOf(g) { return Store.d.milestones.filter((m) => m.goal_id === g.id && !m.parent_id).sort((a, b) => a.position - b.position); },
@@ -116,19 +133,22 @@ const Calc = {
   },
 
   // Avanzamento 0..100 "a una certa data" (serve anche per confrontare le settimane)
-  goalProgress(g, asOf = U.today()) {
+  // "seen" = obiettivi già sul percorso di calcolo: un ciclo nei dati non può ricorrere all'infinito
+  goalProgress(g, asOf = U.today(), seen = new Set()) {
     if (g.horizon === "recurring") {
       const [from, to] = this.periodRange(g.period, asOf);
-      return this.goalProgressParts(g, from, to, asOf);
+      return this.goalProgressParts(g, from, to, asOf, seen);
     }
     if (g.status === "done" && (!g.done_at || U.dateOf(g.done_at) <= asOf)) return 100;
-    return this.goalProgressParts(g, g.start_date, g.due_date, asOf);
+    return this.goalProgressParts(g, g.start_date, g.due_date, asOf, seen);
   },
 
   // Le stesse fonti di avanzamento (tappe, abitudini, libri, obiettivi figli, peso), su un intervallo dato:
   // (gli obiettivi figli non contano per un obiettivo di peso, vedi sotto)
   // così i normali obiettivi (intero periodo) e quelli ricorrenti (periodo corrente) condividono la logica.
-  goalProgressParts(g, from, to, asOf) {
+  goalProgressParts(g, from, to, asOf, seen = new Set()) {
+    const path = new Set(seen);
+    path.add(g.id);
     const parts = [];
     const ms = this.milestonesOf(g);
     if (ms.length) parts.push(U.avg(ms.map((m) => this.msPct(m, asOf))));
@@ -150,8 +170,8 @@ const Calc = {
     const wt = this.weightProgress(g, asOf, from);
     if (wt != null) parts.push(wt);
     // Un obiettivo di peso resta misurato solo sul peso: i figli (es. la dieta) si vedono ma non entrano nella media
-    const kids = g.weight_linked ? [] : this.childGoals(g);
-    if (kids.length) parts.push(U.avg(kids.map((k) => this.goalProgress(k, asOf))));
+    const kids = g.weight_linked ? [] : this.childGoals(g).filter((k) => !path.has(k.id));
+    if (kids.length) parts.push(U.avg(kids.map((k) => this.goalProgress(k, asOf, path))));
     if (!parts.length) return Number(g.manual_progress) || 0;
     return U.clamp(U.avg(parts), 0, 100);
   },
@@ -199,7 +219,7 @@ const Calc = {
     let key = "on", label = "In linea";
     if (p >= e + 10) { key = "ahead"; label = "Avanti"; }
     else if (p < e - 20) { key = "behind"; label = "Indietro"; }
-    else if (p < e - 5) { key = "slight"; label = "Da recuperare"; }
+    else if (p < e - 5) { key = "slight"; label = "In ritardo"; }
     return { key, label, progress: p, expected: e };
   },
 

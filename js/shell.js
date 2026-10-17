@@ -20,7 +20,7 @@ const Shell = {
     petrolio: { name: "Petrolio e arancio bruciato", side: "#6596A1", sideIc: "#FFE0C6", navy: "#2F6470", deep: "#2F6470", hot: "#D9732F", accent: "#E58E52", sky: "#6E9DA7" },
     ardesia: { name: "Ardesia e pesca", side: "#7F97B2", sideIc: "#FFE6D3", navy: "#4A6380", deep: "#4A6380", hot: "#EE9A63", accent: "#F2AE80", sky: "#8399B3" },
     // Arancio come colore principale: barra, widget pieni e pulsanti arancio; il blu passa ad accento
-    arancio: { name: "Arancio Kurashi", side: "#E8853F", sideIc: "#FFF1E2", navy: "#C9632B", deep: "#BF5A22", hot: "#F2A65A", accent: "#6F9BCF", sky: "#F6C09B" },
+    arancio: { name: "Arancio Kurashi", side: "#E8853F", sideIc: "#FFF1E2", navy: "#B85A26", deep: "#A84E1C", hot: "#F2A65A", accent: "#6F9BCF", sky: "#F6C09B" },
     mandarino: { name: "Mandarino e notte", side: "#F08A48", sideIc: "#FFF1E4", navy: "#2C3E5C", deep: "#2C3E5C", hot: "#F08A48", accent: "#F4A06A", sky: "#8FA6C4" },
     terracotta: { name: "Terracotta e salvia", side: "#C97B5A", sideIc: "#FFEBDD", navy: "#A65A3C", deep: "#A65A3C", hot: "#7FA58C", accent: "#8DB39A", sky: "#E0A788" },
     lavanda: { name: "Lavanda e pesca", side: "#8A86C8", sideIc: "#FFE5D4", navy: "#5B57A0", deep: "#5B57A0", hot: "#F08A48", accent: "#F4A986", sky: "#A9A6DB" },
@@ -36,6 +36,8 @@ const Shell = {
   boot() {
     const t = this.read(this.THEME_KEY);
     if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+    this.setThemeColor();
+    matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { this.setThemeColor(); this.applyBg(); });
     const saved = this.readJSON(this.LOOK_KEY);
     if (saved) this.look = { ...this.look, ...saved };
     this.applyLook();
@@ -68,7 +70,16 @@ const Shell = {
     const next = this.isDark() ? "light" : "dark";
     document.documentElement.dataset.theme = next;
     this.write(this.THEME_KEY, next);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next === "dark" ? "#0F131A" : "#F6F2EA");
+    this.setThemeColor();
+    this.applyBg();
+  },
+  // Colore della barra del browser/telefono: segue il tema scelto (o quello di sistema)
+  setThemeColor() {
+    const t = document.documentElement.dataset.theme;
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+      if (!m.dataset.orig) m.dataset.orig = m.getAttribute("content");
+      m.setAttribute("content", t ? (t === "dark" ? "#0F131A" : "#F2EEE8") : m.dataset.orig);
+    });
   },
 
   // ---------- Palette, vetro, luminosità ----------
@@ -87,25 +98,20 @@ const Shell = {
   },
 
   // ---------- Sfondi: due "morbidi" a colori (chiaro e scuro) e due paesaggi in bianco e nero ----------
-  grain(x, w, h, amt) {
-    const im = x.getImageData(0, 0, w, h), d = im.data;
-    for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - .5) * amt; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
-    x.putImageData(im, 0, 0);
-  },
   mesh(base, blobs) {
-    const c = document.createElement("canvas"); c.width = 1600; c.height = 1000;
-    const x = c.getContext("2d"); x.fillStyle = base; x.fillRect(0, 0, 1600, 1000);
+    // disegnato a metà risoluzione: sono sfumature, ingrandite restano identiche
+    const c = document.createElement("canvas"); c.width = 800; c.height = 500;
+    const x = c.getContext("2d"); x.scale(.5, .5); x.fillStyle = base; x.fillRect(0, 0, 1600, 1000);
     for (const [cx, cy, r, rgb, a] of blobs) {
       const g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
       g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(.6, `rgba(${rgb},${a * .45})`); g.addColorStop(1, `rgba(${rgb},0)`);
       x.fillStyle = g; x.fillRect(0, 0, 1600, 1000);
     }
-    this.grain(x, 1600, 1000, 7);
-    return c.toDataURL("image/jpeg", .9);
+    return c.toDataURL("image/jpeg", .88);
   },
   landscape(kind) {
-    const c = document.createElement("canvas"); c.width = 1600; c.height = 1000;
-    const x = c.getContext("2d");
+    const c = document.createElement("canvas"); c.width = 1200; c.height = 750;
+    const x = c.getContext("2d"); x.scale(.75, .75);
     let seed = kind === "dune" ? 7 : 19; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     if (kind === "dune") {
       const sky = x.createLinearGradient(0, 0, 0, 560); sky.addColorStop(0, "#7d7d7d"); sky.addColorStop(1, "#d9d9d9");
@@ -131,7 +137,6 @@ const Shell = {
         x.fillStyle = g; x.fill();
       });
     }
-    this.grain(x, 1600, 1000, 14);
     return c.toDataURL("image/jpeg", .85);
   },
   SCENES: {
@@ -144,7 +149,14 @@ const Shell = {
     dune: { name: "Dune", photo: true, l: (s) => s.landscape("dune") },
     monti: { name: "Montagne", photo: true, l: (s) => s.landscape("monti") }
   },
-  sceneSrc(k, v) { return this.cache[k + v] || (this.cache[k + v] = this.SCENES[k][v](this)); },
+  SCENE_VER: 2,
+  sceneSrc(k, v) {
+    const key = `kurashi-scene-${this.SCENE_VER}-${k}-${v}`;
+    if (this.cache[key]) return this.cache[key];
+    let src = this.read(key);
+    if (!src) { src = this.SCENES[k][v](this); this.write(key, src); }
+    return (this.cache[key] = src);
+  },
   localPhotos() { const a = this.readJSON(this.LOCAL_PHOTOS_KEY); return Array.isArray(a) ? a : []; },
   cloudPhotos() { const a = Store.cfg?.().bgPhotos; return Array.isArray(a) ? a : []; },
 
@@ -153,17 +165,20 @@ const Shell = {
     if (!id.startsWith("s:") || DEMO) return null;
     const path = id.slice(2), c = this.signed[path];
     if (c && c.exp > Date.now()) return c.url;
-    const { data, error } = await sb.storage.from(this.BUCKET).createSignedUrl(path, 60 * 60 * 24 * 7);
+    const { data, error } = await sb.storage.from(this.BUCKET).createSignedUrl(path, 60 * 60);
     if (error || !data) return null;
-    this.signed[path] = { url: data.signedUrl, exp: Date.now() + 1000 * 60 * 60 * 24 * 6 };
+    this.signed[path] = { url: data.signedUrl, exp: Date.now() + 1000 * 60 * 50 };
     return data.signedUrl;
   },
 
   async applyBg() {
     const st = document.documentElement.style, bd = document.getElementById("backdrop"), k = this.look.bg;
+    bd.classList.add("grain");
     if (this.SCENES[k] && !this.SCENES[k].photo) {
-      st.setProperty("--scene-l", `url(${this.sceneSrc(k, "l")})`);
-      st.setProperty("--scene-d", `url(${this.sceneSrc(k, "d")})`);
+      // solo la versione del tema attivo; l'altra si prepara quando cambi tema
+      const src = this.sceneSrc(k, this.isDark() ? "d" : "l");
+      st.setProperty("--scene-l", `url(${src})`);
+      st.setProperty("--scene-d", `url(${src})`);
       bd.classList.remove("photo");
       return;
     }
@@ -171,6 +186,7 @@ const Shell = {
     if (!src) { if (k !== "morbido") { this.look.bg = "morbido"; return this.applyBg(); } return; }
     st.setProperty("--scene-l", `url(${src})`); st.setProperty("--scene-d", `url(${src})`);
     bd.classList.add("photo");
+    bd.classList.remove("grain"); // sulle foto il velo usa già ::after
   },
 
   // Le foto si riducono e si mettono in bianco e nero prima di salvarle
@@ -241,7 +257,7 @@ const Shell = {
         <p class="look-sec">Luminosità dello sfondo</p>
         <label class="look-range" for="look-dim"><span class="sr">Quanto scurire lo sfondo</span><input id="look-dim" type="range" min="0" max="65" value="${L.dim || 0}"><span class="look-ends"><span>Originale</span><span>Più scuro</span></span></label>
         <p class="look-sec">Sfondo</p>
-        <div class="look-thumbs">${thumbs.filter((t) => t.src).map((t) => `<button type="button" class="look-thumb ${t.bw ? "bw" : ""}" data-bg="${U.esc(t.id)}" aria-pressed="${L.bg === t.id}" style="background-image:url('${t.src}')"><span>${t.name}</span>${t.mine ? `<span class="del" data-del="${U.esc(t.id)}" role="button" aria-label="Elimina questa foto">${Icon.svg("x", 13)}</span>` : ""}</button>`).join("")}
+        <div class="look-thumbs">${thumbs.filter((t) => t.src).map((t) => `<button type="button" class="look-thumb ${t.bw ? "bw" : ""}" data-bg="${U.esc(t.id)}" aria-pressed="${L.bg === t.id}" style="background-image:url('${U.esc(t.src)}')"><span>${t.name}</span>${t.mine ? `<span class="del" data-del="${U.esc(t.id)}" role="button" aria-label="Elimina questa foto">${Icon.svg("x", 13)}</span>` : ""}</button>`).join("")}
           <label class="look-thumb up" for="look-file">${Icon.svg("plus", 22)}Carica foto<input id="look-file" type="file" accept="image/*" hidden></label></div>
         <p class="muted small">Le tue foto vengono ridotte e messe in bianco e nero prima di essere salvate, in uno spazio privato su Supabase visibile solo a te.</p>
       </div>`,
@@ -299,8 +315,6 @@ const Shell = {
     setTimeout(() => { if (!done && id === this._nid) { this.notch = to; this.drawSide(to); } }, 600);
   },
 
-  svg(paths, size = 20, w = 1.8) { return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`; },
-
   // ---------- Testata ----------
   greeting() {
     const h = new Date().getHours();
@@ -317,19 +331,25 @@ const Shell = {
     const hello = view === "today"
       ? `<div class="greet"><h1 id="greet-h">${this.greeting()}</h1><p>${next ? `Prossima: <b>${U.esc(next.name)}</b>` : "Giornata completata: tutte le abitudini sono fatte"}</p></div>`
       : `<div class="greet"></div>`;
-    const bell = `<button class="hpill glass bell" data-act="reminders" aria-label="${pend.length ? `Promemoria: ${pend.length} da fare` : "Promemoria"}">${this.svg('<path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/>', 20)}${pend.length ? `<span class="badge">${pend.length}</span>` : ""}</button>`;
+    const bell = `<button class="hpill glass bell" data-act="reminders" aria-label="${pend.length ? `Promemoria: ${pend.length} da fare` : "Promemoria"}">${Icon.svg("bell", 20, "", 1.8)}${pend.length ? `<span class="badge">${pend.length}</span>` : ""}</button>`;
     const w = this.weather;
     const when = `<div class="hpill glass when"><span class="stack"><b id="hd-clock">${this.clock()}</b><small id="hd-date">${this.date()}</small></span>${w ? `<span class="sep"></span>${this.wxIcon(w.code)}<span class="stack"><b>${Math.round(w.temp)}°</b><small>${U.esc(w.label)}${w.geo && w.geo.name ? ` · ${U.esc(w.geo.name)}` : ""}</small></span>`
       : `<span class="sep"></span><button class="link-sm" data-act="go" data-id="settings">${Store.cfg().weatherCity ? "Meteo non disponibile" : "Attiva la posizione"}</button>`}</div>`;
-    const focus = `<button class="hpill glass blue focus-pill" data-act="go" data-id="focus" id="hd-focus" hidden><span class="dot">${this.svg('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>', 15, 2.4)}</span><span class="stack"><b id="hd-focus-t">--:--</b><small>Sessione di focus</small></span></button>`;
+    const focus = `<button class="hpill glass blue focus-pill" data-act="go" data-id="focus" id="hd-focus" hidden><span class="dot">${Icon.svg("timer", 15, "", 2.4)}</span><span class="stack"><b id="hd-focus-t">--:--</b><small>Sessione di focus</small></span></button>`;
     const theme = `<button class="toggle" id="theme-btn2" type="button" aria-label="Tema chiaro o scuro"><i>${Icon.svg("moon", 16)}</i></button>`;
     el.innerHTML = `${hello}<div class="hpills">${bell}${when}${focus}${theme}</div>`;
+    const top = document.getElementById("bell-top");
+    if (top) { top.querySelector(".badge")?.remove(); if (pend.length) top.insertAdjacentHTML("beforeend", `<span class="badge">${pend.length}</span>`); top.setAttribute("aria-label", pend.length ? `Promemoria: ${pend.length} da fare` : "Promemoria"); }
     el.querySelector("#theme-btn2").addEventListener("click", () => this.toggleTheme());
     this.tick();
   },
   clock() { return new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }); },
   date() { return new Date().toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short" }); },
   tick() {
+    if (document.hidden) return;
+    const day = U.today();
+    if (this._day && this._day !== day && App.loaded) { this._day = day; return App.render(); }
+    this._day = day;
     const c = document.getElementById("hd-clock"); if (c) c.textContent = this.clock();
     const f = document.getElementById("hd-focus");
     if (!f) return;
@@ -347,15 +367,7 @@ const Shell = {
   weather: null,
   WX: [[[0], "Sereno", "sun"], [[1, 2], "Poco nuvoloso", "cloudsun"], [[3], "Nuvoloso", "cloud"], [[45, 48], "Nebbia", "cloud"], [[51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82], "Pioggia", "rain"], [[71, 73, 75, 77, 85, 86], "Neve", "snow"], [[95, 96, 99], "Temporale", "rain"]],
   wxInfo(code) { return this.WX.find(([c]) => c.includes(code)) || this.WX[2]; },
-  wxIcon(code) {
-    const k = this.wxInfo(code)[2];
-    const p = { sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-      cloudsun: '<path d="M8 3v1.5M3.6 5.6l1 1M2 10h1.5M12.4 5.6l-1 1"/><path d="M5.5 11a3 3 0 0 1 5.6-1.5"/><path d="M8 19h9a3.5 3.5 0 0 0 .4-7A5 5 0 0 0 8 13a3 3 0 0 0 0 6z"/>',
-      cloud: '<path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 1 7z"/>',
-      rain: '<path d="M7 15h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 8a3.5 3.5 0 0 0 1 7z"/><path d="M9 18l-1 2M13 18l-1 2M17 18l-1 2"/>',
-      snow: '<path d="M7 15h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 8a3.5 3.5 0 0 0 1 7z"/><path d="M9 19h.01M13 20h.01M17 19h.01"/>' }[k];
-    return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
-  },
+  wxIcon(code) { return Icon.svg(this.wxInfo(code)[2], 22, "", 1.7); },
   // Posizione del dispositivo (se non c'è una città in Impostazioni). Il nome della città arriva
   // da BigDataCloud (gratuito, senza chiave); il meteo da Open-Meteo.
   locate() {
@@ -378,7 +390,7 @@ const Shell = {
       }
       if (!geo) {
         const c = await this.locate();
-        geo = { lat: +c.latitude.toFixed(3), lon: +c.longitude.toFixed(3), name: "" };
+        geo = { lat: +c.latitude.toFixed(2), lon: +c.longitude.toFixed(2), name: "" };
         try {
           const r = await (await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${geo.lat}&longitude=${geo.lon}&localityLanguage=it`)).json();
           geo.name = r.city || r.locality || "";

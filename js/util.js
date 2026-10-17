@@ -64,7 +64,12 @@ const U = {
 
   uid() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-    return "id-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    // uuid v4 valido anche dove randomUUID manca (il database vuole un uuid)
+    const b = new Uint8Array(16);
+    if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(b); else for (let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256);
+    b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+    const h = [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
   },
 
   esc(s) {
@@ -87,13 +92,28 @@ const U = {
     return h < 5 ? "Buonanotte" : h < 13 ? "Buongiorno" : h < 18 ? "Buon pomeriggio" : "Buonasera";
   },
 
-  toast(msg) {
+  // Avviso in basso. Con { action, fn } mostra un pulsante (es. "Annulla"):
+  // resta visibile 6 secondi, e finché ci passi sopra o ha il focus non sparisce.
+  toast(msg, opts = {}) {
     const el = document.getElementById("toast");
     if (!el) return;
-    el.textContent = msg;
-    el.classList.add("show");
-    clearTimeout(U._toastT);
-    U._toastT = setTimeout(() => el.classList.remove("show"), 2600);
+    el.innerHTML = "";
+    const span = document.createElement("span");
+    span.textContent = msg;
+    el.appendChild(span);
+    el.classList.toggle("act", !!opts.action);
+    const hide = () => el.classList.remove("show");
+    const arm = (ms) => { clearTimeout(U._toastT); U._toastT = setTimeout(hide, ms); };
+    if (opts.action) {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = opts.action;
+      b.onclick = () => { clearTimeout(U._toastT); hide(); opts.fn && opts.fn(); };
+      el.appendChild(b);
+      el.onmouseenter = el.onfocusin = () => clearTimeout(U._toastT);
+      el.onmouseleave = el.onfocusout = () => arm(3000);
+    } else { el.onmouseenter = el.onfocusin = el.onmouseleave = el.onfocusout = null; }
+    requestAnimationFrame(() => el.classList.add("show"));
+    arm(opts.action ? 6000 : 2600);
   },
 
   download(filename, blob) {
@@ -163,11 +183,36 @@ const ICONS = {
   spark: "M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6",
   palette: "M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.7-1.4-.7-2.2 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4c0-4.700-4-8.600-9-8.600zM7.5 12h.01M9.5 7.5h.01M14.5 7.5h.01",
   clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
-  seed: "M12 20v-7M12 13c0-4 2-6 6-6 0 4-2 6-6 6zM12 15c0-3-1.5-5-5-5 0 3 1.5 5 5 5z"
+  timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',
+  bell: '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="4"/><path d="M8 3v4M16 3v4M3 10h18"/>',
+  habitBox: '<rect x="4" y="4" width="16" height="16" rx="5"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>',
+  target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6" fill="currentColor"/>',
+  bars: "M4 20V10M10 20V4M16 20v-7M22 20H2",
+  stop: '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/>',
+  playFill: '<path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="4"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+  reset: "M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4",
+  up: "M12 19V5M6 11l6-6 6 6",
+  down: "M12 5v14M6 13l6 6 6-6",
+  flat: "M5 12h14",
+  run: '<circle cx="14" cy="4.5" r="2"/><path d="M8 21l3-6 3 3v-6l-3-2-3 3M14 12l3 3h3"/>',
+  hourglass: "M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9",
+  grid: '<rect x="4" y="4" width="6" height="6" rx="3"/><rect x="14" y="4" width="6" height="6" rx="3"/><rect x="4" y="14" width="6" height="6" rx="3"/><rect x="14" y="14" width="6" height="6" rx="3"/>',
+  apps: '<circle cx="6" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18" cy="12" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>',
+  cloud: "M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 1 7z",
+  cloudsun: "M8 3v1.5M3.6 5.6l1 1M2 10h1.5M12.4 5.6l-1 1M5.5 11a3 3 0 0 1 5.6-1.5M8 19h9a3.5 3.5 0 0 0 .4-7A5 5 0 0 0 8 13a3 3 0 0 0 0 6z",
+  rain: "M7 15h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 8a3.5 3.5 0 0 0 1 7zM9 18l-1 2M13 18l-1 2M17 18l-1 2",
+  snow: "M7 15h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 8a3.5 3.5 0 0 0 1 7zM9 19h.01M13 20h.01M17 19h.01"
 };
 
+// Un'unica raccolta di icone per tutta l'app. Una voce è un path ("M…") oppure
+// markup SVG completo ("<circle …/>…") per le icone con cerchi e rettangoli.
 const Icon = {
-  svg(name, size = 22, extra = "") {
-    return `<svg class="ico ${extra}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[name] || ""}"/></svg>`;
+  svg(name, size = 22, extra = "", width = 1.6) {
+    const d = ICONS[name] || "";
+    const body = d.startsWith("<") ? d : `<path d="${d}"/>`;
+    return `<svg class="ico ${extra}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
   }
 };

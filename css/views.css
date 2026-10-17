@@ -1,0 +1,93 @@
+/* ============================================================
+   Stili delle sezioni (abitudini, obiettivi, alimentazione, benessere,
+   lettura, riscoperte, focus, statistiche, impostazioni) e dei componenti
+   di ui.js (Dialog, conferme). Si carica dopo style.css e dashboard.css.
+   ============================================================ */
+
+/* ---------- Titoli: livelli corretti (h2) con l'aspetto di prima ---------- */
+.view h2.h3, .settings h2.h3 { font: 700 15px/1.5 var(--body); letter-spacing: 0; }
+.settings .card > h2.h3 { margin-bottom: 2px; }
+.row-main h2.row-title { font: 700 15px/1.5 var(--body); letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.score-copy h2.hero-k { font: inherit; letter-spacing: inherit; }
+.hero-note { font-size: 13px; opacity: .8; margin-top: 2px; }
+
+/* ---------- Testo di aiuto (13px, leggibile) ---------- */
+.hint { display: block; font-size: 13px; line-height: 1.45; color: var(--ink-3); font-weight: 500; }
+p.hint { margin-top: 2px; }
+label .hint, .check .hint { margin-top: 4px; }
+
+/* ---------- Focus visibile su card e righe cliccabili ---------- */
+[role="button"][tabindex]:focus-visible, .row-card:focus-visible, .goal-card:focus-visible, .goal-banner:focus-visible {
+  outline: 2px solid var(--hot); outline-offset: 3px;
+}
+.me-main[role="button"]:focus-visible, .food-book [role="button"]:focus-visible { border-radius: 8px; }
+.heatmap rect[data-date] { cursor: pointer; }
+.heatmap rect[data-date]:focus { outline: none; }
+.heatmap rect[data-date]:focus-visible { stroke: var(--hot); stroke-width: 2.5; }
+
+/* ---------- Area di tocco ≥ 44px per i pulsanti piccoli ---------- */
+.hit { position: relative; }
+.hit::after { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); border-radius: 50%; }
+
+/* ---------- Dialog (UI.confirm / UI.prompt), sopra a uno Sheet ---------- */
+.dialog-root { position: fixed; inset: 0; z-index: 70; }
+.dialog-root .sheet-back { opacity: 0; transition: opacity .2s; }
+.dialog-root.on .sheet-back { opacity: 1; }
+.dialog-root .sheet.dialog { padding: 22px 20px calc(20px + var(--safe-b, 0px)); }
+.dialog-root.on .sheet.dialog { transform: none; }
+.dialog h2 { font: 600 20px/1.25 var(--display); letter-spacing: -.02em; outline: none; }
+.dialog-text { color: var(--ink-2); margin-top: 8px; }
+.dialog-form { margin-top: 14px; }
+.dialog-actions { justify-content: flex-end; margin-top: 20px; }
+.dialog-actions .btn { min-width: 112px; }
+.btn.danger-solid { background: var(--danger); color: #FFFFFF; box-shadow: 0 10px 22px -12px color-mix(in srgb, var(--danger) 80%, transparent); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.danger-solid { color: #23272E; } }
+:root[data-theme="dark"] .btn.danger-solid { color: #23272E; }
+.sheet-head h2 { outline: none; }
+@media (min-width: 1024px) {
+  .dialog-root .sheet.dialog { width: min(440px, 92vw); padding: 26px 28px 24px; }
+  .dialog-root.on .sheet.dialog { transform: translate(-50%, -50%); opacity: 1; }
+}
+
+/* ---------- Scala 1–5: la scelta ha lo stesso colore delle altre selezioni ---------- */
+.scale button.on { background: var(--deep); color: var(--on-deep); box-shadow: 0 6px 14px -8px color-mix(in srgb, var(--deep) 80%, transparent); }
+
+/* ---------- Obiettivi: sul telefono i segmenti mostrano il conteggio ---------- */
+@media (max-width: 559px) { .tabs4[data-tabs="goals"] .hz-sub { display: none; } }
+
+/* ---------- Alimentazione ---------- */
+/* pietanza mangiata: spunta piena e testo attenuato, senza barrato */
+.meal-list li.done-muted .me-main b { text-decoration: none; color: var(--ink-2); }
+.meal-list li.done-muted .me-main small, .meal-list li.done-muted .me-qty { color: var(--ink-3); }
+.meal-list li.done-muted .me-main { opacity: .8; }
+/* selettore: pulsante "Fatto (n)" sempre visibile in fondo */
+.pick-foot { position: sticky; bottom: calc(-24px - var(--safe-b, 0px)); margin: 14px -20px calc(-24px - var(--safe-b, 0px)); padding: 12px 20px calc(16px + var(--safe-b, 0px)); background: linear-gradient(to bottom, color-mix(in srgb, var(--solid) 0%, transparent), var(--solid) 30%); z-index: 3; }
+@media (min-width: 1024px) { .pick-foot { bottom: -28px; margin: 14px -28px -28px; padding: 14px 28px 20px; } }
+.pick-slots { scroll-behavior: smooth; }
+
+/* ---------- Benessere ---------- */
+.stats-col { align-content: start; gap: 16px; }
+.stats-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stats-pair > div { display: grid; }
+.stats-col b small { font-size: 15px; font-weight: 600; color: var(--ink-3); margin-left: 1px; }
+.mood-vals { display: inline-flex; gap: 12px; align-items: center; }
+.mood-vals .mv { display: inline-flex; align-items: center; font-size: 13px; color: var(--ink-2); }
+
+/* ---------- Lettura: segnaposto della copertina con le iniziali ---------- */
+.cover.ph {
+  --h: 210;
+  display: grid; place-items: center; font: 700 15px/1 var(--display); letter-spacing: .02em; font-style: normal;
+  color: #FFFFFF; text-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+  background: linear-gradient(140deg, hsl(var(--h) 45% 52%), hsl(calc(var(--h) + 40) 50% 40%));
+}
+.cover.ph.lg { font-size: 26px; }
+.book-mini .cover.ph { font-size: 11px; }
+
+/* ---------- Riscoperte: azioni più grandi ---------- */
+.q-act { gap: 4px; }
+.q-act .q-btn { width: 44px; height: 44px; }
+
+/* ---------- Focus ---------- */
+.focus-goal-note .link { padding: 0; border: 0; background: none; color: var(--link); font: inherit; font-weight: 600; cursor: pointer; }
+.body-pane .grid2 { align-items: start; }
+.book-now a, a:has(> .cover) { text-decoration: none; }

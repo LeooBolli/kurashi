@@ -5,11 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kurashi</title>
 <meta name="description" content="Abitudini, obiettivi e focus: la tua vita in un posto solo.">
-<meta name="theme-color" content="#F6F2EA">
+<meta name="theme-color" content="#F2EEE8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F131A" media="(prefers-color-scheme: dark)">
 <meta name="robots" content="noindex, nofollow">
+<!-- Da dove la pagina può caricare script, stili e dati: tutto il resto è bloccato -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://zwqoxbkcfebiipkssiws.supabase.co wss://zwqoxbkcfebiipkssiws.supabase.co https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net https://openlibrary.org https://covers.openlibrary.org https://itunes.apple.com https://cdn.jsdelivr.net; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -19,6 +22,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/views.css">
 </head>
 <body>
 
@@ -32,7 +36,9 @@
     <h1>Kurashi</h1>
     <p>Il tuo spazio personale.</p>
     <form id="login-form">
+      <label class="sr" for="login-email">Email</label>
       <input type="email" id="login-email" name="email" autocomplete="username" placeholder="Email" required>
+      <label class="sr" for="login-password">Password</label>
       <input type="password" id="login-password" name="password" autocomplete="current-password" placeholder="Password" required>
       <button type="submit" class="btn primary wide">Entra</button>
     </form>
@@ -62,8 +68,8 @@
         <button id="theme-btn" class="icon-btn" aria-label="Tema chiaro o scuro">
           <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
         </button>
-        <button id="menu-btn" class="icon-btn" aria-label="Menu">
-          <svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+        <button id="bell-top" class="icon-btn bell-top" data-act="reminders" aria-label="Promemoria">
+          <svg class="ico" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
         </button>
       </div>
     </header>
@@ -78,12 +84,9 @@
 <div id="tip" class="tip" role="tooltip"></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<!-- Librerie esterne (versioni fissate + integrità SRI) -->
+<!-- Librerie esterne (versioni fissate + integrità SRI). La libreria Excel si carica solo al primo export (js/export.js). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3/dist/umd/supabase.js"
         integrity="sha384-qafw21c/iciq0VXsi9FzkfoQv5I/V0iqE4lSNcKXPnW9/UTJLnv5CcN4FHxVLnKg"
-        crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
-        integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"
         crossorigin="anonymous"></script>
 
 <script src="js/config.js"></script>
