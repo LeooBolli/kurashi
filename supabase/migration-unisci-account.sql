@@ -71,6 +71,7 @@ begin
        + (select count(*) from public.meal_templates where user_id = demo)
        + (select count(*) from public.settings where user_id = demo)
        + (select count(*) from storage.objects where owner = demo)
+       + (select count(*) from storage.objects where name like demo::text || '%' or name like '%/' || demo::text || '/%')
     into n;
   if n > 0 then raise exception 'Restano % righe sull''account di prova: niente modificato', n; end if;
 
