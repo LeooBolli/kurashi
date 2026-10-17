@@ -13,7 +13,8 @@ window.APP_CONFIG = {
   // "owner" = le integrazioni Raindrop/Notion usano i suoi token: solo lui le vede.
   // Stesse email di public.kurashi_allowed() in supabase/schema.sql.
   USERS: {
-    "23leo07@gmail.com":             { name: "Leonardo", owner: true },
+    "leonardobolli@gmail.com":       { name: "Leonardo", owner: true },
+    "23leo07@gmail.com":             { name: "Leonardo", owner: true }, // vecchio account, da togliere dopo l'unione
     "biagettimariachiara@gmail.com": { name: "Chiara" }
   }
 };

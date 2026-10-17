@@ -248,7 +248,7 @@ stable
 security invoker
 set search_path = ''
 as $$
-  select coalesce(lower(auth.jwt() ->> 'email') in ('23leo07@gmail.com', 'biagettimariachiara@gmail.com'), false)
+  select coalesce(lower(auth.jwt() ->> 'email') in ('leonardobolli@gmail.com', '23leo07@gmail.com', 'biagettimariachiara@gmail.com'), false)
 $$;
 revoke execute on function public.kurashi_allowed() from public, anon;
 grant execute on function public.kurashi_allowed() to authenticated;
