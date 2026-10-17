@@ -14,8 +14,9 @@ window.APP_CONFIG = {
   // Stesse email di public.kurashi_allowed() in supabase/schema.sql.
   USERS: {
     "leonardobolli@gmail.com":       { name: "Leonardo", owner: true },
-    "23leo07@gmail.com":             { name: "Leonardo", owner: true }, // vecchio account, da togliere dopo l'unione
-    "biagettimariachiara@gmail.com": { name: "Chiara" }
+    "biagettimariachiara@gmail.com": { name: "Chiara" },
+    // Account di prova, vuoto: per far vedere l'app senza mostrare dati personali
+    "23leo07@gmail.com":             { name: "Ospite" }
   }
 };
 
