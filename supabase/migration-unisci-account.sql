@@ -7,6 +7,7 @@
 --                                          sopra, poi viene eliminato (non possiede file)
 --
 -- La password che resta è quella che usavi per Kurashi (23leo07).
+-- Dopo l'esecuzione esci e rientra in entrambe le app con leonardobolli.
 -- Nessun file viene spostato o cancellato. Chiara non viene toccata.
 -- Da eseguire una volta nel SQL Editor di Supabase: è un'unica transazione,
 -- se un controllo fallisce non cambia nulla.
@@ -71,7 +72,8 @@ begin
    where user_id = keep and provider = 'email';
 end $$;
 
--- 4. Kurashi accetta la nuova email (23leo07 resta fino alla pulizia finale)
+-- 4. Kurashi accetta la nuova email. 23leo07 esce subito dalla lista: non appartiene
+--    più a nessuno, e chi creasse un account con quell'email non deve entrare.
 create or replace function public.kurashi_allowed()
 returns boolean
 language sql
@@ -79,7 +81,7 @@ stable
 security invoker
 set search_path = ''
 as $$
-  select coalesce(lower(auth.jwt() ->> 'email') in ('leonardobolli@gmail.com', '23leo07@gmail.com', 'biagettimariachiara@gmail.com'), false)
+  select coalesce(lower(auth.jwt() ->> 'email') in ('leonardobolli@gmail.com', 'biagettimariachiara@gmail.com'), false)
 $$;
 
 commit;
