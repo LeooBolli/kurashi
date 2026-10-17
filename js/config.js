@@ -7,12 +7,15 @@ window.APP_CONFIG = {
   SUPABASE_URL: "https://zwqoxbkcfebiipkssiws.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_RGYs1fsWIyP1K-6R6Yxx3g_EXnB4-k8",
 
-  // L'unica email autorizzata. Anche se qualcuno trovasse l'URL, senza
-  // questo account (creato a mano su Supabase) non entra.
-  ALLOWED_EMAIL: "23leo07@gmail.com",
-
-  // Nome mostrato nei saluti
-  USER_NAME: "Leonardo"
+  // Le email autorizzate, ognuna con il nome mostrato nei saluti. Anche se
+  // qualcuno trovasse l'URL, senza uno di questi account (creati a mano su
+  // Supabase) non entra. Ogni account vede e scrive solo i propri dati.
+  // "owner" = le integrazioni Raindrop/Notion usano i suoi token: solo lui le vede.
+  // Stesse email di public.kurashi_allowed() in supabase/schema.sql.
+  USERS: {
+    "23leo07@gmail.com":             { name: "Leonardo", owner: true },
+    "biagettimariachiara@gmail.com": { name: "Chiara" }
+  }
 };
 
 // Le sei aree della vita. I colori sono stati validati (contrasto e

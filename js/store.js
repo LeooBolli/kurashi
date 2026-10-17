@@ -232,6 +232,6 @@ const Store = {
 
   // Impostazioni con valori di default
   cfg() {
-    return { focusWeeklyMin: 600, sleepTarget: 8, weightTarget: null, raindropCollection: 0, notionDb: "", goalBooks: {}, dietGoal: null, dietHabit: null, recallPerDay: 5, focusStrict: true, name: window.APP_CONFIG.USER_NAME, ...this.settings };
+    return { focusWeeklyMin: 600, sleepTarget: 8, weightTarget: null, raindropCollection: 0, notionDb: "", goalBooks: {}, dietGoal: null, dietHabit: null, recallPerDay: 5, focusStrict: true, name: Auth.profile().name || "", ...this.settings };
   }
 };

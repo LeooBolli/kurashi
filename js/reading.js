@@ -78,7 +78,7 @@ const Reading = {
         <div><p class="eyebrow">Lettura</p><h1 class="title">Da <em>leggere</em></h1>
           <p class="sub">${booksDone} ${booksDone === 1 ? "libro finito" : "libri finiti"} · ${doneMonth} letti questo mese · ${counts.todo + counts.reading} in coda</p></div>
         <div class="btn-row nowrap">
-          <button class="btn ghost" data-act="read-sync" aria-label="Sincronizza Raindrop" ${this.syncing ? "disabled" : ""}>${Icon.svg("sync", 16, this.syncing ? "spin" : "")}<span class="hide-sm">${this.syncing ? "Sincronizzo…" : "Raindrop"}</span></button>
+          ${Auth.isOwner() ? `<button class="btn ghost" data-act="read-sync" aria-label="Sincronizza Raindrop" ${this.syncing ? "disabled" : ""}>${Icon.svg("sync", 16, this.syncing ? "spin" : "")}<span class="hide-sm">${this.syncing ? "Sincronizzo…" : "Raindrop"}</span></button>` : ""}
           <button class="btn ghost" data-act="read-add">${Icon.svg("link", 16)}<span>Link</span></button>
           <button class="btn primary" data-act="book-add">${Icon.svg("book", 16)}<span>Libro</span></button>
         </div>

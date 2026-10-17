@@ -5,6 +5,7 @@
 //   - l'obiettivo a breve termine "Chetogenica", figlio di "Arrivare a 72 kg"
 //   - l'abitudine "Dieta rispettata" collegata a "Chetogenica": ogni giorno con tutto spuntato la fa avanzare
 // Non è un modello ricorrente: finito il periodo questo file si può togliere.
+// È il piano di Leonardo: per gli altri account non si carica.
 // ============================================================
 const KetoPlan = {
   FLAG: "ketoPlan2026",
@@ -44,7 +45,7 @@ const KetoPlan = {
   SLOTS: ["colazione", "pranzo", "spuntino_pomeriggio", "cena"],
 
   apply() {
-    if (DEMO || Store.cfg()[this.FLAG]) return;
+    if (DEMO || !Auth.isOwner() || Store.cfg()[this.FLAG]) return;
     Store.setSettings({ [this.FLAG]: true });
 
     // Pietanze: le metto nel ricettario (senza quantità) così le quantità aggiunte lì arrivano anche al piano.

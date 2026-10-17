@@ -30,7 +30,7 @@ demo" ricominci da capo.
 4. **Authentication → Providers → Email**: disattiva **Allow new users to sign up**.
    Da quel momento l'unico account esistente sei tu.
 5. **Project Settings → API**: copia *Project URL* e *anon public key* in
-   [js/config.js](js/config.js), e metti la tua email in `ALLOWED_EMAIL`.
+   [js/config.js](js/config.js), e metti le email autorizzate (con il nome di ciascuno) in `USERS`; le stesse vanno in `kurashi_allowed()` in [supabase/schema.sql](supabase/schema.sql).
 
 La chiave anon è pubblica per definizione: non dà accesso a nulla senza il tuo login,
 perché ogni tabella ha una policy `user_id = auth.uid()`.

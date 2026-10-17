@@ -41,7 +41,7 @@ const Settings = {
           </form>
         </section>
 
-        <section class="card">
+        ${Auth.isOwner() ? `<section class="card">
           <h3>Integrazioni</h3>
           <p class="muted small">Le chiavi API non stanno mai in questa app: restano come segreti nella funzione Supabase (vedi README).</p>
           <div class="integ">
@@ -60,7 +60,7 @@ const Settings = {
             ${cfg.notionDb ? `<button class="btn ghost" data-act="notion-sync-all">${Icon.svg("sync", 16)} Invia tutti gli obiettivi a Notion</button>` : ""}
             <p id="integ-status" class="muted small"></p>
           </div>
-        </section>
+        </section>` : ""}
 
         <section class="card">
           <h3>Esporta i tuoi dati</h3>
@@ -111,7 +111,7 @@ const Settings = {
 Actions["settings-save"] = (form) => {
   const f = new FormData(form);
   Store.setSettings({
-    name: (f.get("name") || "").trim() || window.APP_CONFIG.USER_NAME,
+    name: (f.get("name") || "").trim() || Auth.profile().name || "",
     focusWeeklyMin: Math.round((Number(f.get("focus")) || 10) * 60),
     sleepTarget: Number(f.get("sleep")) || 8,
     weightTarget: f.get("weight") ? Number(f.get("weight")) : null,

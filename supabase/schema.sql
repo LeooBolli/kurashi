@@ -254,8 +254,8 @@ begin
     execute format('drop policy if exists "own rows" on %I', t);
     execute format(
       'create policy "own rows" on %I for all to authenticated '
-      'using (user_id = auth.uid() and (auth.jwt() ->> ''email'') = ''23leo07@gmail.com'') '
-      'with check (user_id = auth.uid() and (auth.jwt() ->> ''email'') = ''23leo07@gmail.com'')',
+      'using (user_id = auth.uid() and (auth.jwt() ->> ''email'') in (''23leo07@gmail.com'', ''biagettimariachiara@gmail.com'')) '
+      'with check (user_id = auth.uid() and (auth.jwt() ->> ''email'') in (''23leo07@gmail.com'', ''biagettimariachiara@gmail.com''))',
       t
     );
   end loop;
@@ -343,8 +343,8 @@ insert into storage.buckets (id, name, public) values ('kurashi-backgrounds', 'k
   on conflict (id) do nothing;
 drop policy if exists "kurashi backgrounds own" on storage.objects;
 create policy "kurashi backgrounds own" on storage.objects for all to authenticated
-  using (bucket_id = 'kurashi-backgrounds' and (storage.foldername(name))[1] = auth.uid()::text and (auth.jwt() ->> 'email') = '23leo07@gmail.com')
-  with check (bucket_id = 'kurashi-backgrounds' and (storage.foldername(name))[1] = auth.uid()::text and (auth.jwt() ->> 'email') = '23leo07@gmail.com');
+  using (bucket_id = 'kurashi-backgrounds' and (storage.foldername(name))[1] = auth.uid()::text and (auth.jwt() ->> 'email') in ('23leo07@gmail.com', 'biagettimariachiara@gmail.com'))
+  with check (bucket_id = 'kurashi-backgrounds' and (storage.foldername(name))[1] = auth.uid()::text and (auth.jwt() ->> 'email') in ('23leo07@gmail.com', 'biagettimariachiara@gmail.com'));
 
 -- Fa riconoscere subito le tabelle nuove all'API
 notify pgrst, 'reload schema';

@@ -1,6 +1,6 @@
 // ============================================================
-// Autenticazione - email + password, un solo account.
-// L'account si crea a mano su Supabase (Authentication > Users) e le
+// Autenticazione - email + password, solo gli account in APP_CONFIG.USERS.
+// Gli account si creano a mano su Supabase (Authentication > Users) e le
 // registrazioni pubbliche si disattivano: vedi README.
 // In modalità demo l'accesso è saltato.
 // ============================================================
@@ -9,6 +9,14 @@ const Auth = {
   EMAIL_KEY: "kurashi-last-email",
 
   uid() { return this.currentUser ? this.currentUser.id : "demo"; },
+
+  // Nome e ruolo dell'account collegato (in demo: il proprietario)
+  profile() {
+    const users = window.APP_CONFIG.USERS;
+    if (DEMO) return Object.values(users).find((u) => u.owner) || {};
+    return users[(this.currentUser?.email || "").toLowerCase()] || {};
+  },
+  isOwner() { return !!this.profile().owner; },
 
   init(onReady) {
     if (DEMO) {
@@ -27,7 +35,7 @@ const Auth = {
       const email = emailInput.value.trim().toLowerCase();
       const password = document.getElementById("login-password").value;
       const status = document.getElementById("login-status");
-      if (email !== window.APP_CONFIG.ALLOWED_EMAIL.toLowerCase()) {
+      if (!window.APP_CONFIG.USERS[email]) {
         status.textContent = "Questa email non è autorizzata.";
         return;
       }
