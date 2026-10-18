@@ -5,10 +5,114 @@ const Calc = {
   // ---------- Abitudini ----------
   activeHabits() { return Store.d.habits.filter((h) => !h.archived); },
 
+  // ---------- Ricorrenze ----------
+  // h.repeat (facoltativo):
+  //   {type:"week", every:N, from}     ogni N settimane, nei giorni di h.days (senza repeat: ogni settimana)
+  //   {type:"monthdays", days:[1,15,-1]} giorni del mese (-1 = l'ultimo; il 31 nei mesi corti diventa l'ultimo)
+  //   {type:"nth", nths:[1,3,-1], dow}  il primo/terzo/ultimo lunedì… del mese
+  //   {type:"interval", every:N, from} ogni N giorni a partire da "from"
+  //   {type:"times", count:N, per:"week"|"month"} N volte nella settimana/nel mese, quando vuoi
+  // Le abitudini settimanali semplici valgono solo nel loro giorno; tutte le altre restano
+  // in lista finché non le fai, fino alla prossima occorrenza (la loro "finestra").
+  rep(h) { return h.repeat && h.repeat.type ? h.repeat : { type: "week", every: 1 }; },
+  carries(h) { const r = this.rep(h); return !(r.type === "week" && (Number(r.every) || 1) === 1); },
+  monthLen(d) { return new Date(Number(d.slice(0, 4)), Number(d.slice(5, 7)), 0).getDate(); },
+
+  occursOn(h, d) {
+    if (d < h.start_date) return false;
+    const r = this.rep(h), dow = U.dow(d), day = Number(d.slice(8, 10));
+    const every = Math.max(1, Math.round(Number(r.every)) || 1);
+    switch (r.type) {
+      case "week":
+        if (!(h.days || [1, 2, 3, 4, 5, 6, 7]).includes(dow)) return false;
+        return every === 1 || Math.abs(U.diffDays(U.mondayOf(r.from || h.start_date), U.mondayOf(d)) / 7) % every === 0;
+      case "monthdays": {
+        const last = this.monthLen(d);
+        return (r.days || []).some((x) => (Number(x) === -1 ? last : Math.min(Number(x), last)) === day);
+      }
+      case "nth": {
+        if (dow !== Number(r.dow)) return false;
+        const isLast = day + 7 > this.monthLen(d);
+        return (r.nths || []).some((n) => (Number(n) === -1 ? isLast : Number(n) === Math.ceil(day / 7)));
+      }
+      case "interval": return Math.abs(U.diffDays(r.from || h.start_date, d)) % every === 0;
+      default: return false;
+    }
+  },
+
+  // Finestra dell'occorrenza che contiene d: { start, end, need }, oppure null (prima della prima occorrenza)
+  _win: new Map(),
+  window(h, d) {
+    if (d < h.start_date) return null;
+    const sig = `${h.id}|${h.start_date}|${(h.days || []).join()}|${JSON.stringify(h.repeat || null)}|${d}`;
+    if (this._win.has(sig)) return this._win.get(sig);
+    if (this._win.size > 20000) this._win.clear();
+    const w = this._windowCalc(h, d);
+    this._win.set(sig, w);
+    return w;
+  },
+  _windowCalc(h, d) {
+    const r = this.rep(h);
+    if (r.type === "times") {
+      const month = r.per === "month";
+      const start = month ? d.slice(0, 8) + "01" : U.mondayOf(d);
+      const end = month ? d.slice(0, 8) + U.pad(this.monthLen(d)) : U.addDays(start, 6);
+      return { start: start < h.start_date ? h.start_date : start, end, need: Math.max(1, Math.round(Number(r.count)) || 1) };
+    }
+    if (!this.carries(h)) return this.occursOn(h, d) ? { start: d, end: d, need: 1 } : null;
+    let start = d;
+    for (let i = 0; !this.occursOn(h, start); i++) {
+      if (start <= h.start_date || i > 800) return null;
+      start = U.addDays(start, -1);
+    }
+    let next = U.addDays(d, 1);
+    for (let i = 0; i < 800 && !this.occursOn(h, next); i++) next = U.addDays(next, 1);
+    return { start, end: U.addDays(next, -1), need: 1 };
+  },
+
+  // Giorni completati tra from e to (compresi)
+  doneIn(h, from, to) {
+    let n = 0;
+    for (let d = from; d <= to; d = U.addDays(d, 1)) if (this.isDone(h, d)) n++;
+    return n;
+  },
+
+  // In lista quel giorno: nella finestra di un'occorrenza non ancora fatta (o fatta proprio quel giorno)
   isDue(h, date) {
-    return date >= h.start_date && (h.days || [1, 2, 3, 4, 5, 6, 7]).includes(U.dow(date));
+    const w = this.window(h, date);
+    if (!w) return false;
+    return w.start === date || this.isDone(h, date) || this.doneIn(h, w.start, U.addDays(date, -1)) < w.need;
   },
   habitsDueOn(date) { return this.activeHabits().filter((h) => this.isDue(h, date)); },
+
+  // Data da cui una ricorrente è in sospeso (non fatta), o null
+  pendingSince(h, date = U.today()) {
+    if (!this.carries(h) || this.rep(h).type === "times" || !this.isDue(h, date) || this.isDone(h, date)) return null;
+    const w = this.window(h, date);
+    return w && w.start < date ? w.start : null;
+  },
+  // Per le "N volte": quante fatte nel periodo corrente e quante ne servono
+  periodCount(h, date = U.today()) {
+    if (this.rep(h).type !== "times") return null;
+    const w = this.window(h, date);
+    return w ? { done: this.doneIn(h, w.start, date), need: w.need } : null;
+  },
+
+  // Peso di un giorno nelle statistiche: { due, credit }. Una ricorrente conta una volta per occorrenza:
+  // il giorno in cui la fai, oppure l'ultimo giorno della finestra se non la fai; oggi conta se è ancora da fare.
+  slot(h, d, today = U.today()) {
+    const none = { due: 0, credit: 0 };
+    const w = this.window(h, d);
+    if (!w) return none;
+    if (!this.carries(h)) return { due: 1, credit: this.credit(h, d) };
+    const left = w.need - this.doneIn(h, w.start, U.addDays(d, -1));
+    if (left <= 0) return none;
+    const done = this.isDone(h, d);
+    if (d === w.end) return { due: left, credit: done ? 1 : this.credit(h, d) };
+    if (done) return { due: 1, credit: 1 };
+    if (d === today) return { due: 1, credit: this.credit(h, d) };
+    return none;
+  },
 
   value(h, date) { return Store.logIdx.get(`${h.id}|${date}`) || 0; },
   isDone(h, date) { return this.value(h, date) >= (h.kind === "check" ? 1 : Number(h.target)); },
@@ -21,9 +125,14 @@ const Calc = {
   },
 
   dayStats(date, habits) {
-    const due = (habits || this.habitsDueOn(date)).filter((h) => this.isDue(h, date));
-    const credit = U.sum(due.map((h) => this.credit(h, date)));
-    return { due: due.length, credit, done: due.filter((h) => this.isDone(h, date)).length, pct: due.length ? credit / due.length : null };
+    let due = 0, credit = 0, done = 0;
+    for (const h of habits || this.activeHabits()) {
+      const s = this.slot(h, date);
+      if (!s.due) continue;
+      due += s.due; credit += s.credit;
+      if (this.isDone(h, date)) done++;
+    }
+    return { due, credit, done, pct: due ? credit / due : null };
   },
 
   // Percentuale (0..100) di completamento tra due date, o null se non c'era nulla in programma
@@ -31,12 +140,28 @@ const Calc = {
     const list = habits || this.activeHabits();
     let due = 0, credit = 0;
     for (const d of U.range(from, to)) {
-      for (const h of list) if (this.isDue(h, d)) { due++; credit += this.credit(h, d); }
+      for (const h of list) { const s = this.slot(h, d); due += s.due; credit += s.credit; }
     }
     return due ? (credit / due) * 100 : null;
   },
 
+  // Per le ricorrenti la serie conta le occorrenze fatte di fila (la finestra in corso non la interrompe)
   streak(h) {
+    if (this.carries(h)) {
+      const today = U.today();
+      let n = 0, d = today, cur = true;
+      for (let i = 0; i < 1500 && d >= h.start_date; i++) {
+        const w = this.window(h, d);
+        if (!w) break;
+        const c = this.doneIn(h, w.start, cur ? today : w.end);
+        if (c >= w.need) n += w.need;
+        else if (cur) n += c;
+        else break;
+        cur = false;
+        d = U.addDays(w.start, -1);
+      }
+      return n;
+    }
     let d = U.today(), n = 0;
     if (this.isDue(h, d) && !this.isDone(h, d)) d = U.addDays(d, -1); // oggi non è ancora perso
     for (let i = 0; i < 1500 && d >= h.start_date; i++, d = U.addDays(d, -1)) {
@@ -47,6 +172,21 @@ const Calc = {
   },
 
   bestStreak(h) {
+    if (this.carries(h)) {
+      const today = U.today();
+      let best = 0, run = 0, d = h.start_date;
+      for (let i = 0; i < 3000 && d <= today; i++) {
+        const w = this.window(h, d);
+        if (!w) { d = U.addDays(d, 1); continue; }
+        const c = this.doneIn(h, w.start, w.end < today ? w.end : today);
+        if (c >= w.need) run += w.need;
+        else if (w.end >= today) run += c;
+        else run = 0;
+        best = Math.max(best, run);
+        d = U.addDays(w.end, 1);
+      }
+      return best;
+    }
     let best = 0, run = 0;
     for (const d of U.range(h.start_date, U.today())) {
       if (!this.isDue(h, d)) continue;
@@ -158,9 +298,9 @@ const Calc = {
       let planned = 0, credit = 0;
       for (const d of U.range(from, to)) {
         for (const h of hs) {
-          if (!this.isDue(h, d)) continue;
-          planned++;
-          if (d <= asOf) credit += this.credit(h, d);
+          const s = this.slot(h, d);
+          planned += s.due;
+          if (d <= asOf) credit += s.credit;
         }
       }
       if (planned) parts.push((credit / planned) * 100);

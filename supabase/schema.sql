@@ -394,3 +394,8 @@ alter table goals drop column if exists weight_target;
 
 -- Fa riconoscere subito le tabelle nuove all'API
 notify pgrst, 'reload schema';
+
+-- Abitudini ricorrenti: oltre ai giorni della settimana, ogni N settimane, giorni del mese,
+-- "il primo lunedì del mese", ogni N giorni, o N volte a settimana/mese (vedi Calc.rep in js/calc.js).
+-- Senza valore resta il comportamento di sempre (solo h.days).
+alter table habits add column if not exists repeat jsonb;
