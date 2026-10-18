@@ -36,7 +36,7 @@ const Today = (() => {
   const SIZE_NAMES = { c: "Cerchio", s: "Piccolo", p: "Capsula", mh: "Medio orizzontale", mv: "Medio verticale", lh: "Grande orizzontale", lv: "Grande verticale" };
   const SIZE_ORDER = ["c", "s", "p", "mh", "mv", "lh", "lv"];
   const NEW_WIDGETS = ["nextHabit", "points", "workouts", "deadline", "clock", "exam", "toRead", "quick", "heat"];
-  const unseenNew = () => { const seen = Store.cfg().seenWidgets || []; const used = new Set((st.layout || []).map((l) => l.type)); return NEW_WIDGETS.filter((k) => !seen.includes(k) && !used.has(k)); };
+  const unseenNew = () => { const seen = Store.cfg().seenWidgets || []; const used = new Set((st.layout || []).map((l) => l.type)); return NEW_WIDGETS.filter((k) => !seen.includes(k) && !used.has(k) && sectionOn(k)); };
   const sizeIcon = (s) => ({ c: '<circle cx="12" cy="9" r="7.5"/>', p: '<rect x="1" y="4.5" width="22" height="9" rx="4.5"/>', s: '<rect x="7" y="4" width="10" height="10" rx="3"/>', mh: '<rect x="2" y="5" width="20" height="9" rx="3"/>', mv: '<rect x="7" y="1" width="10" height="16" rx="3"/>', lh: '<rect x="1" y="2" width="22" height="14" rx="3"/>', lv: '<rect x="4" y="0.5" width="16" height="17" rx="3"/>' })[s];
   // Lo Storico parte compatto: la settimana su telefono, il mese a pallini sugli schermi larghi
   const DEFAULT = [["score", "c"], ["timer", "s"], ["calendar", "mv"], ["stats", "mh"], ["habits", "mv"], ["weight", "c"], ["streak", "c"], ["goals", "lh"], ["focusStats", "p"], ["quick", "p"], ["reading", "mh"], ["recall", "mh"], ["meals", "mh"], ["clock", "c"], ["points", "c"], ["deadline", "c"], ["nextHabit", "c"]];
@@ -669,7 +669,7 @@ const Today = (() => {
       acts: [["scale", "Peso", "weight-add"], ["run", "Allenamento", "workout-add"], ["bowl", "Pasto", "food-quick"], ["timer", "Focus", "focus-start"], ["book", "Da leggere", "read-add"], ["habit", "Abitudine", "habit-new"]],
       render(sz) {
         const n = sz === "s" ? 4 : sz === "p" ? 5 : 6;
-        const btns = this.acts.slice(0, n).map(([i, l, a]) => `<button type="button" class="d-qa" data-act="${a}" aria-label="${l}"><span>${ic(i, 20)}</span>${sz === "s" ? "" : `<small>${l}</small>`}</button>`).join("");
+        const btns = this.acts.filter(([, , a]) => App.actOn(a)).slice(0, n).map(([i, l, a]) => `<button type="button" class="d-qa" data-act="${a}" aria-label="${l}"><span>${ic(i, 20)}</span>${sz === "s" ? "" : `<small>${l}</small>`}</button>`).join("");
         if (sz === "p") return { html: `<div class="d-pillrow d-qrow">${btns}</div>` };
         if (sz === "s") return { html: `<div class="d-wb center"><div class="d-qas s">${btns}</div></div>` };
         return { html: head("bolt", "Azioni rapide") + `<div class="d-wb end"><div class="d-qas ${sz}">${btns}</div></div>` };
@@ -758,7 +758,10 @@ const Today = (() => {
   // Ogni widget ha un pulsante "maniglia" (.d-go) che copre la scheda: fuori dalla modifica apre
   // la sezione (Invio/Spazio), in modifica si sposta con le frecce. I pulsanti interni restano
   // fermate di tabulazione separate. Il clic sulla scheda è gestito dall'ascoltatore delegato.
+  // Un widget legato a una sezione spenta non si mostra (resta nel layout: riaccendendola torna al suo posto)
+  const sectionOn = (k) => typeof W[k].go !== "string" || App.isOn(W[k].go);
   function widgetHTML(l, idx) {
+    if (!sectionOn(l.type)) return "";
     const def = W[l.type], sz = l.size, r = inner(l), go = !!def.go;
     let handle = "", ctl = "";
     if (st.editing) {
@@ -944,7 +947,7 @@ const Today = (() => {
     const fresh = unseenNew();
     // prima i nuovi, poi quelli non ancora in Home; anche quelli già presenti si possono aggiungere di nuovo
     const rank = (k) => (fresh.includes(k) ? 0 : used.has(k) ? 2 : 1);
-    const all = Object.entries(W).sort((a, b) => rank(a[0]) - rank(b[0]));
+    const all = Object.entries(W).filter(([k]) => sectionOn(k)).sort((a, b) => rank(a[0]) - rank(b[0]));
     if (fresh.length) Store.setSettings({ seenWidgets: [...new Set([...(Store.cfg().seenWidgets || []), ...fresh])] });
     Sheet.open({
       title: "Aggiungi un widget",

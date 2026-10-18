@@ -870,6 +870,12 @@ input[type=range] { accent-color: var(--deep); }
 .area-opt input:focus-visible + span { outline: 2px solid var(--deep); outline-offset: 4px; }
 .area-preview { display: flex; justify-content: center; padding-top: 4px; }
 
+/* Impostazioni: sezioni da accendere e spegnere */
+.sections-form { gap: 4px; }
+.sections-form label.check { align-items: center; min-height: 44px; }
+.sections-form label.check b { display: inline-flex; align-items: center; gap: 8px; }
+.sections-form label.check b .ico { color: var(--ink-2); }
+
 /* Impostazioni: elenco delle aree personali */
 .area-base { margin-top: 12px; }
 .area-list { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 6px; }
