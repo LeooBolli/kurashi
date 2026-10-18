@@ -57,7 +57,7 @@ const Habits = {
       </div>
       ${usedAreas.length > 1 ? `<div class="chips-row filters">
         <button class="pill ${this.filter === "all" ? "on" : ""}" data-act="habit-filter" data-id="all" aria-pressed="${this.filter === "all"}">Tutte</button>
-        ${usedAreas.filter((a) => AREAS[a]).map((a) => `<button class="pill ${this.filter === a ? "on" : ""}" data-act="habit-filter" data-id="${U.esc(a)}" aria-pressed="${this.filter === a}">${UI.areaIcon(a, 14)} ${AREAS[a].label}</button>`).join("")}
+        ${usedAreas.filter((a) => AREAS[a]).map((a) => `<button class="pill ${this.filter === a ? "on" : ""}" data-act="habit-filter" data-id="${U.esc(a)}" aria-pressed="${this.filter === a}">${UI.areaIcon(a, 14)} ${U.esc(AREAS[a].label)}</button>`).join("")}
       </div>` : ""}
       ${list.length ? `<div class="list">${list.map((h) => {
         const streak = Calc.streak(h);

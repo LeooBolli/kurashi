@@ -73,7 +73,7 @@ const Today = (() => {
 
   // ---------- Dati ----------
   const inArea = (o) => (h) => !o || !o.area || h.area === o.area;
-  const areaTitle = (o) => (o && o.area && AREAS[o.area] ? `Abitudini · ${AREAS[o.area].label}` : "Abitudini");
+  const areaTitle = (o) => (o && o.area && AREAS[o.area] ? `Abitudini · ${U.esc(AREAS[o.area].label)}` : "Abitudini");
   const pickHabit = (o) => (o && o.habit && Calc.activeHabits().find((h) => h.id === o.habit)) || null;
   const pickGoal = (o) => (o && o.goal && Calc.activeGoals().find((g) => g.id === o.goal)) || null;
   const todayData = (o) => {
