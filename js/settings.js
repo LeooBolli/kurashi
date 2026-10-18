@@ -33,6 +33,17 @@ const Settings = {
         </section>
 
         <section class="card">
+          <h2 class="h3">Aree</h2>
+          <p class="hint">Raggruppano abitudini e obiettivi. Le sei di base sono uguali per tutti; puoi aggiungere le tue, con nome, colore e icona.</p>
+          <div class="chips-row area-base">${Object.keys(BASE_AREAS).map((k) => UI.areaChip(k)).join("")}</div>
+          ${Areas.custom().length ? `<ul class="area-list">${Areas.custom().map((a) => `<li>${UI.areaChip(a.id)}
+            <span class="muted small">${Areas.usageText(a.id)}</span>
+            <span class="area-list-btns"><button class="btn ghost sm" data-act="area-edit" data-id="${U.esc(a.id)}" aria-label="Modifica l'area ${U.esc(a.label)}">${Icon.svg("edit", 16)}</button>
+            <button class="btn ghost sm danger" data-act="area-delete" data-id="${U.esc(a.id)}" aria-label="Elimina l'area ${U.esc(a.label)}">${Icon.svg("trash", 16)}</button></span></li>`).join("")}</ul>` : ""}
+          <div class="btn-row"><button class="btn primary" data-act="area-new">${Icon.svg("plus", 16)} Nuova area</button></div>
+        </section>
+
+        <section class="card">
           <h2 class="h3">Aspetto</h2>
           <p class="hint">Colori, vetro dei widget, luminosità e sfondo. Valgono su tutti i tuoi dispositivi; il tema chiaro o scuro si sceglie dall'interruttore in alto.</p>
           <div class="btn-row"><button class="btn primary" data-act="look-open">${Icon.svg("palette", 16)} Personalizza l'aspetto</button></div>
@@ -119,7 +130,7 @@ const Settings = {
     const data = await this.call({
       action: "notion_upsert_goal", databaseId: cfg.notionDb,
       goal: {
-        pageId: g.notion_page_id, title: g.title, area: AREAS[g.area].label, horizon: HORIZONS[g.horizon].label,
+        pageId: g.notion_page_id, title: g.title, area: (AREAS[g.area] || AREAS.progetti).label, horizon: HORIZONS[g.horizon].label,
         progress: Math.round(p.progress), due: g.due_date, status: g.status === "done" ? "Completato" : "In corso", note: g.description || ""
       }
     });
@@ -191,3 +202,79 @@ Actions["goal-notion"] = async (el) => {
 Actions["export-xlsx"] = () => Export.excel();
 Actions["export-csv"] = () => { Settings.csvName = document.getElementById("csv-name").value; Export.csv(Settings.csvName); };
 Actions["logout"] = () => Auth.logout();
+
+// ---------- Aree personali (settings.data.customAreas = [{ id, label, color, icon }]) ----------
+const Areas = {
+  custom() { return (Store.settings.customAreas || []).filter((a) => AREAS[a.id]); },
+
+  uses(id) {
+    return { habits: Store.d.habits.filter((h) => h.area === id), goals: Store.d.goals.filter((g) => g.area === id) };
+  },
+
+  usageText(id) {
+    const { habits, goals } = this.uses(id);
+    const parts = [];
+    if (habits.length) parts.push(`${habits.length} ${habits.length === 1 ? "abitudine" : "abitudini"}`);
+    if (goals.length) parts.push(`${goals.length} ${goals.length === 1 ? "obiettivo" : "obiettivi"}`);
+    return parts.join(" · ") || "non ancora usata";
+  },
+
+  // Restituisce l'id della nuova area, o null se annullata
+  async create() {
+    const v = await UI.areaDialog();
+    if (!v) return null;
+    const id = "c_" + Math.random().toString(36).slice(2, 10);
+    Store.setSettings({ customAreas: [...(Store.settings.customAreas || []), { id, ...v }] });
+    U.toast(`Area «${v.label}» creata`);
+    return id;
+  },
+
+  async edit(id) {
+    const a = AREAS[id];
+    if (!a || !a.custom) return;
+    const v = await UI.areaDialog({ id, ...a });
+    if (!v) return;
+    Store.setSettings({ customAreas: (Store.settings.customAreas || []).map((x) => (x.id === id ? { ...x, ...v } : x)) });
+  },
+
+  // Prima di eliminare un'area usata chiedo dove spostare le sue abitudini e i suoi obiettivi
+  async remove(id) {
+    const a = AREAS[id];
+    if (!a || !a.custom) return;
+    const { habits, goals } = this.uses(id);
+    if (habits.length || goals.length) {
+      let sel = null;
+      const target = await Dialog.open({
+        title: `Eliminare l'area «${a.label}»?`,
+        text: `È usata da: ${this.usageText(id)}. Prima di eliminarla, scegli l'area in cui spostare tutto.`,
+        body: `<form class="form dialog-form"><label>Sposta in<select name="to">${Object.entries(AREAS).filter(([k]) => k !== id)
+          .map(([k, x]) => `<option value="${k}">${U.esc(x.label)}</option>`).join("")}</select></label></form>`,
+        actions: `<button type="button" class="btn ghost" data-dialog-cancel>Annulla</button><button type="button" class="btn danger-solid" data-dialog-ok>Sposta ed elimina</button>`,
+        init: (box) => { sel = box.querySelector("select"); },
+        onKey: (k) => (k === "ok" ? sel.value : null)
+      });
+      if (!target || !AREAS[target]) return;
+      habits.forEach((h) => Store.update("habits", h.id, { area: target }));
+      goals.forEach((g) => Store.update("goals", g.id, { area: target }));
+    } else {
+      const ok = await UI.confirm({ title: `Eliminare l'area «${a.label}»?`, text: "Non la usa nessuna abitudine né obiettivo.", confirmLabel: "Elimina", danger: true });
+      if (!ok) return;
+    }
+    if (Habits.filter === id) Habits.filter = "all";
+    Store.setSettings({ customAreas: (Store.settings.customAreas || []).filter((x) => x.id !== id) });
+    U.toast(`Area «${a.label}» eliminata`);
+  }
+};
+
+Actions["area-new"] = () => Areas.create();
+Actions["area-edit"] = (el) => Areas.edit(el.dataset.id);
+Actions["area-delete"] = (el) => Areas.remove(el.dataset.id);
+// Dal selettore di un form: crea l'area e la seleziona subito
+Actions["area-new-inline"] = async (el) => {
+  const wrap = el.closest("[data-area-wrap]");
+  const id = await Areas.create();
+  if (!id || !wrap || !wrap.isConnected) return;
+  wrap.outerHTML = UI.areaPicker(wrap.dataset.areaWrap, id, wrap.dataset.label);
+  const on = document.querySelector(`[data-area-pick="${wrap.dataset.areaWrap}"] [data-value="${id}"]`);
+  if (on) on.focus({ preventScroll: true });
+};

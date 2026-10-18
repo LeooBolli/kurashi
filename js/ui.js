@@ -109,6 +109,7 @@ const Sheet = {
 
 // ---- Dialog: conferma o breve testo, sopra a tutto (anche sopra uno Sheet aperto) ----
 const Dialog = {
+  KEEP: Symbol("keep"),
   open({ title, text = "", body = "", actions, onKey = null, init = null }) {
     return new Promise((resolve) => {
       const opener = document.activeElement;
@@ -144,12 +145,14 @@ const Dialog = {
         A11y.trap(box, e);
       };
       window.addEventListener("keydown", onKeydown, true);
+      // onKey può rispondere Dialog.KEEP (es. un campo da correggere): la finestra resta aperta
+      const ok = () => { const v = onKey ? onKey("ok") : true; if (v !== Dialog.KEEP) finish(v); };
       root.addEventListener("click", (e) => {
         e.stopPropagation();
         if (e.target.closest("[data-dialog-cancel]")) finish(onKey ? onKey("cancel") : false);
-        else if (e.target.closest("[data-dialog-ok]")) finish(onKey ? onKey("ok") : true);
+        else if (e.target.closest("[data-dialog-ok]")) ok();
       });
-      root.addEventListener("submit", (e) => { e.preventDefault(); finish(onKey ? onKey("ok") : true); });
+      root.addEventListener("submit", (e) => { e.preventDefault(); ok(); });
       void root.offsetWidth;   // forza il primo stile, così la transizione parte
       root.classList.add("on");
       if (init) init(box);
@@ -254,13 +257,13 @@ const Tip = {
 // ---- Helper HTML per i form -------------------------------------------------
 const UI = {
   areaOptions(sel) {
-    return Object.entries(AREAS).map(([k, a]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${a.label}</option>`).join("");
+    return Object.entries(AREAS).map(([k, a]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${U.esc(a.label)}</option>`).join("");
   },
 
   // Il colore dell'area passa solo come variabile CSS (--a): sfondo e testo li decide il CSS, anche in tema scuro
   areaChip(area, small = false) {
     const a = AREAS[area] || AREAS.progetti;
-    return `<span class="chip area-chip ${small ? "chip-sm" : ""}" style="--a:${a.color}"><i class="glyph">${Icon.svg(a.icon, 14)}</i>${a.label}</span>`;
+    return `<span class="chip area-chip ${small ? "chip-sm" : ""}" style="--a:${a.color}"><i class="glyph">${Icon.svg(a.icon, 14)}</i>${U.esc(a.label)}</span>`;
   },
 
   glyph(area, big = true) {
@@ -268,12 +271,56 @@ const UI = {
     return `<i class="glyph area-glyph ${big ? "big" : ""}" style="--a:${a.color}" aria-hidden="true">${Icon.svg(a.icon, big ? 20 : 14)}</i>`;
   },
 
-  // Scelta dell'area a pillole (al posto di un <select>): <div class="area-pick" data-area-pick="name">
+  // Scelta dell'area a pillole (al posto di un <select>): <div class="area-pick" data-area-pick="name">.
+  // «Nuova area» sta fuori dal gruppo radio: crea l'area e la seleziona (Actions["area-new-inline"]).
   areaPicker(name, current, label = "Area") {
     const cur = AREAS[current] ? current : Object.keys(AREAS)[0];
-    return `<div class="area-pick" role="radiogroup" aria-label="${U.esc(label)}" data-area-pick="${name}">${Object.entries(AREAS).map(([k, a]) =>
-      `<button type="button" role="radio" aria-checked="${k === cur}" tabindex="${k === cur ? 0 : -1}" class="chip area-chip ${k === cur ? "on" : ""}" style="--a:${a.color}" data-value="${k}"><i class="glyph">${Icon.svg(a.icon, 14)}</i>${a.label}</button>`).join("")}</div>
-      <input type="hidden" name="${name}" value="${cur}">`;
+    return `<div class="area-pick-wrap" data-area-wrap="${name}" data-label="${U.esc(label)}"><div class="area-pick" role="radiogroup" aria-label="${U.esc(label)}" data-area-pick="${name}">${Object.entries(AREAS).map(([k, a]) =>
+      `<button type="button" role="radio" aria-checked="${k === cur}" tabindex="${k === cur ? 0 : -1}" class="chip area-chip ${k === cur ? "on" : ""}" style="--a:${a.color}" data-value="${k}"><i class="glyph">${Icon.svg(a.icon, 14)}</i>${U.esc(a.label)}</button>`).join("")}</div>
+      <button type="button" class="chip area-add" data-act="area-new-inline">${Icon.svg("plus", 14)} Nuova area</button>
+      <input type="hidden" name="${name}" value="${cur}"></div>`;
+  },
+
+  // Finestra per creare o modificare un'area personale: nome, colore e icona, con anteprima.
+  // Restituisce { label, color, icon } oppure null se annullata.
+  areaDialog(area = null) {
+    const color = area ? area.color : AREA_COLORS.find((c) => !Object.values(AREAS).some((a) => a.color === c)) || AREA_COLORS[0];
+    const icon = area ? area.icon : "spark";
+    let form = null;
+    const radios = (name, list, cur, inner, label) => `<fieldset class="area-opts ${name}-opts"><legend class="lbl">${label}</legend>${list.map((v) =>
+      `<label class="area-opt"${name === "color" ? ` style="--a:${v}"` : ""}><input type="radio" name="${name}" value="${v}" ${v === cur ? "checked" : ""}><span>${inner(v)}</span></label>`).join("")}</fieldset>`;
+    return Dialog.open({
+      title: area ? "Modifica area" : "Nuova area",
+      body: `<form class="form dialog-form area-form">
+        <label>Nome<input name="label" autofocus autocomplete="off" maxlength="24" placeholder="Es. Famiglia, Musica, Viaggi" value="${U.esc(area ? area.label : "")}"></label>
+        ${radios("color", AREA_COLORS, color, () => "", "Colore")}
+        ${radios("icon", AREA_ICONS, icon, (v) => Icon.svg(v, 20), "Icona")}
+        <div class="area-preview" aria-hidden="true"></div>
+      </form>`,
+      actions: `<button type="button" class="btn ghost" data-dialog-cancel>Annulla</button><button type="button" class="btn primary" data-dialog-ok>${area ? "Salva" : "Crea area"}</button>`,
+      init: (box) => {
+        form = box.querySelector("form");
+        // Nome dell'icona per i lettori di schermo (l'SVG è decorativo)
+        form.querySelectorAll('input[name="color"]').forEach((r, i) => r.setAttribute("aria-label", `Colore ${i + 1}`));
+        form.querySelectorAll('input[name="icon"]').forEach((r) => r.setAttribute("aria-label", r.value));
+        const preview = () => {
+          const f = new FormData(form);
+          form.querySelector(".area-preview").innerHTML = `<span class="chip area-chip" style="--a:${f.get("color")}"><i class="glyph">${Icon.svg(f.get("icon"), 14)}</i>${U.esc(String(f.get("label") || "").trim() || "Anteprima")}</span>`;
+        };
+        form.addEventListener("input", preview);
+        form.addEventListener("change", preview);
+        preview();
+      },
+      onKey: (k) => {
+        if (k !== "ok") return null;
+        const f = new FormData(form);
+        const label = String(f.get("label") || "").trim().slice(0, 24);
+        if (!label) { U.toast("Scrivi un nome per l'area"); form.querySelector('[name="label"]').focus(); return Dialog.KEEP; }
+        const dup = Object.entries(AREAS).find(([id, a]) => a.label.toLowerCase() === label.toLowerCase() && (!area || id !== area.id));
+        if (dup) { U.toast(`Esiste già l'area «${dup[1].label}»`); form.querySelector('[name="label"]').focus(); return Dialog.KEEP; }
+        return { label, color: f.get("color"), icon: f.get("icon") };
+      }
+    });
   },
 
   // Solo l'icona SVG di un'area (senza contenitore)

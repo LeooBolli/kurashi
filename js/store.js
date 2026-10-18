@@ -218,6 +218,7 @@ const Store = {
 
   // L'indice si aggiorna subito (Calc lo usa in modo sincrono); lo schermo una volta per frame
   emit() {
+    if (typeof syncAreas === "function") syncAreas(this.settings && this.settings.customAreas);
     this.reindex();
     if (this._emitQueued) return;
     this._emitQueued = true;
