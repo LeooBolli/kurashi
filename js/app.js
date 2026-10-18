@@ -6,9 +6,9 @@ const App = {
   loaded: false,
 
   NAV: [
-    { id: "today", label: "Home", icon: "home", tab: true },
-    { id: "habits", label: "Abitudini", icon: "habit", tab: true },
-    { id: "goals", label: "Obiettivi", icon: "goal", tab: true },
+    { id: "today", label: "Home", icon: "home" },
+    { id: "habits", label: "Abitudini", icon: "habit" },
+    { id: "goals", label: "Obiettivi", icon: "goal" },
     { id: "insights", label: "Statistiche", icon: "chart" },
     { id: "focus", label: "Focus", icon: "clock" },
     { id: "body", label: "Benessere", icon: "heart" },
@@ -17,6 +17,21 @@ const App = {
     { id: "reading", label: "Lettura", icon: "book" },
     { id: "settings", label: "Impostazioni", icon: "gear" }
   ],
+
+  // Sezioni che non si possono spegnere. Le altre le accende e spegne ogni utente
+  // da Impostazioni (settings.data.hiddenSections): la sua navigazione è solo sua.
+  ALWAYS: ["today", "settings"],
+  // Pulsanti "Registra" / Azioni rapide → sezione a cui appartengono
+  ACT_SECTION: {
+    "habit-new": "habits", "goal-new": "goals", "weight-add": "body", "workout-add": "body", "mood-add": "body",
+    "sleep-add": "body", "food-quick": "food", "read-add": "reading", "focus-start": "focus"
+  },
+
+  isOn(id) { return this.ALWAYS.includes(id) || !(Store.settings.hiddenSections || []).includes(id); },
+  actOn(act) { return !this.ACT_SECTION[act] || this.isOn(this.ACT_SECTION[act]); },
+  nav() { return this.NAV.filter((n) => this.isOn(n.id)); },
+  // Telefono: Home + le prime due sezioni accese nella barra in basso, le altre in "Altro"
+  tabs() { return [this.NAV[0], ...this.nav().filter((n) => !this.ALWAYS.includes(n.id)).slice(0, 2)]; },
 
   views() {
     return { today: Today, habits: Habits, goals: Goals, insights: Insights, focus: Focus, body: Body, food: Food, recall: Recall, reading: Reading, settings: Settings };
@@ -64,15 +79,17 @@ const App = {
   },
 
   buildNav() {
-    const tabs = this.NAV.filter((n) => n.tab);
+    this._navKey = (Store.settings.hiddenSections || []).join();
+    const tabs = this.tabs();
     const item = (n, cls) => `<button class="${cls}" data-act="go" data-id="${n.id}">${Icon.svg(n.icon, 22)}<span>${n.label}</span></button>`;
-    document.getElementById("sidebar-nav").innerHTML = this.NAV.map((n) => item(n, "nav-item")).join("");
+    document.getElementById("sidebar-nav").innerHTML = this.nav().map((n) => item(n, "nav-item")).join("");
     // Telefono: Home · Abitudini · + · Obiettivi · Altro (le altre sezioni in una griglia)
+    // Cinque posti fissi (2 · + · 2): con poche sezioni accese i posti vuoti restano vuoti, il + resta al centro
+    const left = tabs.slice(0, 2).map((n) => item(n, "tab"));
+    const right = [...tabs.slice(2).map((n) => item(n, "tab")), `<button class="tab" data-act="more" id="tab-more" aria-haspopup="dialog">${Icon.svg("apps", 22)}<span>Altro</span></button>`];
+    const pad = (a) => [...a, ...Array(Math.max(0, 2 - a.length)).fill(`<span aria-hidden="true"></span>`)].join("");
     document.getElementById("tabbar").innerHTML =
-      tabs.slice(0, 2).map((n) => item(n, "tab")).join("") +
-      `<button class="fab" data-act="quick-add" aria-label="Registra">${Icon.svg("plus", 26)}</button>` +
-      tabs.slice(2).map((n) => item(n, "tab")).join("") +
-      `<button class="tab" data-act="more" id="tab-more" aria-haspopup="dialog">${Icon.svg("apps", 22)}<span>Altro</span></button>`;
+      pad(left) + `<button class="fab" data-act="quick-add" aria-label="Registra">${Icon.svg("plus", 26)}</button>` + pad(right);
   },
 
   updateNav() {
@@ -81,7 +98,7 @@ const App = {
       b.classList.toggle("on", on);
       if (b.closest("#sidebar-nav, #tabbar")) { if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); }
     });
-    const inTabs = this.NAV.some((n) => n.tab && n.id === this.view);
+    const inTabs = this.tabs().some((n) => n.id === this.view);
     const more = document.getElementById("tab-more");
     if (more) more.classList.toggle("on", !inTabs);
     const cur = this.NAV.find((n) => n.id === this.view);
@@ -92,12 +109,14 @@ const App = {
   },
 
   go(view) {
+    if (this.views()[view] && !this.isOn(view)) return U.toast("Questa sezione è spenta: la riattivi da Impostazioni");
     if (!this.views()[view]) view = "today";
     if (location.hash === "#/" + view) this.route(); else location.hash = "#/" + view;
   },
 
   route() {
-    const v = (location.hash.match(/^#\/(\w+)/) || [])[1];
+    let v = (location.hash.match(/^#\/(\w+)/) || [])[1];
+    if (v && this.loaded && !this.isOn(v)) v = "today";
     const changed = this.views()[v] && v !== this.view;
     this.view = this.views()[v] ? v : "today";
     if (Sheet.isOpen()) Sheet.close();
@@ -107,6 +126,9 @@ const App = {
 
   render() {
     if (!this.loaded) return;
+    // Sezioni accese o spente (anche da un altro dispositivo): rifaccio la navigazione
+    if ((Store.settings.hiddenSections || []).join() !== this._navKey) this.buildNav();
+    if (!this.isOn(this.view)) { this.view = "today"; history.replaceState(null, "", "#/today"); }
     const el = document.getElementById("view");
     const y = window.scrollY;
     el.className = "view view-" + this.view;
@@ -148,7 +170,8 @@ const App = {
 
 // "Altro" (telefono): le sezioni che non stanno nella barra in basso
 Actions["more"] = () => {
-  const items = App.NAV.filter((n) => !n.tab);
+  const inTabs = App.tabs().map((n) => n.id);
+  const items = App.nav().filter((n) => !inTabs.includes(n.id));
   Sheet.open({
     title: "Altre sezioni",
     body: `<div class="more-grid">${items.map((n, i) => `<button class="quick c${i % 2 + 1} ${n.id === App.view ? "on" : ""}" data-act="go" data-id="${n.id}" data-close="1" ${n.id === App.view ? 'aria-current="page"' : ""}>${Icon.svg(n.icon, 24)}<span>${n.label}</span></button>`).join("")}</div>`
@@ -162,7 +185,7 @@ Actions["quick-add"] = () => {
   const items = [
     ["habit", "Abitudine", "habit-new", 1], ["goal", "Obiettivo", "goal-new", 1], ["scale", "Peso", "weight-add", 2], ["dumbbell", "Allenamento", "workout-add", 2],
     ["bowl", "Pasto", "food-quick", 2], ["smile", "Umore", "mood-add", 1], ["moon", "Sonno", "sleep-add", 1], ["book", "Da leggere", "read-add", 2]
-  ];
+  ].filter(([, , act]) => App.actOn(act));
   Sheet.open({
     title: "Registra",
     body: `<div class="quick-grid">${items.map(([ic, l, act, c]) => `<button class="quick c${c}" data-act="${act}">${Icon.svg(ic, 24)}<span>${l}</span></button>`).join("")}</div>`
