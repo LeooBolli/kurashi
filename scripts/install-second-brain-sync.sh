@@ -23,8 +23,8 @@ fi
 
 [ -d "$VAULT" ] || { echo "Vault non trovato: $VAULT (imposta KURASHI_VAULT)"; exit 1; }
 [ -x "$PYTHON" ] || PYTHON="$(command -v python3)"
-EMAIL="$(sed -n 's/.*ALLOWED_EMAIL: *"\([^"]*\)".*/\1/p' "$APP_DIR/js/config.js")"
-[ -n "$EMAIL" ] || { echo "ALLOWED_EMAIL mancante in js/config.js"; exit 1; }
+# L'account "owner" di USERS in js/config.js (lo stesso che usa la sync)
+EMAIL="$("$PYTHON" "$APP_DIR/scripts/sync_second_brain.py" --print-email)" || exit 1
 
 echo "Password di Supabase per $EMAIL: te la chiede il Portachiavi (due volte, non compare a schermo)."
 # "-w" per ultimo e senza valore: è "security" a chiedere la password, così non finisce

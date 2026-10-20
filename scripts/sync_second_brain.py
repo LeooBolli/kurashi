@@ -55,10 +55,13 @@ def read_app_config():
         m = re.search(rf'{name}\s*:\s*"([^"]*)"', text)
         return m.group(1).strip() if m else ""
 
-    cfg = {"url": field("SUPABASE_URL").rstrip("/"), "key": field("SUPABASE_ANON_KEY"), "email": field("ALLOWED_EMAIL")}
+    # Le evidenziazioni vanno sull'account "owner" di USERS (KURASHI_EMAIL per forzarne un altro)
+    owner = re.search(r'"([^"\s]+@[^"\s]+)"\s*:\s*\{[^}]*\bowner\s*:\s*true', text)
+    email = os.environ.get("KURASHI_EMAIL") or (owner.group(1) if owner else "")
+    cfg = {"url": field("SUPABASE_URL").rstrip("/"), "key": field("SUPABASE_ANON_KEY"), "email": email.strip().lower()}
     missing = [k for k, v in cfg.items() if not v]
     if missing:
-        sys.exit(f"js/config.js incompleto: mancano {', '.join(missing)} (url = SUPABASE_URL)")
+        sys.exit(f"js/config.js incompleto: mancano {', '.join(missing)} (url = SUPABASE_URL, email = utente owner in USERS)")
     return cfg
 
 
@@ -207,7 +210,12 @@ def main():
     ap.add_argument("--exclude", action="append", default=[], help="cartella di primo livello da ignorare")
     ap.add_argument("--dry-run", action="store_true", help="mostra cosa farebbe, senza scrivere")
     ap.add_argument("--force", action="store_true", help="consente cancellazioni massicce")
+    ap.add_argument("--print-email", action="store_true", help="stampa l'email usata per la sync ed esce")
     args = ap.parse_args()
+
+    if args.print_email:
+        print(read_app_config()["email"])
+        return
 
     vault = Path(args.vault).expanduser()
     if not vault.is_dir():
