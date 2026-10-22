@@ -78,13 +78,24 @@ function touchedBy(table) {
 // undefined non sopravvive al JSON: lo trasformo in null così la chiave si azzera anche sul server
 const jsonPatch = (patch) => Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v === undefined ? null : v]));
 
+// Subito dopo il rinnovo del token, a volte il server dei dati ha l'orologio una frazione di
+// secondo indietro rispetto a quello che ha emesso il token e lo rifiuta ("JWT issued at future").
+// Non è una sessione scaduta: aspetto un attimo e riprovo la stessa lettura.
+async function sbRead(query) {
+  for (let i = 0; ; i++) {
+    const res = await query();
+    if (!res.error || i >= 2 || !/issued at future/i.test(res.error.message || "")) return res;
+    await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+  }
+}
+
 const SbBackend = {
   async fetchAll(table) {
     // Supabase restituisce al massimo 1000 righe per richiesta: pagino.
     let out = [], from = 0;
     for (;;) {
-      const { data, error } = await sb.from(table).select("*")
-        .order("created_at", { ascending: true }).order("id").range(from, from + 999);
+      const { data, error } = await sbRead(() => sb.from(table).select("*")
+        .order("created_at", { ascending: true }).order("id").range(from, from + 999));
       if (error) throw error;
       out = out.concat(data);
       if (data.length < 1000) return out;
@@ -116,7 +127,7 @@ const SbBackend = {
     if (error) throw error;
   },
   async getSettings() {
-    const { data, error } = await sb.from("settings").select("data").maybeSingle();
+    const { data, error } = await sbRead(() => sb.from("settings").select("data").maybeSingle());
     if (error) throw error;
     return (data && data.data) || {};
   },
