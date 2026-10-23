@@ -77,7 +77,8 @@ vault .md  ──(scripts/sync_second_brain.py)──▶  Supabase  ──(realt
 ```
 
 1. Esegui `supabase/schema.sql` (ha la tabella `highlights`; è sicuro rieseguirlo).
-2. Compila `js/config.js` (URL, chiave publishable, email).
+2. Compila `js/config.js` (URL, chiave publishable, utenti): le evidenziazioni vanno
+   all'utente con `owner: true`.
 3. Nel terminale: `./scripts/install-second-brain-sync.sh`. Salva la password nel
    **Portachiavi di macOS** (mai in un file), fa una prima sincronizzazione e installa un
    LaunchAgent che riparte **quando cambia qualcosa nel vault** e comunque ogni 30 minuti.
