@@ -1,5 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#F6F2EA"/>
-  <rect x="96" y="96" width="320" height="320" rx="72" fill="#F08A48" transform="rotate(-4 256 256)"/>
-  <text x="256" y="338" font-family="'Hiragino Mincho ProN','Yu Mincho',serif" font-size="230" font-weight="700" fill="#fff" text-anchor="middle" transform="rotate(-4 256 256)">暮</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" >
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7A266"/><stop offset="1" stop-color="#E9762C"/></linearGradient>
+<radialGradient id="hl" cx=".5" cy="0" r=".9"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+<filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#8A3A0A" flood-opacity=".28"/></filter>
+</defs>
+<rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+<rect width="1024" height="1024" rx="230" fill="url(#hl)"/>
+<text x="512" y="520" dominant-baseline="central" text-anchor="middle" font-family="'Hiragino Mincho ProN','Yu Mincho',serif" font-weight="700" font-size="580" fill="#fff" filter="url(#sh)">暮</text>
 </svg>
