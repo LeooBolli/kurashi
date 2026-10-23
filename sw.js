@@ -3,7 +3,7 @@
 // Le chiamate a Supabase e agli altri domini non vengono mai toccate.
 // ============================================================
 // Cambiare il numero ad ogni modifica dei file: forza il download dei nuovi.
-const CACHE_NAME = "kurashi-v26";
+const CACHE_NAME = "kurashi-v27";
 const APP_SHELL = [
   "./", "./index.html", "./css/style.css", "./css/dashboard.css", "./css/views.css", "./manifest.json",
   "./icons/icon.svg", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
