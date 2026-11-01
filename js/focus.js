@@ -105,6 +105,9 @@ const Focus = {
     App.render();
   },
 
+  // Sessione non collegata a niente (dai widget della Home)
+  startFree(min) { this.minutes = min; this.link = ""; this.start(); },
+
   startTicker() {
     clearInterval(this.timer);
     this.timer = setInterval(() => this.tick(), 1000);
@@ -163,11 +166,63 @@ const Focus = {
     App.render();
   },
 
+  // ---------- esami ----------
+  // Il piano di oggi: quanto studiare e su cosa. Compare solo con esami che hanno data e ore.
+  planHTML(running) {
+    const plan = Calc.examPlan(), due = U.sum(plan.map((x) => x.due));
+    if (!plan.length) return `<section class="card study-plan"><div class="block-head"><h2 class="h3">Il piano di oggi</h2></div><p class="muted small">Apri un esame e aggiungi data e ore previste: qui vedrai quanto studiare ogni giorno.</p></section>`;
+    return `<section class="card study-plan">
+      <div class="block-head"><h2 class="h3">Il piano di oggi</h2><span class="muted small">${due ? `${U.fmtMin(due)} da fare` : "Fatto per oggi"}</span></div>
+      <ul>${plan.map(({ m, due: d, days }) => `<li><span class="study-t"><b>${U.esc(m.title)}</b><small>${d ? U.fmtMin(d) : "Fatto"} · tra ${days} ${days === 1 ? "giorno" : "giorni"}</small></span>${running ? "" : this.playBtn(m)}</li>`).join("")}</ul>
+    </section>`;
+  },
+  playBtn(m) { return `<button class="icon-btn study-go" data-act="study-start" data-id="${U.esc(m.id)}" aria-label="Inizia a studiare ${U.esc(m.title)}">${Icon.svg("playFill", 18)}</button>`; },
+  examRow(m, running) {
+    const min = Calc.examMin(m), hours = Number(m.exam_hours) || 0, pct = Math.round(Calc.msPct(m)), g = Store.d.goals.find((x) => x.id === m.goal_id);
+    const days = m.exam_date ? U.diffDays(U.today(), m.exam_date) : null;
+    const when = !m.exam_date ? "Data da fissare" : days < 0 ? `Appello passato: ${U.fmtShort(m.exam_date)}` : days === 0 ? "Oggi" : `${U.fmtShort(m.exam_date)} · tra ${days} ${days === 1 ? "giorno" : "giorni"}`;
+    return `<li class="study-row">
+      <button class="study-main" data-act="study-exam" data-id="${U.esc(m.id)}">
+        <span class="study-t"><b>${U.esc(m.title)}</b><small>${when}${g ? "" : " · Esterno"}</small></span>
+        <span class="study-n"><b>${U.fmtMin(min)}${hours ? ` / ${U.num(hours)} h` : ""}</b><small>${pct}% argomenti</small></span>
+        ${hours ? Charts.bar({ value: (min / (hours * 60)) * 100, color: "var(--blue-500)", h: 4 }) : ""}
+      </button>
+      ${running ? "" : this.playBtn(m)}
+    </li>`;
+  },
+  examsHTML(running) {
+    const list = Calc.exams(), past = Calc.examsPassed();
+    return `<section class="card study-exams">
+      <div class="block-head"><h2 class="h3">Esami</h2><span class="muted small">${list.length} da sostenere</span></div>
+      ${list.length ? `<ul>${list.map((m) => this.examRow(m, running)).join("")}</ul>` : `<p class="muted small">Nessun esame: aggiungine uno, o trasforma in esame una tappa di un obiettivo.</p>`}
+      ${past.length ? `<div class="study-past"><h3>Superati</h3><div class="chips-row">${past.map((m) => `<button class="chip link" data-act="study-exam" data-id="${U.esc(m.id)}">${U.esc(m.title)} · ${U.esc(m.exam_grade)}</button>`).join("")}</div></div>` : ""}
+    </section>`;
+  },
+  // Esame indipendente: nessun obiettivo, gli argomenti si aggiungono poi nella sua scheda
+  async newExam() {
+    let form = null;
+    const v = await Dialog.open({
+      title: "Nuovo esame",
+      text: "Per esami e certificazioni fuori dall'università. Quelli di un obiettivo si creano dalle sue tappe.",
+      body: `<form class="form dialog-form"><label>Nome<input name="title" autofocus maxlength="120" autocomplete="off"></label>
+        <div class="row2"><label>Data<input type="date" name="date"></label><label>Ore previste<input type="number" name="hours" min="0" max="2000" step="0.5" inputmode="decimal"></label></div></form>`,
+      actions: `<button type="button" class="btn ghost" data-dialog-cancel>Annulla</button><button type="button" class="btn primary" data-dialog-ok>Crea esame</button>`,
+      init: (box) => { form = box.querySelector("form"); },
+      onKey: (k) => {
+        if (k !== "ok") return null;
+        const f = new FormData(form), title = String(f.get("title") || "").trim();
+        if (!title) { U.toast("Scrivi il nome dell'esame"); return Dialog.KEEP; }
+        return { title, date: f.get("date") || null, hours: f.get("hours") ? Number(f.get("hours")) : null };
+      }
+    });
+    if (v) Store.insert("milestones", { goal_id: null, title: v.title, is_exam: true, exam_date: v.date, exam_hours: v.hours, done: false, done_at: null, position: 0 });
+  },
+
   // ---------- vista ----------
   linkOptions() {
     const goals = Calc.activeGoals();
     const habits = Calc.activeHabits().filter((h) => h.kind === "qty" && (h.unit || "").toLowerCase().startsWith("min"));
-    const exams = Store.d.milestones.filter((m) => m.is_exam);
+    const exams = Calc.exams();
     return `<option value="">Nessun collegamento</option>
       ${goals.length ? `<optgroup label="Obiettivo">${goals.map((g) => `<option value="g:${g.id}" ${this.link === "g:" + g.id ? "selected" : ""}>${U.esc(g.title)}</option>`).join("")}</optgroup>` : ""}
       ${exams.length ? `<optgroup label="Esame">${exams.map((m) => `<option value="m:${m.id}" ${this.link === "m:" + m.id ? "selected" : ""}>${U.esc(m.title)}</option>`).join("")}</optgroup>` : ""}
@@ -211,9 +266,10 @@ const Focus = {
 
     el.innerHTML = `
       <div class="page-head">
-        <div><p class="eyebrow">Focus</p><h1 class="title">Tempo di <em>concentrazione</em></h1></div>
+        <div><p class="eyebrow">Studio</p><h1 class="title">Verso gli <em>esami</em></h1></div>
+        <button class="btn ghost" data-act="exam-new">${Icon.svg("plus", 16)}<span>Nuovo esame</span></button>
       </div>
-
+      ${running ? "" : `${this.planHTML(false)}${this.examsHTML(false)}`}
       <div class="focus-layout">
         <section class="card timer-card ${running ? "running" : ""}" aria-label="Timer">
           <div class="timer">
@@ -272,6 +328,7 @@ const Focus = {
           </section>
         </div>
       </div>
+      ${running ? `${this.planHTML(true)}${this.examsHTML(true)}` : ""}
       ${this.lockOverlay && running ? `<div class="lock-overlay" role="dialog" aria-label="Blocco schermo">
         <div class="lock-card">${Icon.svg("lock", 34)}
           <h2>Blocca pure lo schermo</h2>
@@ -282,6 +339,11 @@ const Focus = {
 };
 
 Actions["focus-start"] = () => Focus.start();
+Actions["exam-new"] = () => Focus.newExam();
+Actions["study-exam"] = (el) => Goals.openExam(el.dataset.id);
+// Dalla scheda di un esame: lo prepara nel timer senza farlo partire
+Actions["study-pick"] = (el) => { Focus.link = "m:" + el.dataset.id; App.go("focus"); };
+Actions["study-start"] = (el) => { if (Focus.run) return; Focus.link = "m:" + el.dataset.id; Focus.start(); window.scrollTo(0, 0); };
 Actions["focus-lock"] = () => Focus.lockNow();
 Actions["focus-lock-cancel"] = () => Focus.cancelLock();
 Actions["focus-giveup"] = async () => {

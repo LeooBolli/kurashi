@@ -34,7 +34,7 @@ const Today = (() => {
 
   const SIZE_NAMES = { c: "Cerchio", s: "Piccolo", p: "Capsula", mh: "Medio orizzontale", mv: "Medio verticale", lh: "Grande orizzontale", lv: "Grande verticale" };
   const SIZE_ORDER = ["c", "s", "p", "mh", "mv", "lh", "lv"];
-  const NEW_WIDGETS = ["nextHabit", "points", "workouts", "deadline", "clock", "exam", "toRead", "quick", "heat", "finMonth", "finAreas", "finTrend", "finTodo", "finTop", "finBalance", "finYear", "finVsAvg", "finGroup", "finTrips", "finSave", "finCompare", "finBudget", "finRenew", "finSubs"];
+  const NEW_WIDGETS = ["nextHabit", "points", "workouts", "deadline", "clock", "exam", "toRead", "quick", "heat", "finMonth", "finAreas", "finTrend", "finTodo", "finTop", "finBalance", "finYear", "finVsAvg", "finGroup", "finTrips", "finSave", "finCompare", "finBudget", "finRenew", "finSubs", "studyToday"];
   const unseenNew = () => { const seen = Store.cfg().seenWidgets || []; const used = new Set((st.layout || []).map((l) => l.type)); return NEW_WIDGETS.filter((k) => !seen.includes(k) && !used.has(k) && sectionOn(k)); };
   const sizeIcon = (s) => ({ c: '<circle cx="12" cy="9" r="7.5"/>', p: '<rect x="1" y="4.5" width="22" height="9" rx="4.5"/>', s: '<rect x="7" y="4" width="10" height="10" rx="3"/>', mh: '<rect x="2" y="5" width="20" height="9" rx="3"/>', mv: '<rect x="7" y="1" width="10" height="16" rx="3"/>', lh: '<rect x="1" y="2" width="22" height="14" rx="3"/>', lv: '<rect x="4" y="0.5" width="16" height="17" rx="3"/>' })[s];
   // Lo Storico parte compatto: la settimana su telefono, il mese a pallini sugli schermi larghi
@@ -265,7 +265,7 @@ const Today = (() => {
   const minOf = (o) => Number(o && o.min) || (focusOk() ? Focus.minutes : 25);
   const remainingSec = (o) => (focusOk() && Focus.run ? Focus.run.durationMin * 60 - Focus.elapsedSec() : minOf(o) * 60);
   // avvio dal widget: con la durata scelta per quel widget (se c'è)
-  const startBtn = (o, cls, size) => `<button type="button" ${cls ? `class="${cls}"` : ""} data-act="dash-focus" data-min="${minOf(o)}" aria-label="Avvia una sessione di ${minOf(o)} minuti">${ic("play", size, 2.6)}</button>`;
+  const startBtn = (o, cls, size) => `<button type="button" ${cls ? `class="${cls}"` : ""} data-act="dash-focus" ${o && o.min ? `data-min="${o.min}" aria-label="Avvia una sessione di ${o.min} minuti"` : `aria-label="Scegli i minuti e avvia una sessione"`}>${ic("play", size, 2.6)}</button>`;
 
   function weightSeries() {
     const logs = [...Store.d.weight_logs].sort((a, b) => a.log_date.localeCompare(b.log_date));
@@ -666,7 +666,7 @@ const Today = (() => {
     },
     quick: {
       title: "Azioni rapide", icon: "bolt", sizes: ["s", "p", "mh"],
-      acts: [["scale", "Peso", "weight-add"], ["run", "Allenamento", "workout-add"], ["bowl", "Pasto", "food-quick"], ["timer", "Focus", "focus-start"], ["book", "Da leggere", "read-add"], ["habit", "Abitudine", "habit-new"]],
+      acts: [["scale", "Peso", "weight-add"], ["run", "Allenamento", "workout-add"], ["bowl", "Pasto", "food-quick"], ["timer", "Focus", "dash-focus"], ["book", "Da leggere", "read-add"], ["habit", "Abitudine", "habit-new"]],
       render(sz) {
         const n = sz === "s" ? 4 : sz === "p" ? 5 : 6;
         const btns = this.acts.filter(([, , a]) => App.actOn(a)).slice(0, n).map(([i, l, a]) => `<button type="button" class="d-qa" data-act="${a}" aria-label="${l}"><span>${ic(i, 20)}</span>${sz === "s" ? "" : `<small>${l}</small>`}</button>`).join("");
@@ -750,6 +750,24 @@ const Today = (() => {
         const x = this.data();
         if (!x) return { html: head("wallet", "Saldo del mese") + `<div class="d-wb">${empty("Compila le entrate per vedere il saldo.", cta("Compila", "finance-open"))}</div>` };
         return { html: head("wallet", "Saldo del mese", x.name) + `<div class="d-wb end">${big(x.sign + x.value, "€")}<span class="d-cap">${x.detail}</span></div>` };
+      }
+    },
+    studyToday: {
+      title: "Studio di oggi", icon: "cap", sizes: ["c", "s", "p", "mh"], go: "focus",
+      data() {
+        const plan = Calc.examPlan(), due = U.sum(plan.map((x) => x.due)), now = plan.find((x) => x.due > 0);
+        return { plan, due, now, exams: Calc.exams().length };
+      },
+      val: (m) => (m < 60 ? [m, "min"] : [U.num(m / 60, 1), "h"]),
+      mini() {
+        const x = this.data(), [v, u] = this.val(x.due);
+        if (!x.plan.length) return { icon: "cap", title: "Studio di oggi", value: x.exams, unit: x.exams === 1 ? "esame" : "esami", cap: "Aggiungi date e ore", p: null };
+        return { icon: "cap", title: "Studio di oggi", value: x.due ? v : "Fatto", unit: x.due ? u : "", cap: x.now ? esc(x.now.m.title) : "Piano completato", p: null };
+      },
+      render(sz) {
+        const x = this.data(), [v, u] = this.val(x.due);
+        if (!x.plan.length) return { html: head("cap", "Studio di oggi") + `<div class="d-wb">${empty("Aggiungi data e ore ai tuoi esami.")}</div>` };
+        return { html: head("cap", "Studio di oggi", x.now ? "" : "Piano completato") + `<div class="d-wb end">${big(x.due ? v : "Fatto", x.due ? u : "")}<span class="d-cap">${x.now ? esc(x.now.m.title) : `${x.exams} ${x.exams === 1 ? "esame" : "esami"} in programma`}</span></div>` };
       }
     },
     finYear: {
@@ -1384,4 +1402,20 @@ Actions["dash-meal"] = (el) => {
   Food.syncHabit([today]);
 };
 // Sessione di focus dal widget, con la durata scelta per quel widget
-Actions["dash-focus"] = (el) => { if (el.dataset.min) Focus.minutes = Number(el.dataset.min); Focus.start(); };
+// Dalla Home la sessione è libera, mai collegata a un esame. Con la durata fissata in Personalizza
+// parte subito, altrimenti si scelgono i minuti.
+Actions["dash-focus"] = (el) => {
+  if (el.dataset.min) return Focus.startFree(Number(el.dataset.min));
+  Sheet.open({
+    title: "Quanti minuti?",
+    body: `<div class="dur">${[15, 25, 45, 60].map((m) => `<button class="pill ${Focus.minutes === m ? "on" : ""}" data-act="dash-focus-min" data-min="${m}" data-close="1">${m} min</button>`).join("")}</div>
+      <form class="inline-add dash-min-form" data-act-submit="dash-focus-custom"><input type="number" name="min" min="1" max="180" inputmode="numeric" placeholder="Altri minuti" aria-label="Altri minuti"><button class="btn ghost sm" type="submit">Avvia</button></form>`
+  });
+};
+Actions["dash-focus-min"] = (el) => Focus.startFree(Number(el.dataset.min));
+Actions["dash-focus-custom"] = (form) => {
+  const m = Math.round(Number(form.elements.min.value));
+  if (!(m >= 1 && m <= 180)) return U.toast("Scegli tra 1 e 180 minuti");
+  Sheet.close();
+  Focus.startFree(m);
+};
