@@ -209,3 +209,10 @@ ul:is(.fin-groups), .fin-table ul, .fin-manage ul { list-style: none; margin: 0;
 .study-slot-form { margin-top: 14px; }
 .dash-min-form { margin-top: 14px; }
 .study-hero .study-t b { white-space: normal; }
+.study-timer { display: grid; gap: 12px; margin-bottom: 16px; }
+.study-timer-row { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; }
+.study-timer-time { font: 600 40px/1 var(--display); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.study-timer .dur { justify-content: flex-end; }
+.study-timer .link-sel { flex: 1 1 200px; min-width: 0; margin: 0; }
+.study-timer .result { margin: 0; }
+.focus-layout.idle { grid-template-columns: minmax(0, 1fr); }
