@@ -10,7 +10,7 @@ const App = {
     { id: "habits", label: "Abitudini", icon: "habit" },
     { id: "goals", label: "Obiettivi", icon: "goal" },
     { id: "insights", label: "Statistiche", icon: "chart" },
-    { id: "focus", label: "Focus", icon: "clock" },
+    { id: "focus", label: "Studio", icon: "cap" },
     { id: "body", label: "Benessere", icon: "heart" },
     { id: "food", label: "Alimentazione", icon: "bowl" },
     { id: "recall", label: "Riscoperte", icon: "quote" },
@@ -27,7 +27,7 @@ const App = {
   // Pulsanti "Registra" / Azioni rapide → sezione a cui appartengono
   ACT_SECTION: {
     "habit-new": "habits", "goal-new": "goals", "weight-add": "body", "workout-add": "body", "mood-add": "body",
-    "sleep-add": "body", "food-quick": "food", "read-add": "reading", "focus-start": "focus", "finance-open": "finance"
+    "sleep-add": "body", "food-quick": "food", "read-add": "reading", "focus-start": "focus", "dash-focus": "focus", "finance-open": "finance"
   },
 
   isOn(id) {

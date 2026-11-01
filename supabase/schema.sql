@@ -32,7 +32,7 @@ create table if not exists goals (
 create table if not exists milestones (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  goal_id uuid not null references goals(id) on delete cascade,
+  goal_id uuid references goals(id) on delete cascade, -- vuoto = esame indipendente
   title text not null,
   done boolean not null default false,
   done_at timestamptz,
@@ -413,3 +413,7 @@ notify pgrst, 'reload schema';
 -- "il primo lunedì del mese", ogni N giorni, o N volte a settimana/mese (vedi Calc.rep in js/calc.js).
 -- Senza valore resta il comportamento di sempre (solo h.days).
 alter table habits add column if not exists repeat jsonb;
+
+-- Studio: esami senza obiettivo (goal_id vuoto) e ore di studio previste
+alter table milestones alter column goal_id drop not null;
+alter table milestones add column if not exists exam_hours numeric(6,1);

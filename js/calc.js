@@ -245,6 +245,24 @@ const Calc = {
     if (kids.length) return (kids.filter(isDone).length / kids.length) * 100;
     return isDone(m) ? 100 : 0;
   },
+  // ---------- Esami ----------
+  // Esami dell'università e indipendenti (goal_id vuoto). Superato = ha un voto.
+  exams() {
+    return Store.d.milestones.filter((m) => m.is_exam && !m.parent_id && !m.exam_grade)
+      .sort((a, b) => (a.exam_date || "9999").localeCompare(b.exam_date || "9999") || a.title.localeCompare(b.title));
+  },
+  examsPassed() { return Store.d.milestones.filter((m) => m.is_exam && !m.parent_id && m.exam_grade); },
+  examMin(m, day = null) { return U.sum(this.focusDone().filter((s) => s.milestone_id === m.id && (!day || U.dateOf(s.started_at) === day)).map((s) => s.duration_min)); },
+  // Piano del giorno: le ore che mancano divise per i giorni fino all'appello (il giorno dell'esame non conta).
+  // Servono data e ore previste; ciò che è già stato fatto oggi non sposta il calcolo, si sottrae dopo.
+  examPlan(today = U.today()) {
+    return this.exams().filter((m) => m.exam_date && m.exam_date > today && Number(m.exam_hours) > 0).map((m) => {
+      const done = this.examMin(m), todayMin = this.examMin(m, today), left = Math.max(0, Number(m.exam_hours) * 60 - (done - todayMin));
+      const days = U.diffDays(today, m.exam_date), perDay = Math.ceil(left / days / 5) * 5;
+      return { m, days, perDay, due: Math.max(0, perDay - todayMin) };
+    }).filter((x) => x.perDay > 0);
+  },
+  examPlanDue(today) { return U.sum(this.examPlan(today).map((x) => x.due)); },
   habitsOfGoal(g) { return Store.d.habits.filter((h) => h.goal_id === g.id && !h.archived); },
 
   // ---------- Periodi (obiettivi ricorrenti) ----------
