@@ -20,6 +20,8 @@ const Focus = {
   STALE_MS: 20000,
 
   minutes: 25,
+  tab: "over",        // scheda aperta nella pagina di un esame
+  refocus: null,      // fase in cui riportare il cursore dopo aver aggiunto un argomento
   link: "",           // "g:<id>" (obiettivo), "m:<id>" (esame) oppure "h:<id>" (abitudine in minuti)
   run: null,          // {startedAt, durationMin, link, lastSeen}
   result: null,       // esito dell'ultima sessione, mostrato finché non ne avvii un'altra
@@ -167,37 +169,98 @@ const Focus = {
   },
 
   // ---------- esami ----------
-  // Il piano di oggi: quanto studiare e su cosa. Compare solo con esami che hanno data e ore.
-  planHTML(running) {
-    const plan = Calc.examPlan(), due = U.sum(plan.map((x) => x.due));
-    if (!plan.length) return `<section class="card study-plan"><div class="block-head"><h2 class="h3">Il piano di oggi</h2></div><p class="muted small">Apri un esame e aggiungi data e ore previste: qui vedrai quanto studiare ogni giorno.</p></section>`;
-    return `<section class="card study-plan">
-      <div class="block-head"><h2 class="h3">Il piano di oggi</h2><span class="muted small">${due ? `${U.fmtMin(due)} da fare` : "Fatto per oggi"}</span></div>
-      <ul>${plan.map(({ m, due: d, days }) => `<li><span class="study-t"><b>${U.esc(m.title)}</b><small>${d ? U.fmtMin(d) : "Fatto"} · tra ${days} ${days === 1 ? "giorno" : "giorni"}</small></span>${running ? "" : this.playBtn(m)}</li>`).join("")}</ul>
+  playBtn(m, min) { return `<button class="icon-btn study-go" data-act="study-start" data-id="${U.esc(m.id)}" ${min ? `data-min="${min}"` : ""} aria-label="Inizia a studiare ${U.esc(m.title)}">${Icon.svg("playFill", 18)}</button>`; },
+  star(m) { return `<button class="icon-btn study-star ${m.exam_fav ? "on" : ""}" data-act="study-fav" data-id="${U.esc(m.id)}" aria-pressed="${!!m.exam_fav}" aria-label="${m.exam_fav ? "Togli dagli esami in preparazione" : "Metti tra gli esami in preparazione"}: ${U.esc(m.title)}">${Icon.svg("star", 20)}</button>`; },
+  whenText(m) {
+    const days = m.exam_date ? U.diffDays(U.today(), m.exam_date) : null;
+    return !m.exam_date ? "Data da fissare" : days < 0 ? `Appello passato: ${U.fmtShort(m.exam_date)}` : days === 0 ? "Oggi" : `${U.fmtShort(m.exam_date)} · tra ${days} ${days === 1 ? "giorno" : "giorni"}`;
+  },
+  hoursText(m) { return `${U.fmtMin(Calc.examMin(m))}${Number(m.exam_hours) > 0 ? ` su ${U.num(Number(m.exam_hours))} h` : ""}`; },
+
+  // Oggi: le sessioni pianificate e quanto serve per restare in pari
+  todayHTML(running) {
+    const today = U.today(), slots = Calc.slotsOn(today), plan = Calc.examPlan(today), due = U.sum(plan.map((x) => x.due));
+    const need = plan.length ? `<p class="muted small">${due ? `Per restare in pari: ${U.fmtMin(due)} oggi` : "Sei in pari per oggi"}${plan.length > 1 ? ` su ${plan.length} esami` : ""}.</p>` : "";
+    return `<section class="card study-block">
+      <div class="block-head"><h2 class="h3">Oggi</h2></div>
+      ${slots.length ? `<ul class="study-slots">${slots.map((s) => `<li class="${s.done ? "done" : ""}"><span class="study-time">${U.esc(s.time)}</span><span class="study-t"><b>${U.esc(s.m.title)}</b><small>${s.done ? "Fatta" : U.fmtMin(s.min)}</small></span>${running || s.done ? "" : this.playBtn(s.m, s.min)}</li>`).join("")}</ul>` : `<p class="muted small">Nessuna sessione pianificata oggi.</p>`}
+      ${need}
     </section>`;
   },
-  playBtn(m) { return `<button class="icon-btn study-go" data-act="study-start" data-id="${U.esc(m.id)}" aria-label="Inizia a studiare ${U.esc(m.title)}">${Icon.svg("playFill", 18)}</button>`; },
-  examRow(m, running) {
-    const min = Calc.examMin(m), hours = Number(m.exam_hours) || 0, pct = Math.round(Calc.msPct(m)), g = Store.d.goals.find((x) => x.id === m.goal_id);
-    const days = m.exam_date ? U.diffDays(U.today(), m.exam_date) : null;
-    const when = !m.exam_date ? "Data da fissare" : days < 0 ? `Appello passato: ${U.fmtShort(m.exam_date)}` : days === 0 ? "Oggi" : `${U.fmtShort(m.exam_date)} · tra ${days} ${days === 1 ? "giorno" : "giorni"}`;
-    return `<li class="study-row">
-      <button class="study-main" data-act="study-exam" data-id="${U.esc(m.id)}">
-        <span class="study-t"><b>${U.esc(m.title)}</b><small>${when}${g ? "" : " · Esterno"}</small></span>
-        <span class="study-n"><b>${U.fmtMin(min)}${hours ? ` / ${U.num(hours)} h` : ""}</b><small>${pct}% argomenti</small></span>
-        ${hours ? Charts.bar({ value: (min / (hours * 60)) * 100, color: "var(--blue-500)", h: 4 }) : ""}
-      </button>
-      ${running ? "" : this.playBtn(m)}
+  favCard(m, running) {
+    const hours = Number(m.exam_hours) || 0, pct = Math.round(Calc.msPct(m)), min = Calc.examMin(m);
+    return `<li class="study-fav">
+      <div class="study-fav-top">${this.star(m)}<button class="study-main" data-act="study-open" data-id="${U.esc(m.id)}"><span class="study-t"><b>${U.esc(m.title)}</b><small>${this.whenText(m)}</small></span></button>${running ? "" : this.playBtn(m)}</div>
+      <div class="study-fav-num"><span>${this.hoursText(m)}</span><span>${pct}% argomenti</span></div>
+      ${hours ? Charts.bar({ value: (min / (hours * 60)) * 100, color: "var(--blue-500)", h: 5 }) : ""}
     </li>`;
   },
-  examsHTML(running) {
-    const list = Calc.exams(), past = Calc.examsPassed();
-    return `<section class="card study-exams">
-      <div class="block-head"><h2 class="h3">Esami</h2><span class="muted small">${list.length} da sostenere</span></div>
-      ${list.length ? `<ul>${list.map((m) => this.examRow(m, running)).join("")}</ul>` : `<p class="muted small">Nessun esame: aggiungine uno, o trasforma in esame una tappa di un obiettivo.</p>`}
-      ${past.length ? `<div class="study-past"><h3>Superati</h3><div class="chips-row">${past.map((m) => `<button class="chip link" data-act="study-exam" data-id="${U.esc(m.id)}">${U.esc(m.title)} · ${U.esc(m.exam_grade)}</button>`).join("")}</div></div>` : ""}
-    </section>`;
+  weekHTML() {
+    const mon = U.mondayOf(U.today()), today = U.today();
+    const days = U.range(mon, U.addDays(mon, 6)).map((d) => { const s = Calc.slotsOn(d); return { d, s, min: U.sum(s.map((x) => x.min)) }; });
+    if (!days.some((x) => x.s.length)) return "";
+    return `<section class="card study-block"><div class="block-head"><h2 class="h3">La settimana</h2><span class="muted small">${U.fmtMin(U.sum(days.map((x) => x.min)))} pianificate</span></div>
+      <div class="study-week">${days.map((x) => `<div class="${x.d === today ? "today" : ""}"><b>${U.DOW_SHORT[U.dow(x.d) - 1]}</b><span>${x.min ? U.fmtMin(x.min) : "–"}</span></div>`).join("")}</div></section>`;
   },
+  // In cima i preferiti, subito visibili; in fondo tutti gli esami, preferiti compresi
+  boardHTML(running) {
+    const all = Calc.exams(), favs = all.filter((m) => m.exam_fav), past = Calc.examsPassed();
+    return `<section class="card study-block"><div class="block-head"><h2 class="h3">In preparazione</h2>${favs.length ? `<span class="muted small">${favs.length}</span>` : ""}</div>
+        ${favs.length ? `<ul class="study-favs">${favs.map((m) => this.favCard(m, running)).join("")}</ul>` : `<p class="muted small">Tocca la stella sugli esami che stai preparando: li ritrovi qui.</p>`}
+      </section>
+      ${favs.length ? this.todayHTML(running) : ""}
+      ${this.weekHTML()}
+      <section class="card study-block">
+        <div class="block-head"><h2 class="h3">Tutti gli esami</h2><span class="muted small">${all.length}</span></div>
+        ${all.length ? `<ul class="study-rest">${all.map((m) => `<li>${this.star(m)}<button class="study-main" data-act="study-open" data-id="${U.esc(m.id)}"><span class="study-t"><b>${U.esc(m.title)}</b><small>${this.whenText(m)}${m.goal_id ? "" : " · Esterno"}</small></span>${Icon.svg("right", 16)}</button></li>`).join("")}</ul>` : `<p class="muted small">Nessun esame: aggiungine uno, o trasforma in esame una tappa di un obiettivo.</p>`}
+        ${past.length ? `<div class="study-past"><h3>Superati</h3><div class="chips-row">${past.map((m) => `<button class="chip link" data-act="study-open" data-id="${U.esc(m.id)}">${U.esc(m.title)} · ${U.esc(m.exam_grade)}</button>`).join("")}</div></div>` : ""}
+      </section>`;
+  },
+
+  // ---------- pagina del singolo esame (#/focus/<id>) ----------
+  TABS: [["over", "Panoramica"], ["topics", "Argomenti"], ["slots", "Sessioni"]],
+  examPage(el, m) {
+    // non cancello una riga che stai scrivendo se arriva un aggiornamento di fondo
+    const a = document.activeElement;
+    if (a && a.matches(".study-page .inline-add input") && a.value) return;
+    const pct = Math.round(Calc.msPct(m)), g = Store.d.goals.find((x) => x.id === m.goal_id), running = !!this.run;
+    el.innerHTML = `<div class="study-page">
+      <button class="btn ghost sm" data-act="go" data-id="focus">${Icon.svg("left", 14)} Studio</button>
+      <div class="page-head study-head"><div><p class="eyebrow">${g ? U.esc(g.title) : "Esame esterno"}</p><h1 class="title">${U.esc(m.title)}</h1><p class="sub">${this.whenText(m)}</p></div>${this.star(m)}</div>
+      <section class="card study-hero">
+        ${Charts.ring({ value: pct / 100, size: 84, stroke: 8, color: "var(--blue-500)", inner: `<b>${pct}%</b>` })}
+        <div class="study-t"><b>${this.hoursText(m)}</b><small>studiate</small></div>
+        ${running ? "" : `<button class="btn primary" data-act="study-start" data-id="${U.esc(m.id)}">${Icon.svg("play", 16)} Studia ${this.minutes} min</button>`}
+      </section>
+      <div class="seg tabs4">${this.TABS.map(([k, l]) => `<button class="${this.tab === k ? "on" : ""}" data-act="study-tab" data-id="${k}" aria-pressed="${this.tab === k}">${l}</button>`).join("")}</div>
+      <section class="card study-pane">${this[this.tab + "Pane"](m)}</section>
+    </div>`;
+    if (this.refocus) {
+      const i = el.querySelector(`[data-phase="${this.refocus}"] input`);
+      this.refocus = null;
+      if (i) i.focus({ preventScroll: true });
+    }
+  },
+  overPane(m) {
+    return `${Goals.examFormHTML(m)}
+      <div class="btn-row">${m.goal_id ? `<button class="btn ghost danger sm" data-act="ms-exam" data-id="${U.esc(m.id)}">Non è più un esame</button>` : `<button class="btn ghost danger sm" data-act="exam-delete" data-id="${U.esc(m.id)}">Elimina l'esame</button>`}</div>`;
+  },
+  topicsPane(m) { return Calc.EXAM_PHASES.map((p) => Goals.examPhaseHTML(m, p)).join(""); },
+  slotsPane(m) {
+    const slots = [...(m.exam_slots || [])].sort((a, b) => a.dow - b.dow || a.time.localeCompare(b.time));
+    const planned = U.sum(slots.map((s) => s.min)), p = Calc.examPlan().find((x) => x.m.id === m.id);
+    const note = !m.exam_fav ? "Le sessioni contano quando l'esame è tra quelli in preparazione: tocca la stella."
+      : p ? `Pianificate ${U.fmtMin(planned)} a settimana; per arrivare pronto ne servono circa ${U.fmtMin(p.perDay * 7)}.` : "Con data e ore previste vedi se le sessioni bastano.";
+    return `<p class="hint">${note}</p>
+      ${slots.length ? `<ul class="study-slots">${slots.map((s) => `<li><span class="study-time">${U.esc(s.time)}</span><span class="study-t"><b>${U.DOW_NAMES[s.dow % 7]}</b><small>${U.fmtMin(s.min)}</small></span><button class="icon-btn sm" data-act="study-slot-del" data-id="${U.esc(m.id)}" data-slot="${U.esc(s.id)}" aria-label="Elimina la sessione di ${U.DOW_NAMES[s.dow % 7]} alle ${U.esc(s.time)}">${Icon.svg("x", 16)}</button></li>`).join("")}</ul>` : ""}
+      <form class="form study-slot-form" data-act-submit="study-slot-add" data-id="${U.esc(m.id)}">
+        <div class="row2"><label>Giorno<select name="dow">${[1, 2, 3, 4, 5, 6, 7].map((d) => `<option value="${d}">${U.DOW_NAMES[d % 7]}</option>`).join("")}</select></label>
+        <label>Ora<input type="time" name="time" value="18:00" required></label></div>
+        <label>Minuti<input type="number" name="min" min="5" max="480" step="5" value="60" inputmode="numeric" required></label>
+        <button class="btn ghost sm" type="submit">${Icon.svg("plus", 14)} Aggiungi sessione</button>
+      </form>`;
+  },
+
   // Esame indipendente: nessun obiettivo, gli argomenti si aggiungono poi nella sua scheda
   async newExam() {
     let form = null;
@@ -243,6 +306,9 @@ const Focus = {
   },
 
   render(el) {
+    const examId = (location.hash.match(/^#\/focus\/([\w-]+)/) || [])[1];
+    const exam = examId && Store.d.milestones.find((x) => x.id === examId && x.is_exam);
+    if (exam) return this.examPage(el, exam);
     const today = U.today();
     const cfg = Store.cfg();
     const weekMin = Calc.focusMinutes(U.mondayOf(today), today);
@@ -269,7 +335,7 @@ const Focus = {
         <div><p class="eyebrow">Studio</p><h1 class="title">Verso gli <em>esami</em></h1></div>
         <button class="btn ghost" data-act="exam-new">${Icon.svg("plus", 16)}<span>Nuovo esame</span></button>
       </div>
-      ${running ? "" : `${this.planHTML(false)}${this.examsHTML(false)}`}
+      ${running ? "" : this.boardHTML(false)}
       <div class="focus-layout">
         <section class="card timer-card ${running ? "running" : ""}" aria-label="Timer">
           <div class="timer">
@@ -328,7 +394,7 @@ const Focus = {
           </section>
         </div>
       </div>
-      ${running ? `${this.planHTML(true)}${this.examsHTML(true)}` : ""}
+      ${running ? this.boardHTML(true) : ""}
       ${this.lockOverlay && running ? `<div class="lock-overlay" role="dialog" aria-label="Blocco schermo">
         <div class="lock-card">${Icon.svg("lock", 34)}
           <h2>Blocca pure lo schermo</h2>
@@ -340,10 +406,27 @@ const Focus = {
 
 Actions["focus-start"] = () => Focus.start();
 Actions["exam-new"] = () => Focus.newExam();
-Actions["study-exam"] = (el) => Goals.openExam(el.dataset.id);
-// Dalla scheda di un esame: lo prepara nel timer senza farlo partire
-Actions["study-pick"] = (el) => { Focus.link = "m:" + el.dataset.id; App.go("focus"); };
-Actions["study-start"] = (el) => { if (Focus.run) return; Focus.link = "m:" + el.dataset.id; Focus.start(); window.scrollTo(0, 0); };
+Actions["study-open"] = (el) => { Focus.tab = "over"; location.hash = `#/focus/${el.dataset.id}`; };
+Actions["study-tab"] = (el) => { Focus.tab = el.dataset.id; App.render(); };
+Actions["study-fav"] = (el) => { const m = Store.d.milestones.find((x) => x.id === el.dataset.id); if (m) Store.update("milestones", m.id, { exam_fav: !m.exam_fav }); };
+Actions["study-start"] = (el) => {
+  if (Focus.run) return;
+  Focus.link = "m:" + el.dataset.id;
+  if (el.dataset.min) Focus.minutes = Number(el.dataset.min);
+  Focus.start();
+  App.go("focus");
+  window.scrollTo(0, 0);
+};
+Actions["study-slot-add"] = (form) => {
+  const m = Store.d.milestones.find((x) => x.id === form.dataset.id), f = new FormData(form);
+  if (!m) return;
+  const slot = { id: Math.random().toString(36).slice(2, 10), dow: Number(f.get("dow")), time: f.get("time"), min: Number(f.get("min")) };
+  Store.update("milestones", m.id, { exam_slots: [...(m.exam_slots || []), slot] });
+};
+Actions["study-slot-del"] = (el) => {
+  const m = Store.d.milestones.find((x) => x.id === el.dataset.id);
+  if (m) Store.update("milestones", m.id, { exam_slots: (m.exam_slots || []).filter((s) => s.id !== el.dataset.slot) });
+};
 Actions["focus-lock"] = () => Focus.lockNow();
 Actions["focus-lock-cancel"] = () => Focus.cancelLock();
 Actions["focus-giveup"] = async () => {

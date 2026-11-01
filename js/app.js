@@ -124,7 +124,9 @@ const App = {
   route() {
     let v = (location.hash.match(/^#\/(\w+)/) || [])[1];
     if (v && this.loaded && !this.isOn(v)) v = "today";
-    const changed = this.views()[v] && v !== this.view;
+    // cambia sezione o pagina interna (es. un esame in Studio): si riparte dall'alto
+    const changed = this.views()[v] && (v !== this.view || location.hash !== this._hash);
+    this._hash = location.hash;
     this.view = this.views()[v] ? v : "today";
     if (Sheet.isOpen()) Sheet.close();
     this.render();

@@ -417,3 +417,7 @@ alter table habits add column if not exists repeat jsonb;
 -- Studio: esami senza obiettivo (goal_id vuoto) e ore di studio previste
 alter table milestones alter column goal_id drop not null;
 alter table milestones add column if not exists exam_hours numeric(6,1);
+
+-- Studio: esami in preparazione (preferiti) e sessioni settimanali [{ id, dow, time, min }]
+alter table milestones add column if not exists exam_fav boolean not null default false;
+alter table milestones add column if not exists exam_slots jsonb not null default '[]'::jsonb;

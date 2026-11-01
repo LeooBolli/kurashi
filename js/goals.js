@@ -81,7 +81,7 @@ const Goals = {
   },
 
   refreshDetail() {
-    if (!this.openId || !Sheet.isOpen() || this.examSolo) return;
+    if (!this.openId || !Sheet.isOpen()) return;
     const g = Store.d.goals.find((x) => x.id === this.openId);
     if (g) Sheet.setBody(this.detailHTML(g), g.title);
   },
@@ -239,14 +239,11 @@ const Goals = {
   // ---------- gestione del singolo esame ----------
   PHASE_LABELS: { studio: "Primo studio", ripasso: "Ripasso", preparazione: "Preparazione esame" },
 
-  // Dall'obiettivo sostituisce il contenuto del foglio; da Studio (nessun foglio aperto) ne apre uno suo
   openExam(id) {
     const m = Store.d.milestones.find((x) => x.id === id);
     if (!m) return;
     this.examId = id;
-    if (Sheet.isOpen()) return Sheet.setBody(this.examManagerHTML(m), m.title);
-    this.examSolo = true;
-    Sheet.open({ title: m.title, body: this.examManagerHTML(m), onClose: () => { this.examSolo = false; this.examId = null; } });
+    Sheet.setBody(this.examManagerHTML(m), m.title);
   },
 
   refreshExam() {
@@ -271,29 +268,33 @@ const Goals = {
         </dl>
       </div>
 
-      <form class="form" data-act-submit="exam-meta-save" data-id="${m.id}">
-        <div class="row2">
-          <label>Data appello<input type="date" name="exam_date" value="${U.esc(m.exam_date || "")}"></label>
-          <label>CFU<input type="number" name="exam_cfu" min="0" max="60" step="0.5" value="${U.esc(m.exam_cfu ?? "")}"></label>
-        </div>
-        <div class="row2">
-          <label>Ore previste<input type="number" name="exam_hours" min="0" max="2000" step="0.5" inputmode="decimal" value="${U.esc(m.exam_hours ?? "")}"></label>
-          <label>Voto<input name="exam_grade" maxlength="10" placeholder="Es. 28 o Superato" value="${U.esc(m.exam_grade || "")}"></label>
-        </div>
-        <p class="hint">Con data e ore previste, Studio calcola quanto studiare ogni giorno. Come riferimento, 1 CFU vale circa 25 ore. Con il voto l'esame passa tra i superati.</p>
-        <button class="btn ghost sm" type="submit">Salva</button>
-      </form>
+      ${this.examFormHTML(m)}
 
       ${Calc.EXAM_PHASES.map((p) => this.examPhaseHTML(m, p)).join("")}
 
       <div class="btn-row">
-        <button class="btn ghost sm" data-act="study-pick" data-id="${m.id}" data-close="1">${Icon.svg("clock", 14)} Studia questo esame</button>
+        <button class="btn ghost sm" data-act="study-open" data-id="${m.id}" data-close="1">${Icon.svg("cap", 14)} Apri in Studio</button>
       </div>
       <div class="btn-row">
-        ${this.examSolo ? "" : `<button class="btn ghost wide" data-act="exam-back">${Icon.svg("left", 14)} Torna all'obiettivo</button>`}
-        ${m.goal_id ? `<button class="btn ghost danger sm" data-act="ms-exam" data-id="${m.id}" ${this.examSolo ? "data-close=\"1\"" : ""}>Non è più un esame</button>` : `<button class="btn ghost danger sm" data-act="exam-delete" data-id="${m.id}">Elimina l'esame</button>`}
+        <button class="btn ghost wide" data-act="exam-back">${Icon.svg("left", 14)} Torna all'obiettivo</button>
+        <button class="btn ghost danger sm" data-act="ms-exam" data-id="${m.id}">Non è più un esame</button>
       </div>
     </div>`;
+  },
+
+  examFormHTML(m) {
+    return `<form class="form" data-act-submit="exam-meta-save" data-id="${m.id}">
+      <div class="row2">
+        <label>Data appello<input type="date" name="exam_date" value="${U.esc(m.exam_date || "")}"></label>
+        <label>CFU<input type="number" name="exam_cfu" min="0" max="60" step="0.5" value="${U.esc(m.exam_cfu ?? "")}"></label>
+      </div>
+      <div class="row2">
+        <label>Ore previste<input type="number" name="exam_hours" min="0" max="2000" step="0.5" inputmode="decimal" value="${U.esc(m.exam_hours ?? "")}"></label>
+        <label>Voto<input name="exam_grade" maxlength="10" placeholder="Es. 28 o Superato" value="${U.esc(m.exam_grade || "")}"></label>
+      </div>
+      <p class="hint">Con data e ore previste, Studio calcola quanto studiare ogni giorno. Come riferimento, 1 CFU vale circa 25 ore. Con il voto l'esame passa tra i superati.</p>
+      <button class="btn ghost sm" type="submit">Salva</button>
+    </form>`;
   },
 
   examPhaseHTML(m, phase) {
@@ -466,8 +467,8 @@ Actions["exam-open"] = (el) => Goals.openExam(el.dataset.id);
 Actions["exam-delete"] = async (el) => {
   const m = Store.d.milestones.find((x) => x.id === el.dataset.id);
   if (!m || !(await UI.confirm({ title: `Eliminare «${m.title}»?`, text: "Si perdono anche i suoi argomenti. Le ore studiate restano nello storico.", confirmLabel: "Elimina", danger: true }))) return;
-  Sheet.close();
   Store.remove("milestones", m.id);
+  App.go("focus");
 };
 Actions["exam-back"] = () => { Goals.examId = null; Goals.refreshDetail(); };
 Actions["exam-meta-save"] = (form) => {
@@ -485,6 +486,8 @@ Actions["exam-topic-add"] = (form) => {
   const m = Store.d.milestones.find((x) => x.id === form.dataset.id);
   const title = form.querySelector("input").value.trim();
   if (!m || !title) return;
+  form.querySelector("input").value = "";
+  Focus.refocus = form.dataset.phase;
   Store.insert("milestones", { goal_id: m.goal_id, parent_id: m.id, phase: form.dataset.phase, title, done: false, done_at: null, position: Calc.childrenOf(m).length });
   Goals.refreshExam();
 };
