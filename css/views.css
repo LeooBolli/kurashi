@@ -159,3 +159,17 @@ ul:is(.fin-groups), .fin-table ul, .fin-manage ul { list-style: none; margin: 0;
 .d-rosizes button[aria-pressed="true"] { background: var(--deep); color: var(--on-deep); box-shadow: none; }
 .d-roacts { display: flex; gap: 8px; }
 #fin-trend svg { display: block; max-width: 620px; }
+.fin-bud { margin-top: 12px; }
+.fin-renew { list-style: none; margin: 0 0 10px; padding: 0; }
+.fin-renew .fin-voce { border-bottom: 1px solid var(--line); }
+.fin-renew li:last-child .fin-voce { border-bottom: 0; }
+.fin-renew b { font-variant-numeric: tabular-nums; font-size: 14px; }
+.fin-rdate { flex: none !important; width: 56px; font-size: 13px; color: var(--ink-3); font-weight: 600 !important; }
+.fin-months { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.fin-months legend { margin-bottom: 6px; }
+.fin-months input { position: absolute; opacity: 0; }
+.fin-months label { position: relative; margin: 0; }
+.fin-months span { display: grid; place-items: center; min-height: 40px; border-radius: 10px; background: var(--chip); box-shadow: inset 0 0 0 1px var(--chip-edge); font-size: 12px; font-weight: 600; }
+.fin-months input:checked + span { background: var(--deep); color: var(--on-deep); box-shadow: none; }
+.fin-months input:focus-visible + span { outline: 2px solid var(--hot); outline-offset: 2px; }
+#fin-trend { margin-bottom: 16px; }
