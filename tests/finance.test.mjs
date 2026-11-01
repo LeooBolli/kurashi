@@ -97,6 +97,38 @@ describe("entrate", () => {
   });
 });
 
+describe("widget: conti", () => {
+  test("anno, media e confronto contano solo i mesi con uscite", () => {
+    const y = M(-1).slice(0, 4);
+    put(`${y}-01-01`, "luce", 100); put(`${y}-02-01`, "luce", 300); put(`${y}-02-01`, "in_extra", 999);
+    const s = F.yearStats(y);
+    assert.equal(s.total, 400); assert.equal(s.avg, 200); assert.equal(s.top.m, `${y}-02-01`);
+    assert.equal(F.vsAverage(`${y}-02-01`), 200);
+    assert.equal(F.vsAverage(`${y}-01-01`), null);
+  });
+  test("risparmio sul mese con entrate e uscite", () => {
+    put(M(-2), "luce", 750); put(M(-2), "in_stipendio", 1000);
+    assert.equal(F.lastBalanced(), M(-2));
+    assert.equal(F.saving(M(-2)), 25);
+  });
+});
+
+describe("rinnovi", () => {
+  test("mensile: oggi vale ancora, poi il mese dopo", () => {
+    assert.equal(F.nextDate({ day: 15 }, "2026-03-15"), "2026-03-15");
+    assert.equal(F.nextDate({ day: 14 }, "2026-03-15"), "2026-04-14");
+  });
+  test("il giorno si adatta ai mesi corti e l'anno passa", () => {
+    assert.equal(F.nextDate({ day: 31 }, "2026-02-01"), "2026-02-28");
+    assert.equal(F.nextDate({ day: 2, months: [1] }, "2026-11-01"), "2027-01-02");
+    assert.equal(F.nextDate({ day: 27, months: [3, 9] }, "2026-10-01"), "2027-03-27");
+  });
+  test("costo annuo: ogni mese = 12 addebiti, altrimenti uno per mese scelto", () => {
+    S.settings.financeRenewals = [{ id: "a", amount: 10, day: 1, months: [] }, { id: "b", amount: 15, day: 1, months: [3, 9] }];
+    assert.equal(F.yearCosts(), 150);
+  });
+});
+
 describe("sezione spenta di default", () => {
   test("finanze resta spenta finché non è in shownSections, le altre restano accese", () => {
     load(ctx, "js/app.js");

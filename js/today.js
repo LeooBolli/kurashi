@@ -34,7 +34,7 @@ const Today = (() => {
 
   const SIZE_NAMES = { c: "Cerchio", s: "Piccolo", p: "Capsula", mh: "Medio orizzontale", mv: "Medio verticale", lh: "Grande orizzontale", lv: "Grande verticale" };
   const SIZE_ORDER = ["c", "s", "p", "mh", "mv", "lh", "lv"];
-  const NEW_WIDGETS = ["nextHabit", "points", "workouts", "deadline", "clock", "exam", "toRead", "quick", "heat", "finMonth", "finAreas", "finTrend", "finTodo", "finTop", "finBalance"];
+  const NEW_WIDGETS = ["nextHabit", "points", "workouts", "deadline", "clock", "exam", "toRead", "quick", "heat", "finMonth", "finAreas", "finTrend", "finTodo", "finTop", "finBalance", "finYear", "finVsAvg", "finGroup", "finTrips", "finSave", "finCompare", "finBudget", "finRenew", "finSubs"];
   const unseenNew = () => { const seen = Store.cfg().seenWidgets || []; const used = new Set((st.layout || []).map((l) => l.type)); return NEW_WIDGETS.filter((k) => !seen.includes(k) && !used.has(k) && sectionOn(k)); };
   const sizeIcon = (s) => ({ c: '<circle cx="12" cy="9" r="7.5"/>', p: '<rect x="1" y="4.5" width="22" height="9" rx="4.5"/>', s: '<rect x="7" y="4" width="10" height="10" rx="3"/>', mh: '<rect x="2" y="5" width="20" height="9" rx="3"/>', mv: '<rect x="7" y="1" width="10" height="16" rx="3"/>', lh: '<rect x="1" y="2" width="22" height="14" rx="3"/>', lv: '<rect x="4" y="0.5" width="16" height="17" rx="3"/>' })[s];
   // Lo Storico parte compatto: la settimana su telefono, il mese a pallini sugli schermi larghi
@@ -736,9 +736,8 @@ const Today = (() => {
     },
     finBalance: {
       title: "Saldo del mese", icon: "wallet", sizes: ["c", "s", "p", "mh"], go: "finance",
-      // l'ultimo mese che ha sia entrate sia uscite
       data() {
-        const m = [...new Set((Store.d.finance_entries || []).map((e) => e.month))].sort().reverse().find((x) => Finance.balance(x) != null && Finance.rows(x, "out").length);
+        const m = Finance.lastBalanced();
         if (!m) return null;
         const b = Finance.balance(m);
         return { name: cap1(Finance.monthName(m)), sign: b < 0 ? "−" : "+", value: Finance.whole(Math.abs(b)), detail: `${Finance.whole(Finance.total(m, "in"))} € entrate · ${Finance.whole(Finance.total(m))} € uscite` };
@@ -752,6 +751,108 @@ const Today = (() => {
         if (!x) return { html: head("wallet", "Saldo del mese") + `<div class="d-wb">${empty("Compila le entrate per vedere il saldo.", cta("Compila", "finance-open"))}</div>` };
         return { html: head("wallet", "Saldo del mese", x.name) + `<div class="d-wb end">${big(x.sign + x.value, "€")}<span class="d-cap">${x.detail}</span></div>` };
       }
+    },
+    finYear: {
+      title: "Riepilogo dell'anno", icon: "cal", sizes: ["c", "s", "p", "mh"], go: "finance",
+      data() { return Finance.yearStats(Finance.lastMonth().slice(0, 4)); },
+      mini() {
+        const x = this.data();
+        return { icon: "cal", title: `Uscite ${x.year}`, value: Finance.whole(x.total), unit: "€", cap: x.count ? `Media ${Finance.whole(x.avg)} € al mese` : "Nessun dato", p: null };
+      },
+      render(sz) {
+        const x = this.data();
+        if (!x.count) return { html: head("cal", `Uscite ${x.year}`) + `<div class="d-wb">${empty("Compila le spese per vedere l'anno.", cta("Compila", "finance-open"))}</div>` };
+        const top = `Il più caro: ${Finance.monthName(x.top.m)}, ${Finance.whole(x.top.total)} €`;
+        return { html: head("cal", `Uscite ${x.year}`, `${x.count} ${x.count === 1 ? "mese" : "mesi"} · media ${Finance.whole(x.avg)} €`) + `<div class="d-wb end">${big(Finance.whole(x.total), "€")}${sz === "mh" ? `<span class="d-cap">${top}</span>` : ""}</div>` };
+      }
+    },
+    finVsAvg: {
+      title: "Rispetto alla media", icon: "chart", sizes: ["c", "s", "p"], go: "finance",
+      data() { const m = Finance.lastMonth(), d = Finance.vsAverage(m); return { d, value: d == null ? "—" : `${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d)}`, name: cap1(Finance.monthName(m)) }; },
+      mini() { const x = this.data(); return { icon: "chart", title: "Rispetto alla media", value: x.value, unit: x.d == null ? "" : "%", cap: x.d == null ? "Serve più di un mese" : x.name, p: null }; },
+      render() { const x = this.data(); return { html: head("chart", "Rispetto alla media", x.name) + `<div class="d-wb end">${big(x.value, x.d == null ? "" : "%")}<span class="d-cap">${x.d == null ? "Serve più di un mese" : "sui mesi precedenti"}</span></div>` }; }
+    },
+    finGroup: {
+      title: "Macro area", icon: "coin", sizes: ["c", "s", "p", "mh"], go: "finance",
+      data(o) {
+        const m = Finance.lastMonth(), id = (o && o.finGroup && Finance.groups().some((g) => g.id === o.finGroup) && o.finGroup) || (Finance.byGroup(m)[0] || {}).id;
+        return id == null ? null : { m, id, label: esc(Finance.group(id).label), color: Finance.group(id).color, total: Finance.groupTotal(m, id), name: cap1(Finance.monthName(m)) };
+      },
+      mini(o) {
+        const x = this.data(o);
+        return x ? { icon: "coin", title: x.label, value: Finance.whole(x.total), unit: "€", cap: x.name, p: Finance.total(x.m) ? x.total / Finance.total(x.m) : null } : { icon: "coin", title: "Macro area", value: "—", cap: "Nessun importo", p: null };
+      },
+      render(sz, o) {
+        const x = this.data(o);
+        if (!x) return { html: head("coin", "Macro area") + `<div class="d-wb">${empty("Nessun importo.")}</div>` };
+        const list = Finance.series(6, x.m).map((s) => ({ m: s.m, v: Finance.groupTotal(s.m, x.id) })), max = Math.max(1, ...list.map((s) => s.v));
+        const cols = sz === "mh" ? `<div class="d-fcols" style="--a:${x.color}">${list.map((s) => `<span title="${Finance.monthName(s.m, true)}: ${Finance.euro(s.v)}"><i style="height:${(s.v / max) * 100}%;background:var(--a)"></i><small>${U.MONTHS[U.parse(s.m).getMonth()][0].toUpperCase()}</small></span>`).join("")}</div>` : "";
+        return { html: head("coin", x.label, `${x.name} · ${Finance.whole(x.total)} €`) + `<div class="d-wb end">${cols || big(Finance.whole(x.total), "€")}</div>` };
+      }
+    },
+    finTrips: {
+      title: "Viaggi nell'anno", icon: "plane", sizes: ["c", "s", "p"], go: "finance",
+      data() { const y = Finance.lastMonth().slice(0, 4), s = Finance.yearStats(y), t = Finance.groupYear(y, "viaggi"); return { y, t, p: s.total ? t / s.total : null }; },
+      mini() { const x = this.data(); return { icon: "plane", title: `Viaggi ${x.y}`, value: Finance.whole(x.t), unit: "€", cap: x.p == null ? "Nessun dato" : `${Math.round(x.p * 100)}% delle uscite`, p: x.p }; },
+      render() { const x = this.data(); return { html: head("plane", `Viaggi ${x.y}`) + `<div class="d-wb end">${big(Finance.whole(x.t), "€")}<span class="d-cap">${x.p == null ? "Nessun dato" : `${Math.round(x.p * 100)}% delle uscite`}</span></div>` }; }
+    },
+    finSave: {
+      title: "Tasso di risparmio", icon: "target", sizes: ["c", "s", "p"], go: "finance",
+      data() { const m = Finance.lastBalanced(); return m ? { v: Finance.saving(m), name: cap1(Finance.monthName(m)) } : null; },
+      mini() {
+        const x = this.data();
+        return x && x.v != null ? { icon: "target", title: "Tasso di risparmio", value: `${x.v < 0 ? "−" : ""}${Math.abs(x.v)}`, unit: "%", cap: x.name, p: Math.max(0, x.v) / 100 } : { icon: "target", title: "Tasso di risparmio", value: "—", cap: "Compila le entrate", p: null };
+      },
+      render() {
+        const x = this.data();
+        if (!x || x.v == null) return { html: head("target", "Risparmio") + `<div class="d-wb">${empty("Compila le entrate per vederlo.", cta("Compila", "finance-open"))}</div>` };
+        return { html: head("target", "Risparmio", x.name) + `<div class="d-wb end">${big(`${x.v < 0 ? "−" : ""}${Math.abs(x.v)}`, "%")}<span class="d-cap">delle entrate è rimasto</span></div>` };
+      }
+    },
+    finCompare: {
+      title: "Entrate e uscite", icon: "bars", sizes: ["mh", "lh"], go: "finance",
+      render(sz) {
+        const list = Finance.series(sz === "lh" ? 12 : 6, Finance.lastMonth());
+        if (!list.some((x) => x.income > 0)) return { html: head("bars", "Entrate e uscite") + `<div class="d-wb">${empty("Compila le entrate per il confronto.", cta("Compila", "finance-open"))}</div>` };
+        const max = Math.max(1, ...list.map((x) => Math.max(x.income, x.total)));
+        return { html: head("bars", "Entrate e uscite", `Ultimi ${list.length} mesi`) + `<div class="d-wb end"><div class="d-fcols two" role="img" aria-label="Entrate e uscite degli ultimi ${list.length} mesi">${list.map((x) => `<span title="${Finance.monthName(x.m, true)}: ${Finance.euro(x.income)} entrate, ${Finance.euro(x.total)} uscite"><em><i style="height:${(x.income / max) * 100}%"></i><i class="b" style="height:${(x.total / max) * 100}%"></i></em><small>${U.MONTHS[U.parse(x.m).getMonth()][0].toUpperCase()}</small></span>`).join("")}</div><div class="d-legend"><span>Uscite</span><span class="b">Entrate</span></div></div>` };
+      }
+    },
+    finBudget: {
+      title: "Budget del mese", icon: "target", sizes: ["c", "s", "p", "mh"], go: "finance",
+      data() {
+        const b = Finance.budget(), m = Finance.lastMonth();
+        if (!b) return null;
+        const t = Finance.total(m), left = b - t;
+        return { b, t, over: left < 0, left: Finance.whole(Math.abs(left)), p: t / b, name: cap1(Finance.monthName(m)) };
+      },
+      btn: () => `<button type="button" class="d-btn deep sm" data-act="fin-budget">${ic("edit", 14)}Imposta</button>`,
+      mini() {
+        const x = this.data();
+        return x ? { icon: "target", title: "Budget del mese", value: x.left, unit: "€", cap: `${x.over ? "oltre il budget" : "rimasti"} · ${x.name}`, p: Math.min(1, x.p) } : { icon: "target", title: "Budget del mese", value: "—", cap: "Da impostare in Finanze", p: null };
+      },
+      render() {
+        const x = this.data();
+        if (!x) return { html: head("target", "Budget del mese") + `<div class="d-wb">${empty("Decidi quanto spendere al mese.", this.btn())}</div>` };
+        return { html: head("target", "Budget del mese", x.name) + `<div class="d-wb end">${big(x.left, "€")}<span class="d-cap">${x.over ? "oltre il budget" : "rimasti"} di ${Finance.whole(x.b)} €</span>${track(Math.min(100, x.p * 100), `${Math.round(x.p * 100)}% del budget`)}</div>` };
+      }
+    },
+    finRenew: {
+      title: "Prossimi rinnovi", icon: "repeat", sizes: ["p", "mh", "mv"], go: "finance",
+      mini() {
+        const r = Finance.upcoming()[0];
+        return r ? { icon: "repeat", title: esc(r.label), value: Finance.whole(r.amount), unit: "€", cap: `Il ${U.fmtShort(r.date)}`, p: null } : { icon: "repeat", title: "Prossimi rinnovi", value: "—", cap: "Nessun rinnovo", p: null };
+      },
+      render(sz) {
+        const l = Finance.upcoming().slice(0, sz === "mv" ? 6 : 3);
+        if (!l.length) return { html: head("repeat", "Prossimi rinnovi") + `<div class="d-wb">${empty("Aggiungili dalla sezione Finanze.")}</div>` };
+        return { html: head("repeat", "Prossimi rinnovi") + `<div class="d-wb"><ul class="d-frenew">${l.map((r) => `<li><em>${U.fmtShort(r.date)}</em><span>${esc(r.label)}</span><b>${Finance.euro(r.amount)}</b></li>`).join("")}</ul></div>` };
+      }
+    },
+    finSubs: {
+      title: "Costo annuo rinnovi", icon: "repeat", sizes: ["c", "s", "p"], go: "finance",
+      mini() { const t = Finance.yearCosts(); return { icon: "repeat", title: "Costo annuo rinnovi", value: Finance.whole(t), unit: "€", cap: t ? `${Finance.whole(t / 12)} € al mese` : "Nessun rinnovo", p: null }; },
+      render() { const t = Finance.yearCosts(); return { html: head("repeat", "Costo dei rinnovi", "All'anno") + `<div class="d-wb end">${big(Finance.whole(t), "€")}<span class="d-cap">${t ? `${Finance.whole(t / 12)} € al mese` : "Nessun rinnovo"}</span></div>` }; }
     },
     finTop: {
       title: "Voce più alta", icon: "coin", sizes: ["c", "s", "p"], go: "finance",
@@ -976,6 +1077,7 @@ const Today = (() => {
     }
     if (t === "nextHabit" || t === "streak") h += select("habit", "Abitudine", [["", t === "streak" ? "Automatica (la serie più lunga)" : "Automatica (la prossima da fare)"], ...habits], o.habit);
     if (t === "goals" || t === "deadline") h += select("goal", "Obiettivo", [["", t === "goals" ? "Tutti gli obiettivi attivi" : "Automatico (la scadenza più vicina)"], ...goals], o.goal);
+    if (t === "finGroup") h += select("finGroup", "Macro area", [["", "Automatica (la più alta del mese)"], ...Finance.groups().map((g) => [g.id, g.label])], o.finGroup);
     if (t === "timer") h += radios("min", "Durata della sessione", [["", "Come in Focus"], ...[15, 25, 45, 60].map((m) => [m, `${m} min`])], o.min || "");
     if (t === "meals" && typeof Food !== "undefined") h += `<fieldset class="d-field"><legend>Pasti da mostrare</legend><p class="d-note">Nessuno scelto = tutti.</p><div class="d-seg wrap">${Food.SLOTS.map(([k, n]) => `<label><input type="checkbox" name="slots" value="${k}" ${(o.slots || []).includes(k) ? "checked" : ""}><span>${n}</span></label>`).join("")}</div></fieldset>`;
     if (t === "calendar") { calState(optsOf(l)); const tabs = calTabs().tabs; if (tabs.length > 1) h += radios("tab", "Scheda all'apertura", tabs, o.tab || "habits"); }
@@ -992,7 +1094,7 @@ const Today = (() => {
         f.addEventListener("submit", (e) => e.preventDefault());
         f.addEventListener("change", () => {
           const fd = new FormData(f), o = {};
-          for (const k of ["tint", "area", "habit", "goal", "min", "tab"]) { const v = fd.get(k); if (v) o[k] = k === "min" ? Number(v) : v; }
+          for (const k of ["tint", "area", "habit", "goal", "min", "tab", "finGroup"]) { const v = fd.get(k); if (v) o[k] = k === "min" ? Number(v) : v; }
           const slots = fd.getAll("slots");
           if (slots.length) o.slots = slots;
           if (o.tint === (inner({ ...l, opts: { ...o, tint: "" } }).cls || "glass")) delete o.tint; // il colore di serie non si salva
