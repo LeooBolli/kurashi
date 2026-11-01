@@ -335,9 +335,23 @@ const Focus = {
         <div><p class="eyebrow">Studio</p><h1 class="title">Verso gli <em>esami</em></h1></div>
         <button class="btn ghost" data-act="exam-new">${Icon.svg("plus", 16)}<span>Nuovo esame</span></button>
       </div>
-      ${running ? "" : this.boardHTML(false)}
-      <div class="focus-layout">
-        <section class="card timer-card ${running ? "running" : ""}" aria-label="Timer">
+      ${running ? "" : `<section class="card study-timer" aria-label="Timer">
+        ${this.result ? this.resultHTML() : ""}
+        <div class="study-timer-row">
+          <div id="f-time" class="study-timer-time" role="timer" aria-live="off">${U.pad(this.minutes)}:00</div>
+          <div class="dur" role="group" aria-label="Durata">
+            ${[15, 25, 45, 60].map((m) => `<button class="pill ${this.minutes === m ? "on" : ""}" data-act="focus-min" data-id="${m}" aria-pressed="${this.minutes === m}" aria-label="${m} minuti">${m}</button>`).join("")}
+            <span class="dur-step"><button class="round plus sm hit" data-act="focus-step" data-id="-5" aria-label="Meno 5 minuti">${Icon.svg("minus", 14)}</button>
+            <button class="round plus sm hit" data-act="focus-step" data-id="5" aria-label="Più 5 minuti">${Icon.svg("plus", 14)}</button></span>
+          </div>
+        </div>
+        <div class="study-timer-row">
+          <label class="link-sel">Dedica questa sessione a<select data-act-change="focus-link">${this.linkOptions()}</select></label>
+          <button class="btn primary" data-act="focus-start">${Icon.svg("play", 18)} Avvia</button>
+        </div>
+      </section>${this.boardHTML(false)}`}
+      <div class="focus-layout ${running ? "" : "idle"}">
+        ${running ? `        <section class="card timer-card ${running ? "running" : ""}" aria-label="Timer">
           <div class="timer">
             <svg viewBox="0 0 100 100" class="timer-ring" aria-hidden="true">
               <circle cx="50" cy="50" r="46" fill="none" style="stroke:var(--line)" stroke-width="3"/>
@@ -350,7 +364,6 @@ const Focus = {
             </div>
           </div>
 
-          ${running ? `
             <p class="timer-note">${this.strict()
               ? "Se cambi app hai 10 secondi per tornare, altrimenti la sessione viene interrotta. Per bloccare lo schermo tocca prima il pulsante qui sotto: il timer va avanti."
               : "Puoi cambiare app o bloccare lo schermo: il timer va avanti comunque."}</p>
@@ -358,18 +371,7 @@ const Focus = {
               ${this.strict() ? `<button class="btn primary" data-act="focus-lock">${Icon.svg("lock", 16)} Blocco lo schermo</button>` : ""}
               <button class="btn ghost" data-act="focus-giveup">Interrompi la sessione</button>
             </div>
-          ` : `
-            ${this.result ? this.resultHTML() : ""}
-            <div class="dur" role="group" aria-label="Durata">
-              ${[15, 25, 45, 60].map((m) => `<button class="pill ${this.minutes === m ? "on" : ""}" data-act="focus-min" data-id="${m}" aria-pressed="${this.minutes === m}" aria-label="${m} minuti">${m}′</button>`).join("")}
-              <span class="dur-step"><button class="round plus sm hit" data-act="focus-step" data-id="-5" aria-label="Meno 5 minuti">${Icon.svg("minus", 14)}</button>
-              <button class="round plus sm hit" data-act="focus-step" data-id="5" aria-label="Più 5 minuti">${Icon.svg("plus", 14)}</button></span>
-            </div>
-            <label class="link-sel">Dedica questa sessione a<select data-act-change="focus-link">${this.linkOptions()}</select></label>
-            <button class="btn primary big" data-act="focus-start">${Icon.svg("play", 18)} Avvia la sessione</button>
-          `}
-        </section>
-
+        </section>` : ""}
         <div class="focus-side">
           <section class="card stats-mini">
             <div><b>${U.fmtMin(todayMin)}</b><span>oggi</span></div>
