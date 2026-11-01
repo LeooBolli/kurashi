@@ -7,7 +7,9 @@
 const DEMO = !window.APP_CONFIG.SUPABASE_URL;
 const TABLES = ["habits", "goals", "milestones", "habit_logs", "focus_sessions",
   "mood_logs", "sleep_logs", "weight_logs", "workouts", "reading_items", "highlights",
-  "foods", "meal_entries", "meal_templates"];
+  "foods", "meal_entries", "meal_templates", "finance_entries"];
+// Tabelle di sezioni che partono spente: se il database non le ha ancora, l'app si apre lo stesso
+const OPTIONAL_TABLES = ["finance_entries"];
 
 const sb = DEMO ? null : window.supabase.createClient(
   window.APP_CONFIG.SUPABASE_URL,
@@ -151,7 +153,7 @@ const SbBackend = {
   },
   subscribe(onChange, onSettings, onReconnect) {
     const ch = sb.channel("kurashi-changes");
-    TABLES.forEach((t) => ch.on("postgres_changes", { event: "*", schema: "public", table: t }, (p) => onChange(t, p)));
+    TABLES.filter((t) => !Store.missing.has(t)).forEach((t) => ch.on("postgres_changes", { event: "*", schema: "public", table: t }, (p) => onChange(t, p)));
     ch.on("postgres_changes", { event: "*", schema: "public", table: "settings" }, (p) => onSettings(p));
     let broken = false;
     ch.subscribe((status) => {
@@ -215,6 +217,7 @@ const Store = {
   logIdx: new Map(),
   listeners: [],
   pending: 0,
+  missing: new Set(), // tabelle facoltative assenti dal database
   chain: Promise.resolve(),
   backend: DEMO ? LocalBackend : SbBackend,
   _reloadT: {},
@@ -252,7 +255,10 @@ const Store = {
 
   async loadAll() {
     await Promise.all(TABLES.map(async (t) => {
-      try { this.d[t] = await this.backend.fetchAll(t); } catch (e) { e.table = t; throw e; }
+      try { this.d[t] = await this.backend.fetchAll(t); } catch (e) {
+        if (OPTIONAL_TABLES.includes(t) && /does not exist|schema cache|42P01|PGRST205/i.test(`${e.code} ${e.message}`)) { this.d[t] = []; this.missing.add(t); return; }
+        e.table = t; throw e;
+      }
     }));
     this.settings = await this.backend.getSettings();
     this.emit();

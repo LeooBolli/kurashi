@@ -3,10 +3,10 @@
 // (Store/Calc) e si ridisegna a ogni modifica. La disposizione si salva
 // nelle impostazioni (homeLayout: [{ id, type, size, opts }]), quindi è la stessa
 // su tutti i dispositivi; lo stesso widget può esserci più volte.
-// Modifica Home: trascina per spostare, × per togliere (con Annulla),
+// Modifica Home (con il mouse): trascina per spostare, × per togliere (con Annulla),
 // «Formato» e «Personalizza» sotto ogni widget, + per aggiungere;
 // da tastiera frecce e Canc sulla maniglia del widget.
-// Su telefono: pressione lunga su un widget per entrare in modifica.
+// Sugli schermi touch: lista «Riordina», si trascina solo dalla maniglia e il resto scorre.
 // ============================================================
 const Today = (() => {
   // ---------- Icone: la raccolta comune (Icon), con i vecchi nomi della Home ----------
@@ -27,20 +27,20 @@ const Today = (() => {
     timerI: null,
     bound: false,
     drag: null,
-    press: null,
+    roOpen: null,        // id del widget aperto nella lista «Riordina»
     focusIdx: null,
-    focusFmt: false,
-    suppressClick: false
+    focusFmt: false
   };
 
   const SIZE_NAMES = { c: "Cerchio", s: "Piccolo", p: "Capsula", mh: "Medio orizzontale", mv: "Medio verticale", lh: "Grande orizzontale", lv: "Grande verticale" };
   const SIZE_ORDER = ["c", "s", "p", "mh", "mv", "lh", "lv"];
-  const NEW_WIDGETS = ["nextHabit", "points", "workouts", "deadline", "clock", "exam", "toRead", "quick", "heat"];
+  const NEW_WIDGETS = ["nextHabit", "points", "workouts", "deadline", "clock", "exam", "toRead", "quick", "heat", "finMonth", "finAreas", "finTrend", "finTodo", "finTop"];
   const unseenNew = () => { const seen = Store.cfg().seenWidgets || []; const used = new Set((st.layout || []).map((l) => l.type)); return NEW_WIDGETS.filter((k) => !seen.includes(k) && !used.has(k) && sectionOn(k)); };
   const sizeIcon = (s) => ({ c: '<circle cx="12" cy="9" r="7.5"/>', p: '<rect x="1" y="4.5" width="22" height="9" rx="4.5"/>', s: '<rect x="7" y="4" width="10" height="10" rx="3"/>', mh: '<rect x="2" y="5" width="20" height="9" rx="3"/>', mv: '<rect x="7" y="1" width="10" height="16" rx="3"/>', lh: '<rect x="1" y="2" width="22" height="14" rx="3"/>', lv: '<rect x="4" y="0.5" width="16" height="17" rx="3"/>' })[s];
   // Lo Storico parte compatto: la settimana su telefono, il mese a pallini sugli schermi larghi
   const DEFAULT = [["score", "c"], ["timer", "s"], ["calendar", "mv"], ["stats", "mh"], ["habits", "mv"], ["weight", "c"], ["streak", "c"], ["goals", "lh"], ["focusStats", "p"], ["quick", "p"], ["reading", "mh"], ["recall", "mh"], ["meals", "mh"], ["clock", "c"], ["points", "c"], ["deadline", "c"], ["nextHabit", "c"]];
   const isPhone = () => !!(window.matchMedia && matchMedia("(max-width: 720px)").matches);
+  const touchUI = () => isPhone() || !!(window.matchMedia && matchMedia("(pointer: coarse)").matches);
   const defaults = () => DEFAULT.map(([k, z]) => ({ id: k, type: k, size: k === "calendar" && isPhone() ? "mh" : z }));
 
   // ---------- Pezzi comuni ----------
@@ -691,6 +691,60 @@ const Today = (() => {
         const r = Calc.rate(start, today);
         return { html: head("grid", "Ultime settimane", `${weeks} settimane · ${r == null ? "nessun dato" : Math.round(r) + "% di abitudini fatte"}`) + `<div class="d-wb center"><div class="d-heat" role="img" aria-label="Costanza giorno per giorno nelle ultime ${weeks} settimane">${cells}</div></div>` };
       }
+    },
+    // Finanze: si vedono solo con la sezione accesa (go), quindi non sono tra quelli di serie
+    finMonth: {
+      title: "Spese del mese", icon: "coin", sizes: ["c", "s", "p", "mh"], go: "finance",
+      data() { const m = Finance.lastMonth(), f = Finance.filled(m); return { m, t: Finance.total(m), f, name: cap1(Finance.monthName(m)), note: Finance.deltaText(m) }; },
+      mini() {
+        const x = this.data();
+        return { icon: "coin", title: "Spese del mese", value: Finance.whole(x.t), unit: "€", cap: x.note ? `${x.name} · ${x.note}` : x.name, p: x.f.total ? x.f.done / x.f.total : null };
+      },
+      render(sz) {
+        const x = this.data();
+        if (!x.t) return { html: head("coin", "Spese del mese") + `<div class="d-wb">${empty("Ancora nessun importo.", cta("Compila", "finance-open"))}</div>` };
+        return { html: head("coin", "Spese del mese", x.name) + `<div class="d-wb end">${big(Finance.whole(x.t), "€")}<span class="d-cap">${x.note || `${x.f.done} di ${x.f.total} voci compilate`}</span></div>` };
+      }
+    },
+    finAreas: {
+      title: "Macro aree", icon: "coin", sizes: ["mh", "mv", "lh"], go: "finance",
+      render(sz) {
+        const m = Finance.lastMonth(), list = Finance.byGroup(m), t = Finance.total(m), n = sz === "mh" ? 2 : 7;
+        if (!list.length) return { html: head("coin", "Macro aree") + `<div class="d-wb">${empty("Compila le spese per vedere dove vanno.", cta("Compila", "finance-open"))}</div>` };
+        return { html: head("coin", "Macro aree", cap1(Finance.monthName(m))) + `<div class="d-wb"><ul class="d-fbars">${list.slice(0, n).map((g) => `<li style="--a:${g.color}"><span>${esc(g.label)}</span><b>${Finance.whole(g.total)} €</b><i><u style="width:${(g.total / t) * 100}%"></u></i></li>`).join("")}</ul></div>` };
+      }
+    },
+    finTrend: {
+      title: "Andamento spese", icon: "chart", sizes: ["mh", "lh"], go: "finance",
+      render(sz) {
+        const end = Finance.lastMonth(), list = Finance.series(sz === "lh" ? 12 : 6, end), max = Math.max(1, ...list.map((x) => x.total));
+        const v = list.filter((x) => x.total > 0).map((x) => x.total), avg = U.avg(v);
+        return { html: head("chart", "Andamento spese", avg == null ? "Nessun dato" : `Media ${Finance.whole(avg)} € al mese`) + `<div class="d-wb end"><div class="d-fcols" role="img" aria-label="Spese totali degli ultimi ${list.length} mesi">${list.map((x) => `<span class="${x.m === end ? "cur" : ""}" title="${Finance.monthName(x.m, true)}: ${Finance.euro(x.total)}"><i style="height:${(x.total / max) * 100}%"></i><small>${U.MONTHS[U.parse(x.m).getMonth()][0].toUpperCase()}</small></span>`).join("")}</div></div>` };
+      }
+    },
+    finTodo: {
+      title: "Da compilare", icon: "edit", sizes: ["c", "s", "p"], go: "finance",
+      data() { const m = Finance.defaultMonth(), f = Finance.filled(m); return { f, left: f.total - f.done, name: cap1(Finance.monthName(m)) }; },
+      mini() {
+        const x = this.data();
+        return { icon: "edit", title: "Da compilare", value: x.left, unit: x.left === 1 ? "voce" : "voci", cap: x.name, p: x.f.total ? x.f.done / x.f.total : null };
+      },
+      render() {
+        const x = this.data();
+        return { html: head("edit", "Da compilare", x.name) + `<div class="d-wb end">${big(x.left, x.left === 1 ? "voce" : "voci")}<span class="d-cap">${x.f.done} di ${x.f.total} fatte</span></div>` };
+      }
+    },
+    finTop: {
+      title: "Voce più alta", icon: "coin", sizes: ["c", "s", "p"], go: "finance",
+      mini() {
+        const m = Finance.lastMonth(), x = Finance.top(m);
+        return x ? { icon: "coin", title: "Voce più alta", value: Finance.whole(x.amount), unit: "€", cap: `${esc(x.cat.emoji || "")} ${esc(x.cat.label)}`, p: x.amount / Finance.total(m) } : { icon: "coin", title: "Voce più alta", value: "—", cap: "Nessun importo", p: null };
+      },
+      render() {
+        const m = Finance.lastMonth(), x = Finance.top(m);
+        if (!x) return { html: head("coin", "Voce più alta") + `<div class="d-wb">${empty("Nessun importo.")}</div>` };
+        return { html: head("coin", "Voce più alta", cap1(Finance.monthName(m))) + `<div class="d-wb end">${big(Finance.whole(x.amount), "€")}<span class="d-cap">${esc(x.cat.emoji || "")} ${esc(x.cat.label)}</span></div>` };
+      }
     }
   };
 
@@ -732,7 +786,7 @@ const Today = (() => {
     };
     if (now) run(); else st.saveT = setTimeout(run, 700);
   }
-  function commit(focusIdx) { st.focusIdx = focusIdx; save(); App.render(); }
+  function commit(focusIdx) { st.focusIdx = focusIdx; save(); App.render(); refreshReorder(); }
 
   // ---------- Annunci per lettori di schermo ----------
   function live(msg) {
@@ -826,6 +880,7 @@ const Today = (() => {
   }
 
   function setEditing(v) {
+    if (v && touchUI()) return openReorder();
     st.editing = v;
     App.render();
     if (v) U.toast("Trascina per spostare · «Formato» e «Personalizza» sotto ogni widget");
@@ -907,8 +962,9 @@ const Today = (() => {
     if (t === "calendar") { calState(optsOf(l)); const tabs = calTabs().tabs; if (tabs.length > 1) h += radios("tab", "Scheda all'apertura", tabs, o.tab || "habits"); }
     return h;
   }
-  function openCustom(btn) {
-    const i = Number(btn.closest(".d-w").dataset.idx), l = st.layout[i], def = W[l.type];
+  // after: cosa fare alla chiusura (la lista «Riordina» si riapre); di base il focus torna al widget
+  function openCustom(i, after) {
+    const l = st.layout[i], def = W[l.type];
     Sheet.open({
       title: `Personalizza · ${def.title}`,
       body: `<form class="dash-sheet d-form" data-dash-custom-form>${customFields(l)}<p class="d-note">Le modifiche si vedono subito nella Home.</p></form>`,
@@ -929,7 +985,7 @@ const Today = (() => {
         if (h) { h.tabIndex = -1; setTimeout(() => h.focus(), 30); }
       },
       // alla chiusura il focus torna al pulsante Personalizza di quel widget
-      onClose: () => setTimeout(() => { const w = document.querySelector(`.view-today .d-w[data-id="${CSS.escape(l.id)}"] [data-dash-custom]`); if (w) w.focus(); }, 0)
+      onClose: after || (() => setTimeout(() => { const w = document.querySelector(`.view-today .d-w[data-id="${CSS.escape(l.id)}"] [data-dash-custom]`); if (w) w.focus(); }, 0))
     });
   }
 
@@ -942,7 +998,7 @@ const Today = (() => {
     const r = inner({ id: `preview-${k}`, type: k, size: sz });
     return `<div class="d-prev" aria-hidden="true" inert><div class="dash" style="width:${Math.round(w * f)}px;height:${Math.round(h * f)}px"><article class="d-w d-glass ${r.cls || ""}" data-size="${sz}" data-type="${k}" style="width:${w}px;height:${h}px;transform:scale(${f.toFixed(4)})">${r.html}</article></div></div>`;
   }
-  function openAdd() {
+  function openAdd(after) {
     const used = new Set(st.layout.map((l) => l.type));
     const fresh = unseenNew();
     // prima i nuovi, poi quelli non ancora in Home; anche quelli già presenti si possono aggiungere di nuovo
@@ -951,6 +1007,7 @@ const Today = (() => {
     if (fresh.length) Store.setSettings({ seenWidgets: [...new Set([...(Store.cfg().seenWidgets || []), ...fresh])] });
     Sheet.open({
       title: "Aggiungi un widget",
+      onClose: after,
       body: `<div class="dash-sheet"><div class="d-picks">${all.map(([k, d]) => `<div class="d-pick">${preview(k)}<button class="d-pickbtn" type="button" data-pick="${k}"><span class="d-ic">${ic(d.icon, 17)}</span><span class="d-pt"><b>${d.title}${fresh.includes(k) ? ` <em class="d-new">Nuovo</em>` : ""}</b><small>${used.has(k) ? "Già nella Home · aggiungine un altro" : sizesOf(d).map((x) => SIZE_NAMES[x]).join(" · ")}</small></span></button></div>`).join("")}</div></div>`,
       onMount: (root) => {
         root.addEventListener("click", (e) => {
@@ -967,6 +1024,106 @@ const Today = (() => {
         if (h) { h.tabIndex = -1; setTimeout(() => h.focus(), 30); }
       }
     });
+  }
+  // ---------- Lista «Riordina» (schermi touch) ----------
+  // Si trascina solo dalla maniglia: il resto della riga scorre la lista e, toccata, apre
+  // Formato, Personalizza e Rimuovi. Con la tastiera la maniglia si sposta con le frecce.
+  // I widget di sezioni spente non si elencano ma tengono il loro posto nella disposizione.
+  const shown = () => st.layout.map((l, i) => ({ l, i })).filter((x) => sectionOn(x.l.type));
+  function reorderHTML() {
+    const rows = shown().map(({ l, i }) => {
+      const def = W[l.type], open = st.roOpen === l.id;
+      const panel = !open ? "" : `<div class="d-ropanel">${def.sizes.length > 1 ? `<div class="d-rosizes" role="group" aria-label="Formato">${sizesOf(def).map((s) => `<button type="button" aria-pressed="${s === l.size}" data-ro-size="${s}" aria-label="${SIZE_NAMES[s]}">${shape(s)}</button>`).join("")}</div>` : ""}<div class="d-roacts"><button type="button" class="btn ghost sm" data-ro-custom>Personalizza</button><button type="button" class="btn ghost sm danger" data-ro-remove>Rimuovi</button></div></div>`;
+      return `<li class="d-ro ${open ? "open" : ""}" data-i="${i}" data-id="${esc(l.id)}"><div class="d-romain"><button type="button" class="d-rorow" data-ro-toggle aria-expanded="${open}"><span class="d-ic">${ic(def.icon, 17)}</span><span class="d-rotx"><b>${def.title}</b><small>${SIZE_NAMES[l.size]}</small></span></button><button type="button" class="d-rogrip" aria-label="Sposta ${def.title}: trascina, o usa le frecce">${ic("grip", 20, 2.2)}</button></div>${panel}</li>`;
+    }).join("");
+    return `<div class="d-rolist"><p class="hint">Trascina dalla maniglia a destra. Tocca un widget per formato e opzioni.</p><ul>${rows}</ul><div class="btn-row"><button type="button" class="btn ghost" data-ro-add>${ic("plus", 16)} Aggiungi</button><button type="button" class="btn ghost" data-ro-reset>${ic("reset", 16)} Ripristina</button><button type="button" class="btn primary" data-sheet-close>Fine</button></div></div>`;
+  }
+  function refreshReorder() { if (document.querySelector(".d-rolist")) Sheet.setBody(reorderHTML()); }
+  const reopen = () => setTimeout(openReorder, 0);
+  function openReorder() {
+    Sheet.open({
+      title: "Riordina la Home",
+      body: reorderHTML(),
+      onClose: () => { if (st.saveT) save(true); },
+      onMount: (root) => {
+        root.addEventListener("click", (e) => {
+          const t = e.target.closest("button");
+          if (!t) return;
+          if (t.hasAttribute("data-ro-add")) return openAdd(reopen);
+          if (t.hasAttribute("data-ro-reset")) return resetLayout();
+          const li = t.closest(".d-ro");
+          if (!li) return;
+          const i = Number(li.dataset.i), l = st.layout[i];
+          if (t.hasAttribute("data-ro-toggle")) { st.roOpen = st.roOpen === l.id ? null : l.id; return refreshReorder(); }
+          if (t.dataset.roSize) { l.size = t.dataset.roSize; return commit(); }
+          if (t.hasAttribute("data-ro-custom")) return openCustom(i, reopen);
+          if (t.hasAttribute("data-ro-remove")) return removeAt(i);
+        });
+        root.addEventListener("pointerdown", (e) => { const g = e.target.closest(".d-rogrip"); if (g) gripDrag(g, e); });
+        root.addEventListener("keydown", (e) => {
+          const g = e.target.closest(".d-rogrip"), mv = { ArrowUp: -1, ArrowDown: 1 }[e.key];
+          if (!g || !mv) return;
+          e.preventDefault();
+          const list = shown(), k = list.findIndex((x) => x.i === Number(g.closest(".d-ro").dataset.i)), to = list[k + mv];
+          if (!to) return;
+          const id = list[k].l.id;
+          applyOrder(list.map((x) => x.l).map((l, n, a) => (n === k ? a[k + mv] : n === k + mv ? a[k] : l)));
+          const again = root.querySelector(`.d-ro[data-id="${CSS.escape(id)}"] .d-rogrip`);
+          if (again) again.focus();
+          live(`${W[list[k].l.type].title} in posizione ${k + mv + 1} di ${list.length}`);
+        });
+      }
+    });
+  }
+  // Nuovo ordine dei widget elencati, sugli stessi posti della disposizione
+  function applyOrder(order) {
+    const slots = shown().map((x) => x.i);
+    slots.forEach((slot, n) => { st.layout[slot] = order[n]; });
+    commit();
+  }
+  function gripDrag(grip, e) {
+    e.preventDefault();
+    const row = grip.closest(".d-ro"), list = row.parentElement, sc = row.closest(".sheet");
+    const startTop = row.getBoundingClientRect().top;
+    let y = e.clientY, raf = 0;
+    const dy = y - startTop;
+    grip.setPointerCapture(e.pointerId);
+    row.classList.add("dragging");
+    // sposto le righe vicine, non quella trascinata: toglierla dal suo posto perderebbe il dito
+    const swap = (other, before) => {
+      const a = other.getBoundingClientRect().top;
+      if (before) list.insertBefore(other, row); else row.after(other);
+      const b = other.getBoundingClientRect().top;
+      if (!reduceMotion()) other.animate([{ transform: `translateY(${a - b}px)` }, { transform: "none" }], { duration: 160, easing: "ease-out" });
+    };
+    const update = () => {
+      row.style.transform = "none";
+      const r = row.getBoundingClientRect(), next = row.nextElementSibling, prev = row.previousElementSibling, mid = y - dy + r.height / 2;
+      if (next) { const n = next.getBoundingClientRect(); if (mid > n.top + n.height / 2) swap(next, true); }
+      if (prev) { const p = prev.getBoundingClientRect(); if (mid < p.top + p.height / 2) swap(prev, false); }
+      row.style.transform = `translateY(${y - dy - row.getBoundingClientRect().top}px)`;
+    };
+    // vicino ai bordi la lista scorre da sola
+    const tick = () => {
+      const b = sc.getBoundingClientRect(), v = y < b.top + 70 ? -8 : y > b.bottom - 70 ? 8 : 0;
+      if (v) { const was = sc.scrollTop; sc.scrollTop += v; if (sc.scrollTop !== was) update(); }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    const move = (ev) => { y = ev.clientY; update(); };
+    const end = () => {
+      cancelAnimationFrame(raf);
+      grip.removeEventListener("pointermove", move);
+      grip.removeEventListener("pointerup", end);
+      grip.removeEventListener("pointercancel", end);
+      row.classList.remove("dragging");
+      row.style.transform = "";
+      const order = [...list.children].map((n) => st.layout[Number(n.dataset.i)]);
+      if (order.some((l, k) => l !== shown()[k].l)) applyOrder(order); else refreshReorder();
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", end);
+    grip.addEventListener("pointercancel", end);
   }
   function goTo(i) {
     const l = st.layout[i];
@@ -987,7 +1144,6 @@ const Today = (() => {
 
     document.addEventListener("click", (e) => {
       if (!inDash(e.target)) return;
-      if (st.suppressClick) { st.suppressClick = false; e.preventDefault(); e.stopPropagation(); return; }
       const t = e.target.closest("button");
       if (t && t.dataset.dashTool) {
         const k = t.dataset.dashTool;
@@ -1001,7 +1157,7 @@ const Today = (() => {
       const i = Number(w.dataset.idx);
       if (t && !t.classList.contains("d-go")) {
         if (t.hasAttribute("data-dash-remove")) return removeAt(i);
-        if (t.hasAttribute("data-dash-custom")) return openCustom(t);
+        if (t.hasAttribute("data-dash-custom")) return openCustom(i);
         if (t.hasAttribute("data-dash-fmt")) return document.getElementById("dash-fmt") && t.getAttribute("aria-expanded") === "true" ? closeFmt(true) : openFmt(t);
         if (t.dataset.dashTab || t.dataset.dashCal) {
           calState(optsOf(st.layout[i]));
@@ -1039,17 +1195,11 @@ const Today = (() => {
     }, true);
     window.addEventListener("resize", () => { const m = document.getElementById("dash-fmt"); if (m && m._btn.isConnected) placeMenu(m); });
 
-    // trascinamento (mouse e dita); pressione lunga su telefono per entrare in modifica
+    // trascinamento col mouse (sugli schermi touch si riordina dalla lista «Riordina»)
     document.addEventListener("pointerdown", (e) => {
-      if (!inDash(e.target)) return;
+      if (!inDash(e.target) || !st.editing) return;
       const w = e.target.closest(".d-w[data-idx]");
-      if (!w) return;
-      if (!st.editing) {
-        if (e.pointerType === "mouse") return;
-        st.press = { t: setTimeout(() => { st.press = null; st.suppressClick = true; setTimeout(() => { st.suppressClick = false; }, 600); setEditing(true); if (navigator.vibrate) navigator.vibrate(15); }, 550), sx: e.clientX, sy: e.clientY };
-        return;
-      }
-      if (e.target.closest("button")) return;
+      if (!w || e.target.closest("button")) return;
       e.preventDefault();
       const r = w.getBoundingClientRect();
       st.drag = { el: w, grid: w.parentElement, dx: e.clientX - r.left, dy: e.clientY - r.top, last: null };
@@ -1057,12 +1207,9 @@ const Today = (() => {
       moveDrag(e);
     });
     window.addEventListener("pointermove", (e) => {
-      if (st.press && Math.hypot(e.clientX - st.press.sx, e.clientY - st.press.sy) > 8) { clearTimeout(st.press.t); st.press = null; }
       if (st.drag) moveDrag(e);
     });
-    const endPress = () => { if (st.press) { clearTimeout(st.press.t); st.press = null; } };
     window.addEventListener("pointerup", () => {
-      endPress();
       const d = st.drag;
       if (!d) return;
       st.drag = null;
@@ -1075,9 +1222,7 @@ const Today = (() => {
       if (changed) { commit(ni); live(`${W[order[ni].type].title} in posizione ${ni + 1} di ${order.length}`); }
       else App.render();
     });
-    window.addEventListener("pointercancel", () => { endPress(); if (st.drag) { st.drag = null; App.render(); } });
-    // niente menu contestuale durante la pressione lunga
-    document.addEventListener("contextmenu", (e) => { if (inDash(e.target) && e.target.closest(".d-w")) e.preventDefault(); });
+    window.addEventListener("pointercancel", () => { if (st.drag) { st.drag = null; App.render(); } });
   }
 
   function place(el, e) {

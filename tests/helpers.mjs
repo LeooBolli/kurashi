@@ -44,7 +44,7 @@ export class MemoryStorage {
 export const STORE_STUB = `
 var Store = {
   d: { habits: [], goals: [], milestones: [], habit_logs: [], focus_sessions: [], mood_logs: [], sleep_logs: [],
-       weight_logs: [], workouts: [], reading_items: [], highlights: [], foods: [], meal_entries: [], meal_templates: [] },
+       weight_logs: [], workouts: [], reading_items: [], highlights: [], foods: [], meal_entries: [], meal_templates: [], finance_entries: [] },
   settings: {},
   logIdx: new Map(),
   reindex() { this.logIdx.clear(); for (const l of this.d.habit_logs) this.logIdx.set(l.habit_id + "|" + l.log_date, Number(l.value)); },

@@ -3,7 +3,7 @@
 App web (PWA) personale per gestire la vita: **abitudini** (sì/no e quantitative),
 **obiettivi** a breve (1 mese), medio (4 mesi) e lungo termine (1 anno o più) collegati
 alle abitudini, **statistiche/KPI** con grafici, **timer di focus**, una **Home a widget** spostabili e ridimensionabili,
-**benessere** (umore, energia, sonno, peso, allenamenti), **lettura** (libri da Goodreads con
+**benessere** (umore, energia, sonno, peso, allenamenti), **finanze** (spese del mese per voce e macro area; sezione spenta finché non la attivi da Impostazioni), **lettura** (libri da Goodreads con
 avanzamento a pagine + bookmark di Raindrop.io), sincronizzazione degli obiettivi con Notion, export Excel e CSV.
 
 HTML/CSS/JS senza framework né build. Backend: Supabase (un solo utente, dati protetti

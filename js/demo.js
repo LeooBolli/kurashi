@@ -156,6 +156,12 @@ const Demo = {
       favorite: i === 2, muted: false, times_reviewed: i % 3, last_reviewed_on: i % 3 ? U.addDays(today, -(4 + i)) : null
     })));
 
+    // Finanze: sei mesi passati; nell'ultimo mancano ancora le ultime voci
+    const finCats = (window.FIN_CATS || []).filter((c) => !c.mine);
+    for (let i = 1; i <= 6; i++) finCats.forEach((c, k) => {
+      if (i === 1 && k >= finCats.length - 3) return;
+      db.finance_entries.push(mk({ month: U.addMonths(today.slice(0, 8) + "01", -i), category: c.id, amount: Math.round((25 + ((k * 37) % 180)) * (0.8 + rnd() * 0.4) * 100) / 100 }));
+    });
     return db;
   }
 };
