@@ -495,3 +495,16 @@
   :root:not([data-theme="light"]) .dash { --d-pill: color-mix(in srgb, var(--d-on-tint) 18%, transparent); --d-pill-ink: var(--d-on-tint); --d-sky-soft: color-mix(in srgb, var(--d-sky) 70%, var(--d-on-tint)); }
 }
 :root[data-theme="dark"] .dash { --d-pill: color-mix(in srgb, var(--d-on-tint) 18%, transparent); --d-pill-ink: var(--d-on-tint); --d-sky-soft: color-mix(in srgb, var(--d-sky) 70%, var(--d-on-tint)); }
+
+/* ---------- Widget Finanze ---------- */
+.dash .d-fbars { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.dash .d-fbars li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 8px; font-size: 12px; font-weight: 600; color: var(--d-ink2); }
+.dash .d-fbars span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash .d-fbars b { color: var(--d-ink); font-variant-numeric: tabular-nums; }
+.dash .d-fbars i { grid-column: 1 / -1; height: 6px; border-radius: 99px; background: var(--d-chip); overflow: hidden; }
+.dash .d-fbars u { display: block; height: 100%; border-radius: 99px; background: var(--a); }
+.dash .d-fcols { flex: 1; min-height: 56px; display: flex; align-items: stretch; gap: 6px; }
+.dash .d-fcols span { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+.dash .d-fcols i { width: 100%; max-width: 22px; min-height: 2px; flex: 0 1 auto; border-radius: 5px; background: var(--d-sky); }
+.dash .d-fcols .cur i { background: var(--d-hot); }
+.dash .d-fcols small { font-size: 10px; font-weight: 600; color: var(--d-ink3); }

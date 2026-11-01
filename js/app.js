@@ -15,26 +15,33 @@ const App = {
     { id: "food", label: "Alimentazione", icon: "bowl" },
     { id: "recall", label: "Riscoperte", icon: "quote" },
     { id: "reading", label: "Lettura", icon: "book" },
+    { id: "finance", label: "Finanze", icon: "coin" },
     { id: "settings", label: "Impostazioni", icon: "gear" }
   ],
 
   // Sezioni che non si possono spegnere. Le altre le accende e spegne ogni utente
   // da Impostazioni (settings.data.hiddenSections): la sua navigazione è solo sua.
   ALWAYS: ["today", "settings"],
+  // Sezioni che partono spente: si accendono da Impostazioni (settings.data.shownSections)
+  OPT_IN: ["finance"],
   // Pulsanti "Registra" / Azioni rapide → sezione a cui appartengono
   ACT_SECTION: {
     "habit-new": "habits", "goal-new": "goals", "weight-add": "body", "workout-add": "body", "mood-add": "body",
-    "sleep-add": "body", "food-quick": "food", "read-add": "reading", "focus-start": "focus"
+    "sleep-add": "body", "food-quick": "food", "read-add": "reading", "focus-start": "focus", "finance-open": "finance"
   },
 
-  isOn(id) { return this.ALWAYS.includes(id) || !(Store.settings.hiddenSections || []).includes(id); },
+  isOn(id) {
+    if (this.OPT_IN.includes(id)) return (Store.settings.shownSections || []).includes(id);
+    return this.ALWAYS.includes(id) || !(Store.settings.hiddenSections || []).includes(id);
+  },
+  navKey() { return `${(Store.settings.hiddenSections || []).join()}|${(Store.settings.shownSections || []).join()}`; },
   actOn(act) { return !this.ACT_SECTION[act] || this.isOn(this.ACT_SECTION[act]); },
   nav() { return this.NAV.filter((n) => this.isOn(n.id)); },
   // Telefono: Home + le prime due sezioni accese nella barra in basso, le altre in "Altro"
   tabs() { return [this.NAV[0], ...this.nav().filter((n) => !this.ALWAYS.includes(n.id)).slice(0, 2)]; },
 
   views() {
-    return { today: Today, habits: Habits, goals: Goals, insights: Insights, focus: Focus, body: Body, food: Food, recall: Recall, reading: Reading, settings: Settings };
+    return { today: Today, habits: Habits, goals: Goals, insights: Insights, focus: Focus, body: Body, food: Food, recall: Recall, reading: Reading, finance: Finance, settings: Settings };
   },
 
   start() {
@@ -79,7 +86,7 @@ const App = {
   },
 
   buildNav() {
-    this._navKey = (Store.settings.hiddenSections || []).join();
+    this._navKey = this.navKey();
     const tabs = this.tabs();
     const item = (n, cls) => `<button class="${cls}" data-act="go" data-id="${n.id}">${Icon.svg(n.icon, 22)}<span>${n.label}</span></button>`;
     document.getElementById("sidebar-nav").innerHTML = this.nav().map((n) => item(n, "nav-item")).join("");
@@ -127,7 +134,7 @@ const App = {
   render() {
     if (!this.loaded) return;
     // Sezioni accese o spente (anche da un altro dispositivo): rifaccio la navigazione
-    if ((Store.settings.hiddenSections || []).join() !== this._navKey) this.buildNav();
+    if (this.navKey() !== this._navKey) this.buildNav();
     if (!this.isOn(this.view)) { this.view = "today"; history.replaceState(null, "", "#/today"); }
     const el = document.getElementById("view");
     const y = window.scrollY;
@@ -184,7 +191,7 @@ Actions["reload"] = () => location.reload();
 Actions["quick-add"] = () => {
   const items = [
     ["habit", "Abitudine", "habit-new", 1], ["goal", "Obiettivo", "goal-new", 1], ["scale", "Peso", "weight-add", 2], ["dumbbell", "Allenamento", "workout-add", 2],
-    ["bowl", "Pasto", "food-quick", 2], ["smile", "Umore", "mood-add", 1], ["moon", "Sonno", "sleep-add", 1], ["book", "Da leggere", "read-add", 2]
+    ["bowl", "Pasto", "food-quick", 2], ["smile", "Umore", "mood-add", 1], ["moon", "Sonno", "sleep-add", 1], ["book", "Da leggere", "read-add", 2], ["coin", "Spese del mese", "finance-open", 2]
   ].filter(([, , act]) => App.actOn(act));
   Sheet.open({
     title: "Registra",

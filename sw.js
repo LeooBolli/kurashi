@@ -3,13 +3,13 @@
 // Le chiamate a Supabase e agli altri domini non vengono mai toccate.
 // ============================================================
 // Cambiare il numero ad ogni modifica dei file: forza il download dei nuovi.
-const CACHE_NAME = "kurashi-v30";
+const CACHE_NAME = "kurashi-v32";
 const APP_SHELL = [
   "./", "./index.html", "./css/style.css", "./css/dashboard.css", "./css/views.css", "./manifest.json",
   "./icons/icon.svg", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
   "./js/config.js", "./js/util.js", "./js/demo.js", "./js/store.js", "./js/calc.js", "./js/charts.js",
   "./js/auth.js", "./js/ui.js", "./js/shell.js", "./js/habits.js", "./js/goals.js", "./js/today.js", "./js/focus.js",
-  "./js/body.js", "./js/food.js", "./js/plan-keto.js", "./js/reading.js", "./js/recall.js", "./js/insights.js", "./js/export.js", "./js/settings.js", "./js/app.js"
+  "./js/body.js", "./js/food.js", "./js/plan-keto.js", "./js/reading.js", "./js/recall.js", "./js/finance.js", "./js/insights.js", "./js/export.js", "./js/settings.js", "./js/app.js"
 ];
 
 self.addEventListener("install", (event) => {

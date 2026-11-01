@@ -70,6 +70,33 @@ window.HORIZONS = {
   recurring: { label: "Ricorrente", sub: "si ripete",    months: 12 }
 };
 
+// Finanze: struttura di partenza (macro aree e voci). Chi la modifica la ritrova nelle
+// impostazioni (financeGroups, financeCats). mine = solo per l'account owner.
+window.FIN_GROUPS = [
+  { id: "casa",     label: "Casa",       color: "#B48A12" },
+  { id: "cibo",     label: "Cibo",       color: "#D2483F" },
+  { id: "everyday", label: "Everyday",   color: "#3F7CBF" },
+  { id: "viaggi",   label: "Viaggi",     color: "#E8792F" },
+  { id: "salute",   label: "Salute",     color: "#8A6FD0" },
+  { id: "uni",      label: "Università", color: "#D8608A" },
+  { id: "cane",     label: "Cane",       color: "#A0694A", mine: true }
+];
+window.FIN_CATS = [
+  { id: "luce",      label: "Luce",        emoji: "⚡", group: "casa" },
+  { id: "gas",       label: "Gas",         emoji: "💨", group: "casa" },
+  { id: "spesa",     label: "Spesa",       emoji: "🥕", group: "cibo" },
+  { id: "fisse",     label: "Spese fisse", emoji: "🧱", group: "casa" },
+  { id: "macchina",  label: "Macchina",    emoji: "🚓", group: "everyday" },
+  { id: "varie",     label: "Varie",       emoji: "📔", group: "everyday" },
+  { id: "viaggi",    label: "Viaggi",      emoji: "✈️", group: "viaggi" },
+  { id: "salute",    label: "Salute",      emoji: "🤍", group: "salute" },
+  { id: "universita", label: "Università", emoji: "🎓", group: "uni" },
+  { id: "pasti",     label: "Pasti",       emoji: "🍝", group: "cibo" },
+  { id: "nevada",    label: "Nevada",      emoji: "🐕", group: "cane", mine: true }
+];
+// Proposte nella finestra «Nuova macro area»
+window.FIN_SUGGESTED = ["Trasporti", "Abbonamenti", "Tempo libero", "Persona", "Regali", "Tasse e burocrazia", "Risparmio", "Imprevisti"];
+
 // Solo per gli obiettivi ricorrenti: ogni quanto si rinnova il traguardo
 window.PERIODS = {
   week:  { label: "Settimanale", sub: "ogni settimana" },

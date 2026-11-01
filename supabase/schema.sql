@@ -225,6 +225,20 @@ create table if not exists meal_templates (
 );
 
 -- ------------------------------------------------------------
+-- FINANZE: quanto si è speso in un mese per ogni voce. Una riga per mese e voce;
+-- month è il primo del mese, category l'id della voce (settings.data.financeCats).
+-- ------------------------------------------------------------
+create table if not exists finance_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  month date not null check (extract(day from month) = 1),
+  category text not null,
+  amount numeric(10,2) not null check (amount >= 0),
+  created_at timestamptz not null default now(),
+  unique (user_id, month, category)
+);
+
+-- ------------------------------------------------------------
 -- IMPOSTAZIONI (una riga per utente, contenuto libero in JSON)
 -- ------------------------------------------------------------
 create table if not exists settings (
@@ -261,7 +275,7 @@ begin
   foreach t in array array[
     'goals','milestones','habits','habit_logs','focus_sessions',
     'mood_logs','sleep_logs','weight_logs','workouts','reading_items','highlights','settings',
-    'foods','meal_entries','meal_templates'
+    'foods','meal_entries','meal_templates','finance_entries'
   ] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists "own rows" on %I', t);
@@ -313,7 +327,7 @@ begin
   foreach t in array array[
     'goals','milestones','habits','habit_logs','focus_sessions',
     'mood_logs','sleep_logs','weight_logs','workouts','reading_items','highlights',
-    'foods','meal_entries','meal_templates','settings'
+    'foods','meal_entries','meal_templates','finance_entries','settings'
   ] loop
     begin
       execute format('alter publication supabase_realtime add table %I', t);
