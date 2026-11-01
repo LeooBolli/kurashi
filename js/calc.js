@@ -253,10 +253,21 @@ const Calc = {
   },
   examsPassed() { return Store.d.milestones.filter((m) => m.is_exam && !m.parent_id && m.exam_grade); },
   examMin(m, day = null) { return U.sum(this.focusDone().filter((s) => s.milestone_id === m.id && (!day || U.dateOf(s.started_at) === day)).map((s) => s.duration_min)); },
-  // Piano del giorno: le ore che mancano divise per i giorni fino all'appello (il giorno dell'esame non conta).
+  // Sessioni pianificate di un giorno sugli esami preferiti, in ordine di ora. Una sessione è fatta
+  // quando i minuti studiati quel giorno su quell'esame coprono lei e quelle prima.
+  slotsOn(date) {
+    const dow = U.dow(date), left = new Map();
+    return this.exams().filter((m) => m.exam_fav).flatMap((m) => (m.exam_slots || []).filter((s) => s.dow === dow).map((s) => ({ ...s, m })))
+      .sort((a, b) => a.time.localeCompare(b.time)).map((s) => {
+        const have = left.has(s.m.id) ? left.get(s.m.id) : this.examMin(s.m, date), done = have >= s.min;
+        left.set(s.m.id, Math.max(0, have - s.min));
+        return { ...s, done };
+      });
+  },
+  // Piano del giorno, solo sui preferiti: le ore che mancano divise per i giorni fino all'appello (il giorno dell'esame non conta).
   // Servono data e ore previste; ciò che è già stato fatto oggi non sposta il calcolo, si sottrae dopo.
   examPlan(today = U.today()) {
-    return this.exams().filter((m) => m.exam_date && m.exam_date > today && Number(m.exam_hours) > 0).map((m) => {
+    return this.exams().filter((m) => m.exam_fav && m.exam_date && m.exam_date > today && Number(m.exam_hours) > 0).map((m) => {
       const done = this.examMin(m), todayMin = this.examMin(m, today), left = Math.max(0, Number(m.exam_hours) * 60 - (done - todayMin));
       const days = U.diffDays(today, m.exam_date), perDay = Math.ceil(left / days / 5) * 5;
       return { m, days, perDay, due: Math.max(0, perDay - todayMin) };

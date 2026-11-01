@@ -174,21 +174,38 @@ ul:is(.fin-groups), .fin-table ul, .fin-manage ul { list-style: none; margin: 0;
 .fin-months input:focus-visible + span { outline: 2px solid var(--hot); outline-offset: 2px; }
 #fin-trend { margin-bottom: 16px; }
 
-/* ---------- Studio: esami e piano del giorno ---------- */
-.study-plan, .study-exams { margin-bottom: 16px; }
-.study-plan ul, .study-exams ul { list-style: none; margin: 0; padding: 0; }
-.study-plan li { display: flex; align-items: center; gap: 10px; min-height: 52px; border-top: 1px solid var(--line); }
+/* ---------- Studio: esami, sessioni e pagina del singolo esame ---------- */
+.study-block { margin-bottom: 16px; }
+.study-block ul, .study-pane ul.study-slots { list-style: none; margin: 0; padding: 0; }
 .study-t { display: grid; min-width: 0; flex: 1; }
 .study-t b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.study-t small, .study-n small { font-size: 12px; color: var(--ink-3); }
-.study-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); }
-.study-exams ul .study-row:first-child, .study-plan li:first-child { border-top: 0; }
-.study-main { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 11px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.study-main .bar { grid-column: 1 / -1; }
-.study-n { display: grid; text-align: right; }
-.study-n b { font-size: 13px; font-variant-numeric: tabular-nums; }
+.study-t small { font-size: 12px; color: var(--ink-3); }
+.study-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .study-go { flex: none; width: 44px; height: 44px; color: var(--hot); }
+.study-star { flex: none; width: 44px; height: 44px; color: var(--ink-3); }
+.study-star.on { color: var(--hot); }
+.study-star.on svg { fill: currentColor; }
+.study-slots li { display: flex; align-items: center; gap: 10px; min-height: 52px; border-top: 1px solid var(--line); }
+.study-slots li:first-child { border-top: 0; }
+.study-slots li.done { opacity: .6; }
+.study-time { flex: none; width: 46px; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+.study-favs { display: grid; gap: 14px; }
+.study-fav-top { display: flex; align-items: center; gap: 6px; }
+.study-fav-num { display: flex; justify-content: space-between; gap: 10px; margin: 2px 0 6px; font-size: 13px; color: var(--ink-2); }
+.study-rest li { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--line); }
+.study-rest li:first-child { border-top: 0; }
+.study-rest .ico:last-child { color: var(--ink-3); flex: none; }
+.study-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; text-align: center; }
+.study-week div { display: grid; gap: 2px; padding: 8px 2px; border-radius: 10px; font-size: 11px; color: var(--ink-3); }
+.study-week b { font-size: 12px; color: var(--ink-2); }
+.study-week .today { background: var(--chip); box-shadow: inset 0 0 0 1px var(--chip-edge); }
 .study-past { margin-top: 12px; }
 .study-past h3 { font-size: 13px; color: var(--ink-3); margin-bottom: 6px; }
 .study-past .chips-row { margin: 0; }
+.study-head { margin-top: 12px; flex-wrap: nowrap; align-items: flex-start; }
+.study-head .title { font-size: clamp(24px, 6vw, 34px); line-height: 1.15; }
+.study-hero { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.study-pane { margin-top: 16px; }
+.study-slot-form { margin-top: 14px; }
 .dash-min-form { margin-top: 14px; }
+.study-hero .study-t b { white-space: normal; }

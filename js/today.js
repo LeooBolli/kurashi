@@ -348,9 +348,11 @@ const Today = (() => {
       },
       render(sz, o) {
         const running = focusOk() && !!Focus.run;
+        // con una durata fissata in Personalizza il pulsante dei minuti non serve
+        const min = minOf(o), pick = o && o.min ? "" : `<button type="button" class="d-durbtn" data-act="dash-focus-pick" aria-label="Durata: ${min} minuti. Cambia">${min} min</button>`;
         const btns = `<div class="d-tbtns">${running
           ? `<button type="button" data-act="focus-giveup" aria-label="Interrompi la sessione">${ic("stop", 16)}</button>`
-          : startBtn(o, "", 18)}</div>`;
+          : startBtn({ ...o, min }, "", 18) + pick}</div>`;
         const state = running ? linkLabel(Focus.run) : `Pronta · ${minOf(o)} min`;
         const time = `<span class="d-timer" data-dash-timer data-running="${running}" role="timer" aria-label="${running ? "Tempo rimanente" : "Durata"}">${mmss(remainingSec(o))}</span>`;
         if (sz === "s") return { cls: "blue", html: head("timer", "Focus", esc(state)) + `<div class="d-wb end" style="gap:10px">${time}${btns}</div>` };
@@ -761,12 +763,12 @@ const Today = (() => {
       val: (m) => (m < 60 ? [m, "min"] : [U.num(m / 60, 1), "h"]),
       mini() {
         const x = this.data(), [v, u] = this.val(x.due);
-        if (!x.plan.length) return { icon: "cap", title: "Studio di oggi", value: x.exams, unit: x.exams === 1 ? "esame" : "esami", cap: "Aggiungi date e ore", p: null };
+        if (!x.plan.length) return { icon: "cap", title: "Studio di oggi", value: x.exams, unit: x.exams === 1 ? "esame" : "esami", cap: "Scegli gli esami in Studio", p: null };
         return { icon: "cap", title: "Studio di oggi", value: x.due ? v : "Fatto", unit: x.due ? u : "", cap: x.now ? esc(x.now.m.title) : "Piano completato", p: null };
       },
       render(sz) {
         const x = this.data(), [v, u] = this.val(x.due);
-        if (!x.plan.length) return { html: head("cap", "Studio di oggi") + `<div class="d-wb">${empty("Aggiungi data e ore ai tuoi esami.")}</div>` };
+        if (!x.plan.length) return { html: head("cap", "Studio di oggi") + `<div class="d-wb">${empty("Scegli gli esami in Studio e aggiungi date e ore.")}</div>` };
         return { html: head("cap", "Studio di oggi", x.now ? "" : "Piano completato") + `<div class="d-wb end">${big(x.due ? v : "Fatto", x.due ? u : "")}<span class="d-cap">${x.now ? esc(x.now.m.title) : `${x.exams} ${x.exams === 1 ? "esame" : "esami"} in programma`}</span></div>` };
       }
     },
@@ -1402,20 +1404,20 @@ Actions["dash-meal"] = (el) => {
   Food.syncHabit([today]);
 };
 // Sessione di focus dal widget, con la durata scelta per quel widget
-// Dalla Home la sessione è libera, mai collegata a un esame. Con la durata fissata in Personalizza
-// parte subito, altrimenti si scelgono i minuti.
-Actions["dash-focus"] = (el) => {
-  if (el.dataset.min) return Focus.startFree(Number(el.dataset.min));
-  Sheet.open({
-    title: "Quanti minuti?",
-    body: `<div class="dur">${[15, 25, 45, 60].map((m) => `<button class="pill ${Focus.minutes === m ? "on" : ""}" data-act="dash-focus-min" data-min="${m}" data-close="1">${m} min</button>`).join("")}</div>
-      <form class="inline-add dash-min-form" data-act-submit="dash-focus-custom"><input type="number" name="min" min="1" max="180" inputmode="numeric" placeholder="Altri minuti" aria-label="Altri minuti"><button class="btn ghost sm" type="submit">Avvia</button></form>`
-  });
-};
+// Dalla Home la sessione è libera, mai collegata a un esame.
+// Con la durata già nota parte subito; nei formati piccoli, senza il pulsante dei minuti, si sceglie prima.
+const dashMinutes = (act, label) => Sheet.open({
+  title: "Quanti minuti?",
+  body: `<div class="dur">${[15, 25, 45, 60].map((m) => `<button class="pill ${Focus.minutes === m ? "on" : ""}" data-act="${act}" data-min="${m}" data-close="1">${m} min</button>`).join("")}</div>
+    <form class="inline-add dash-min-form" data-act-submit="dash-focus-custom" data-then="${act}"><input type="number" name="min" min="1" max="180" inputmode="numeric" placeholder="Altri minuti" aria-label="Altri minuti"><button class="btn ghost sm" type="submit">${label}</button></form>`
+});
+Actions["dash-focus"] = (el) => (el.dataset.min ? Focus.startFree(Number(el.dataset.min)) : dashMinutes("dash-focus-min", "Avvia"));
 Actions["dash-focus-min"] = (el) => Focus.startFree(Number(el.dataset.min));
+Actions["dash-focus-pick"] = () => dashMinutes("dash-focus-set", "Imposta");
+Actions["dash-focus-set"] = (el) => { Focus.minutes = Number(el.dataset.min); App.render(); };
 Actions["dash-focus-custom"] = (form) => {
   const m = Math.round(Number(form.elements.min.value));
   if (!(m >= 1 && m <= 180)) return U.toast("Scegli tra 1 e 180 minuti");
   Sheet.close();
-  Focus.startFree(m);
+  Actions[form.dataset.then]({ dataset: { min: m } });
 };

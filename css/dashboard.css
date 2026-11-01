@@ -516,3 +516,4 @@
 .dash .d-frenew em { font-style: normal; font-size: 11px; font-weight: 600; color: var(--d-ink3); }
 .dash .d-frenew span { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dash .d-frenew b { font-variant-numeric: tabular-nums; }
+.dash .d-w .d-tbtns button.d-durbtn { width: auto; height: 44px; padding: 0 16px; border-radius: 999px; font-size: 13px; font-weight: 700; white-space: nowrap; }
