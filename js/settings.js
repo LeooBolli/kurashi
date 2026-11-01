@@ -37,7 +37,7 @@ const Settings = {
           <p class="hint">Spegni quelle che non usi: spariscono dal menu, dalla Home e da «Registra». I dati restano dove sono e puoi riaccenderle quando vuoi. Valgono solo per il tuo account.</p>
           <form class="form sections-form" data-act-submit="sections-save" data-autosave="sections-save">
             ${App.NAV.filter((n) => !App.ALWAYS.includes(n.id)).map((n) => `<label class="check"><input name="sec-${n.id}" type="checkbox" ${App.isOn(n.id) ? "checked" : ""}>
-              <span><b>${Icon.svg(n.icon, 16)} ${n.label}</b>${App.OPT_IN.includes(n.id) ? `<small class="hint">Spenta all'inizio: si attiva solo da qui.</small>` : ""}</span></label>`).join("")}
+              <span><b>${Icon.svg(n.icon, 16)} ${n.label}</b></span></label>`).join("")}
             <p class="hint">Home e Impostazioni restano sempre accese.</p>
             ${hidSubmit}
           </form>
