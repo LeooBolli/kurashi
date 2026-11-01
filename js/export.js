@@ -51,8 +51,8 @@ const Export = {
         Link: h.source_url || "", Preferita: this.yn(h.favorite), Silenziata: this.yn(h.muted), Ripassi: h.times_reviewed || 0, Ultimo_ripasso: h.last_reviewed_on || ""
       })),
       ...((d.finance_entries || []).length ? { Finanze: [...d.finance_entries].sort((a, b) => a.month.localeCompare(b.month)).map((e) => {
-        const c = Finance.cats().find((x) => x.id === e.category);
-        return { Mese: e.month.slice(0, 7), Voce: c ? c.label : e.category, Macro_area: c ? Finance.group(c.group).label : "", Importo: Number(e.amount) };
+        const c = Finance.allCats().find((x) => x.id === e.category);
+        return { Mese: e.month.slice(0, 7), Tipo: Finance.kindOf(e.category) === "in" ? "Entrata" : "Uscita", Voce: c ? c.label : e.category, Macro_area: c ? Finance.group(c.group).label : "", Importo: Number(e.amount) };
       }) } : {}),
       Lettura: d.reading_items.map((r) => ({ Titolo: r.title, Tipo: r.kind === "book" ? "libro" : "link", Autore: r.author || "", Pagine: r.pages || "", Pagina_attuale: r.kind === "book" ? r.current_page || 0 : "", Goodreads: r.goodreads_url || "", Link: r.url || "", Fonte: r.source === "raindrop" ? "Raindrop" : "Manuale", Stato: { todo: "da leggere", reading: "in corso", done: "letto" }[r.status], Aggiunto: U.dateOf(r.created_at), Letto_il: r.done_at ? U.dateOf(r.done_at) : "" }))
     };

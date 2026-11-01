@@ -71,31 +71,54 @@ window.HORIZONS = {
 };
 
 // Finanze: struttura di partenza (macro aree e voci). Chi la modifica la ritrova nelle
-// impostazioni (financeGroups, financeCats). mine = solo per l'account owner.
+// impostazioni (financeGroups, financeCats). kind "in" = entrate, senza kind = uscite;
+// mine = solo per l'account owner. L'id delle voci non cambia mai: lo usano gli importi salvati.
 window.FIN_GROUPS = [
-  { id: "casa",     label: "Casa",       color: "#B48A12" },
-  { id: "cibo",     label: "Cibo",       color: "#D2483F" },
-  { id: "everyday", label: "Everyday",   color: "#3F7CBF" },
-  { id: "viaggi",   label: "Viaggi",     color: "#E8792F" },
-  { id: "salute",   label: "Salute",     color: "#8A6FD0" },
-  { id: "uni",      label: "Università", color: "#D8608A" },
-  { id: "cane",     label: "Cane",       color: "#A0694A", mine: true }
+  { id: "trasporti",   label: "Automobile",  color: "#5462C8" },
+  { id: "pasti",       label: "Pasti",       color: "#D2483F" },
+  { id: "spesa",       label: "Spesa",       color: "#3E9B72" },
+  { id: "casa",        label: "Casa",        color: "#B48A12" },
+  { id: "salute",      label: "Salute",      color: "#8A6FD0" },
+  { id: "everyday",    label: "Tasse e commissioni", color: "#3F7CBF" },
+  { id: "lavoro",      label: "Lavoro",      color: "#5F7684" },
+  { id: "attivita",    label: "Attività",    color: "#7E9130" },
+  { id: "uni",         label: "Formazione",  color: "#D8608A" },
+  { id: "online",      label: "Servizi Online", color: "#B04FB4" },
+  { id: "negozi",      label: "Negozi",      color: "#A0694A" },
+  { id: "personale",   label: "Personale",   color: "#5462C8" },
+  { id: "viaggi",      label: "Viaggi",      color: "#E8792F" },
+  { id: "abbonamenti", label: "Abbonamenti", color: "#2A9AA5" },
+  { id: "cane",        label: "Nevada",      color: "#A0694A", mine: true },
+  { id: "in_lavoro",   label: "Lavoro",      color: "#3E9B72", kind: "in" },
+  { id: "in_famiglia", label: "Famiglia",    color: "#2A9AA5", kind: "in" },
+  { id: "in_altro",    label: "Altre entrate", color: "#7E9130", kind: "in" }
 ];
 window.FIN_CATS = [
-  { id: "luce",      label: "Luce",        emoji: "⚡", group: "casa" },
-  { id: "gas",       label: "Gas",         emoji: "💨", group: "casa" },
-  { id: "spesa",     label: "Spesa",       emoji: "🥕", group: "cibo" },
-  { id: "fisse",     label: "Spese fisse", emoji: "🧱", group: "casa" },
-  { id: "macchina",  label: "Macchina",    emoji: "🚓", group: "everyday" },
-  { id: "varie",     label: "Varie",       emoji: "📔", group: "everyday" },
-  { id: "viaggi",    label: "Viaggi",      emoji: "✈️", group: "viaggi" },
-  { id: "salute",    label: "Salute",      emoji: "🤍", group: "salute" },
-  { id: "universita", label: "Università", emoji: "🎓", group: "uni" },
-  { id: "pasti",     label: "Pasti",       emoji: "🍝", group: "cibo" },
-  { id: "nevada",    label: "Nevada",      emoji: "🐕", group: "cane", mine: true }
+  { id: "macchina",   label: "Automobile",  icon: "car",       group: "trasporti" },
+  { id: "pasti",      label: "Pasti",       icon: "bowl",      group: "pasti" },
+  { id: "spesa",      label: "Spesa",       icon: "cart",      group: "spesa" },
+  { id: "luce",       label: "Luce",        icon: "bolt",      group: "casa" },
+  { id: "gas",        label: "Gas",         icon: "flame",     group: "casa" },
+  { id: "salute",     label: "Salute",      icon: "heart",     group: "salute" },
+  { id: "varie",      label: "Tasse e commissioni", icon: "apps",      group: "everyday" },
+  { id: "lavoro",     label: "Lavoro",      icon: "briefcase", group: "lavoro" },
+  { id: "attivita",   label: "Attività",    icon: "boat",      group: "attivita" },
+  { id: "universita", label: "Formazione",  icon: "cap",       group: "uni" },
+  { id: "online",     label: "Servizi Online", icon: "box",    group: "online" },
+  { id: "negozi",     label: "Negozi",      icon: "barcode",   group: "negozi" },
+  { id: "personale",  label: "Personale",   icon: "user",      group: "personale" },
+  { id: "viaggi",     label: "Viaggi",      icon: "plane",     group: "viaggi" },
+  { id: "fisse",      label: "Abbonamenti", icon: "repeat",    group: "abbonamenti" },
+  { id: "nevada",     label: "Nevada",      icon: "paw",       group: "cane", mine: true },
+  { id: "in_stipendio", label: "Stipendio",         icon: "wallet",    group: "in_lavoro",   kind: "in" },
+  { id: "in_fatture",   label: "Fatture e autonomo", icon: "briefcase", group: "in_lavoro",   kind: "in" },
+  { id: "in_famiglia",  label: "Famiglia",          icon: "users",     group: "in_famiglia", kind: "in" },
+  { id: "in_rimborsi",  label: "Rimborsi",          icon: "refund",    group: "in_altro",    kind: "in" },
+  { id: "in_extra",     label: "Extra e regali",    icon: "gift",      group: "in_altro",    kind: "in" }
 ];
+window.FIN_ICONS = ["coin", "wallet", "briefcase", "gift", "refund", "users", "user", "smile", "box", "barcode", "laptop", "boat", "home", "bolt", "flame", "cart", "bowl", "car", "repeat", "apps", "plane", "heart", "cap", "paw", "book", "music", "dumbbell", "shield", "tree", "star"];
 // Proposte nella finestra «Nuova macro area»
-window.FIN_SUGGESTED = ["Trasporti", "Abbonamenti", "Tempo libero", "Persona", "Regali", "Tasse e burocrazia", "Risparmio", "Imprevisti"];
+window.FIN_SUGGESTED = { out: ["Tempo libero", "Regali", "Tasse e burocrazia", "Risparmio", "Imprevisti"], in: ["Investimenti", "Affitti"] };
 
 // Solo per gli obiettivi ricorrenti: ogni quanto si rinnova il traguardo
 window.PERIODS = {

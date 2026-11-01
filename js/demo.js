@@ -157,7 +157,8 @@ const Demo = {
     })));
 
     // Finanze: sei mesi passati; nell'ultimo mancano ancora le ultime voci
-    const finCats = (window.FIN_CATS || []).filter((c) => !c.mine);
+    const finCats = (window.FIN_CATS || []).filter((c) => !c.mine && c.kind !== "in");
+    for (let i = 2; i <= 6; i++) db.finance_entries.push(mk({ month: U.addMonths(today.slice(0, 8) + "01", -i), category: "in_stipendio", amount: 2100 }));
     for (let i = 1; i <= 6; i++) finCats.forEach((c, k) => {
       if (i === 1 && k >= finCats.length - 3) return;
       db.finance_entries.push(mk({ month: U.addMonths(today.slice(0, 8) + "01", -i), category: c.id, amount: Math.round((25 + ((k * 37) % 180)) * (0.8 + rnd() * 0.4) * 100) / 100 }));

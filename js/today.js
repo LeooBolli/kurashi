@@ -34,7 +34,7 @@ const Today = (() => {
 
   const SIZE_NAMES = { c: "Cerchio", s: "Piccolo", p: "Capsula", mh: "Medio orizzontale", mv: "Medio verticale", lh: "Grande orizzontale", lv: "Grande verticale" };
   const SIZE_ORDER = ["c", "s", "p", "mh", "mv", "lh", "lv"];
-  const NEW_WIDGETS = ["nextHabit", "points", "workouts", "deadline", "clock", "exam", "toRead", "quick", "heat", "finMonth", "finAreas", "finTrend", "finTodo", "finTop"];
+  const NEW_WIDGETS = ["nextHabit", "points", "workouts", "deadline", "clock", "exam", "toRead", "quick", "heat", "finMonth", "finAreas", "finTrend", "finTodo", "finTop", "finBalance"];
   const unseenNew = () => { const seen = Store.cfg().seenWidgets || []; const used = new Set((st.layout || []).map((l) => l.type)); return NEW_WIDGETS.filter((k) => !seen.includes(k) && !used.has(k) && sectionOn(k)); };
   const sizeIcon = (s) => ({ c: '<circle cx="12" cy="9" r="7.5"/>', p: '<rect x="1" y="4.5" width="22" height="9" rx="4.5"/>', s: '<rect x="7" y="4" width="10" height="10" rx="3"/>', mh: '<rect x="2" y="5" width="20" height="9" rx="3"/>', mv: '<rect x="7" y="1" width="10" height="16" rx="3"/>', lh: '<rect x="1" y="2" width="22" height="14" rx="3"/>', lv: '<rect x="4" y="0.5" width="16" height="17" rx="3"/>' })[s];
   // Lo Storico parte compatto: la settimana su telefono, il mese a pallini sugli schermi larghi
@@ -734,16 +734,35 @@ const Today = (() => {
         return { html: head("edit", "Da compilare", x.name) + `<div class="d-wb end">${big(x.left, x.left === 1 ? "voce" : "voci")}<span class="d-cap">${x.f.done} di ${x.f.total} fatte</span></div>` };
       }
     },
+    finBalance: {
+      title: "Saldo del mese", icon: "wallet", sizes: ["c", "s", "p", "mh"], go: "finance",
+      // l'ultimo mese che ha sia entrate sia uscite
+      data() {
+        const m = [...new Set((Store.d.finance_entries || []).map((e) => e.month))].sort().reverse().find((x) => Finance.balance(x) != null && Finance.rows(x, "out").length);
+        if (!m) return null;
+        const b = Finance.balance(m);
+        return { name: cap1(Finance.monthName(m)), sign: b < 0 ? "−" : "+", value: Finance.whole(Math.abs(b)), detail: `${Finance.whole(Finance.total(m, "in"))} € entrate · ${Finance.whole(Finance.total(m))} € uscite` };
+      },
+      mini() {
+        const x = this.data();
+        return x ? { icon: "wallet", title: "Saldo del mese", value: x.sign + x.value, unit: "€", cap: x.name, p: null } : { icon: "wallet", title: "Saldo del mese", value: "—", cap: "Compila le entrate", p: null };
+      },
+      render() {
+        const x = this.data();
+        if (!x) return { html: head("wallet", "Saldo del mese") + `<div class="d-wb">${empty("Compila le entrate per vedere il saldo.", cta("Compila", "finance-open"))}</div>` };
+        return { html: head("wallet", "Saldo del mese", x.name) + `<div class="d-wb end">${big(x.sign + x.value, "€")}<span class="d-cap">${x.detail}</span></div>` };
+      }
+    },
     finTop: {
       title: "Voce più alta", icon: "coin", sizes: ["c", "s", "p"], go: "finance",
       mini() {
         const m = Finance.lastMonth(), x = Finance.top(m);
-        return x ? { icon: "coin", title: "Voce più alta", value: Finance.whole(x.amount), unit: "€", cap: `${esc(x.cat.emoji || "")} ${esc(x.cat.label)}`, p: x.amount / Finance.total(m) } : { icon: "coin", title: "Voce più alta", value: "—", cap: "Nessun importo", p: null };
+        return x ? { icon: "coin", title: "Voce più alta", value: Finance.whole(x.amount), unit: "€", cap: esc(x.cat.label), p: x.amount / Finance.total(m) } : { icon: "coin", title: "Voce più alta", value: "—", cap: "Nessun importo", p: null };
       },
       render() {
         const m = Finance.lastMonth(), x = Finance.top(m);
         if (!x) return { html: head("coin", "Voce più alta") + `<div class="d-wb">${empty("Nessun importo.")}</div>` };
-        return { html: head("coin", "Voce più alta", cap1(Finance.monthName(m))) + `<div class="d-wb end">${big(Finance.whole(x.amount), "€")}<span class="d-cap">${esc(x.cat.emoji || "")} ${esc(x.cat.label)}</span></div>` };
+        return { html: head("coin", "Voce più alta", cap1(Finance.monthName(m))) + `<div class="d-wb end">${big(Finance.whole(x.amount), "€")}<span class="d-cap">${esc(x.cat.label)}</span></div>` };
       }
     }
   };
