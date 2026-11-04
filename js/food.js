@@ -597,6 +597,7 @@ const Food = {
 
   slotMenu(slot) {
     this.menu(this.slotLabel(slot), [
+      ["sync", "Scambia con un altro pasto del giorno", "food-slot-swap-menu", `data-slot="${slot}"`],
       ["copy", "Copia questo pasto su altri giorni", "food-copy", `data-kind="slot" data-slot="${slot}"`],
       ["star", "Salva come pasto nel ricettario", "food-save-meal", `data-slot="${slot}"`],
       ["trash", "Svuota questo pasto", "food-clear-slot", `data-slot="${slot}"`]
@@ -719,6 +720,26 @@ const Food = {
       } });
   },
 
+  // Scambia due pasti dello stesso giorno, es. pranzo e cena. Le spunte viaggiano con le pietanze;
+  // con un pasto vuoto diventa uno spostamento
+  slotSwapMenu(slot) {
+    const day = this.sel();
+    this.menu(`Scambia ${this.slotLabel(slot).toLowerCase()} con…`, this.SLOTS.filter(([k]) => k !== slot).map(([k, l]) => {
+      const n = this.entriesOn(day, k).length;
+      return ["sync", `${l}${n ? "" : " (vuoto)"}`, "food-slot-swap", `data-slot="${slot}" data-with="${k}"`];
+    }));
+  },
+
+  slotSwap(slot, other) {
+    const day = this.sel();
+    const a = this.entriesOn(day, slot), b = this.entriesOn(day, other);
+    a.forEach((e) => Store.update("meal_entries", e.id, { slot: other }));
+    b.forEach((e) => Store.update("meal_entries", e.id, { slot }));
+    this.syncHabit([day]);
+    Sheet.close();
+    U.toast(b.length ? `Scambiati ${this.slotLabel(slot).toLowerCase()} e ${this.slotLabel(other).toLowerCase()}` : `Spostato a ${this.slotLabel(other).toLowerCase()}`);
+  },
+
   async clear(slot = null) {
     const day = this.sel();
     const ok = await UI.confirm({ title: slot ? `Svuotare ${this.slotLabel(slot).toLowerCase()} del ${U.fmtShort(day)}?` : `Svuotare tutto il ${U.fmtShort(day)}?`,
@@ -774,4 +795,6 @@ Actions["food-target"] = (el) => Food.toggleTarget(el);
 Actions["food-target-go"] = () => Food.applyTargets();
 Actions["food-clear-day"] = () => Food.clear();
 Actions["food-swap"] = () => Food.swap();
+Actions["food-slot-swap-menu"] = (el) => Food.slotSwapMenu(el.dataset.slot);
+Actions["food-slot-swap"] = (el) => Food.slotSwap(el.dataset.slot, el.dataset.with);
 Actions["food-clear-slot"] = (el) => Food.clear(el.dataset.slot);
