@@ -597,7 +597,7 @@ const Food = {
 
   slotMenu(slot) {
     this.menu(this.slotLabel(slot), [
-      ["sync", "Scambia con un altro pasto del giorno", "food-slot-swap-menu", `data-slot="${slot}"`],
+      ["sync", "Scambia con un altro pasto", "food-slot-swap-menu", `data-slot="${slot}"`],
       ["copy", "Copia questo pasto su altri giorni", "food-copy", `data-kind="slot" data-slot="${slot}"`],
       ["star", "Salva come pasto nel ricettario", "food-save-meal", `data-slot="${slot}"`],
       ["trash", "Svuota questo pasto", "food-clear-slot", `data-slot="${slot}"`]
@@ -720,24 +720,34 @@ const Food = {
       } });
   },
 
-  // Scambia due pasti dello stesso giorno, es. pranzo e cena. Le spunte viaggiano con le pietanze;
-  // con un pasto vuoto diventa uno spostamento
-  slotSwapMenu(slot) {
-    const day = this.sel();
-    this.menu(`Scambia ${this.slotLabel(slot).toLowerCase()} con…`, this.SLOTS.filter(([k]) => k !== slot).map(([k, l]) => {
-      const n = this.entriesOn(day, k).length;
-      return ["sync", `${l}${n ? "" : " (vuoto)"}`, "food-slot-swap", `data-slot="${slot}" data-with="${k}"`];
-    }));
+  // Scambia un pasto con un altro, dello stesso giorno (es. pranzo e cena) o di un altro giorno.
+  // Con un pasto vuoto diventa uno spostamento
+  slotSwapMenu(slot, date = this.sel()) {
+    const day = this.sel(), same = date === day;
+    const items = this.SLOTS.filter(([k]) => !same || k !== slot).map(([k, l]) => {
+      const n = this.entriesOn(date, k).length;
+      return ["sync", `${l}${n ? "" : " (vuoto)"}`, "food-slot-swap", `data-slot="${slot}" data-with="${k}" data-date="${date}"`];
+    });
+    if (same) items.push(["cal", "Un pasto di un altro giorno…", "food-slot-swap-day", `data-slot="${slot}"`]);
+    this.menu(same ? `Scambia ${this.slotLabel(slot).toLowerCase()} con…` : `Scambia con un pasto del ${U.fmtShort(date)}`, items);
   },
 
-  slotSwap(slot, other) {
+  slotSwapDay(slot) {
     const day = this.sel();
-    const a = this.entriesOn(day, slot), b = this.entriesOn(day, other);
-    a.forEach((e) => Store.update("meal_entries", e.id, { slot: other }));
-    b.forEach((e) => Store.update("meal_entries", e.id, { slot }));
-    this.syncHabit([day]);
+    this.openTargets({ title: `Scambia ${this.slotLabel(slot).toLowerCase()} del ${U.fmtShort(day)} con…`, mode: "days", exclude: day, single: true,
+      onPick: (other) => this.slotSwapMenu(slot, other) });
+  },
+
+  // Nello stesso giorno le spunte viaggiano con le pietanze; tra giorni diversi si azzerano, come nello scambio dei giorni
+  slotSwap(slot, other, date = this.sel()) {
+    const day = this.sel(), same = date === day;
+    const a = this.entriesOn(day, slot), b = this.entriesOn(date, other);
+    a.forEach((e) => Store.update("meal_entries", e.id, same ? { slot: other } : { slot: other, entry_date: date, eaten: false }));
+    b.forEach((e) => Store.update("meal_entries", e.id, same ? { slot } : { slot, entry_date: day, eaten: false }));
+    this.syncHabit(same ? [day] : [day, date]);
     Sheet.close();
-    U.toast(b.length ? `Scambiati ${this.slotLabel(slot).toLowerCase()} e ${this.slotLabel(other).toLowerCase()}` : `Spostato a ${this.slotLabel(other).toLowerCase()}`);
+    const what = (s, d) => `${this.slotLabel(s).toLowerCase()}${same ? "" : ` del ${U.fmtShort(d)}`}`;
+    U.toast(b.length ? `Scambiati ${what(slot, day)} e ${what(other, date)}` : `Spostato a ${what(other, date)}`);
   },
 
   async clear(slot = null) {
@@ -796,5 +806,6 @@ Actions["food-target-go"] = () => Food.applyTargets();
 Actions["food-clear-day"] = () => Food.clear();
 Actions["food-swap"] = () => Food.swap();
 Actions["food-slot-swap-menu"] = (el) => Food.slotSwapMenu(el.dataset.slot);
-Actions["food-slot-swap"] = (el) => Food.slotSwap(el.dataset.slot, el.dataset.with);
+Actions["food-slot-swap"] = (el) => Food.slotSwap(el.dataset.slot, el.dataset.with, el.dataset.date);
+Actions["food-slot-swap-day"] = (el) => Food.slotSwapDay(el.dataset.slot);
 Actions["food-clear-slot"] = (el) => Food.clear(el.dataset.slot);
