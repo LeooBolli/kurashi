@@ -127,6 +127,12 @@ describe("rinnovi", () => {
     S.settings.financeRenewals = [{ id: "a", amount: 10, day: 1, months: [] }, { id: "b", amount: 15, day: 1, months: [3, 9] }];
     assert.equal(F.yearCosts(), 150);
   });
+  test("i rinnovi di altri non entrano nei tuoi totali; il mensile conta solo quelli di ogni mese", () => {
+    S.settings.financeRenewals = [{ id: "a", amount: 10, day: 1, months: [] }, { id: "b", amount: 15, day: 1, months: [3, 9] }, { id: "c", amount: 20, day: 1, months: [], other: true }];
+    assert.equal(F.yearCosts(), 150);
+    assert.equal(F.yearCosts(false), 240);
+    assert.equal(F.monthlyCosts(), 10);
+  });
 });
 
 describe("sezione spenta di default", () => {

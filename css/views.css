@@ -165,6 +165,13 @@ ul:is(.fin-groups), .fin-table ul, .fin-manage ul { list-style: none; margin: 0;
 .fin-renew li:last-child .fin-voce { border-bottom: 0; }
 .fin-renew b { font-variant-numeric: tabular-nums; font-size: 14px; }
 .fin-rdate { flex: none !important; width: 56px; font-size: 13px; color: var(--ink-3); font-weight: 600 !important; }
+.fin-rtot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 6px; }
+.fin-rtot div { display: grid; gap: 2px; padding: 10px 6px; border-radius: 14px; background: var(--line-2); text-align: center; }
+.fin-rtot b { font: 700 17px var(--display); font-variant-numeric: tabular-nums; }
+.fin-rtot span { font-size: 11px; font-weight: 600; color: var(--ink-3); }
+.fin-rother { margin: 0 0 6px; }
+.fin-voce > span:nth-child(2) small { display: block; font-weight: 500; font-size: 12px; }
+.fin-voce.other b, .fin-voce.other > span:nth-child(2) { opacity: .6; }
 .fin-months { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
 .fin-months legend { margin-bottom: 6px; }
 .fin-months input { position: absolute; opacity: 0; }

@@ -6,7 +6,8 @@
 // finance_entries: una riga per mese e voce. Voce senza riga = da compilare,
 // 0 = compilata, nessuna spesa. La sezione parte spenta (App.OPT_IN).
 // Budget e rinnovi stanno nelle impostazioni (financeBudget, financeRenewals):
-// un rinnovo è { id, label, amount, day, months }, months vuoto = ogni mese.
+// un rinnovo è { id, label, amount, day, months, other }, months vuoto = ogni mese,
+// other = addebitato a un'altra persona (si vede in lista ma non entra nei tuoi totali).
 // ============================================================
 const Finance = {
   month: null,    // primo giorno del mese aperto
@@ -98,7 +99,10 @@ const Finance = {
   // ---------- Rinnovi ----------
   renewals() { return Array.isArray(Store.settings.financeRenewals) ? Store.settings.financeRenewals : []; },
   yearCost(r) { return Number(r.amount) * ((r.months || []).length || 12); },
-  yearCosts() { return U.sum(this.renewals().map((r) => this.yearCost(r))); },
+  // Totali dei rinnovi: mine = solo i tuoi (other = false), altrimenti solo quelli pagati da altri
+  yearCosts(mine = true) { return U.sum(this.renewals().filter((r) => !r.other === mine).map((r) => this.yearCost(r))); },
+  // Quanto esce davvero ogni mese: solo i rinnovi senza mesi scelti
+  monthlyCosts() { return U.sum(this.renewals().filter((r) => !r.other && !(r.months || []).length).map((r) => Number(r.amount))); },
   // Prossimo addebito da oggi in poi; il giorno si adatta ai mesi più corti
   nextDate(r, today = U.today()) {
     const first = today.slice(0, 8) + "01";
@@ -191,9 +195,12 @@ const Finance = {
   },
 
   renewHTML() {
-    const list = this.upcoming();
-    return `<div class="block-head"><h2 class="h3">Rinnovi</h2>${list.length ? `<span class="muted small">${this.euro(this.yearCosts())} all'anno</span>` : ""}</div>
-      ${list.length ? `<ul class="fin-renew">${list.map((r) => `<li><button class="fin-voce" data-act="fin-renew" data-id="${U.esc(r.id)}"><span class="fin-rdate">${U.fmtShort(r.date)}</span><span>${U.esc(r.label)}</span><b>${this.euro(r.amount)}</b>${Icon.svg("edit", 14)}</button></li>`).join("")}</ul>` : `<p class="muted small">Aggiungi abbonamenti e addebiti ricorrenti: li vedi qui in ordine di data.</p>`}
+    const list = this.upcoming(), year = this.yearCosts(), others = this.yearCosts(false);
+    const tiles = [[year, "All'anno"], [this.monthlyCosts(), "Ogni mese"], [year / 12, "Media al mese"]];
+    return `<div class="block-head"><h2 class="h3">Rinnovi</h2></div>
+      ${list.length ? `<div class="fin-rtot">${tiles.map(([v, l]) => `<div><b>${this.euro(v)}</b><span>${l}</span></div>`).join("")}</div>
+        ${others ? `<p class="muted small fin-rother">+ ${this.euro(others)} all'anno addebitati ad altri</p>` : ""}
+        <ul class="fin-renew">${list.map((r) => `<li><button class="fin-voce${r.other ? " other" : ""}" data-act="fin-renew" data-id="${U.esc(r.id)}"><span class="fin-rdate">${U.fmtShort(r.date)}</span><span>${U.esc(r.label)}${r.other ? `<small>Addebitato ad altri</small>` : ""}</span><b>${this.euro(r.amount)}</b>${Icon.svg("edit", 14)}</button></li>`).join("")}</ul>` : `<p class="muted small">Aggiungi abbonamenti e addebiti ricorrenti: li vedi qui in ordine di data.</p>`}
       <div class="btn-row"><button class="btn ghost sm" data-act="fin-renew">${Icon.svg("plus", 16)} Nuovo rinnovo</button></div>`;
   },
 
@@ -310,6 +317,7 @@ const Finance = {
         <div class="row2"><label>Importo (€)<input name="amount" inputmode="decimal" autocomplete="off" value="${r ? this.inputValue(r.amount) : ""}"></label>
         <label>Giorno del mese<input name="day" type="number" min="1" max="31" inputmode="numeric" value="${r ? U.esc(r.day) : 1}"></label></div>
         <fieldset class="fin-months"><legend class="lbl">Mesi dell'addebito (nessuno = ogni mese)</legend>${U.MONTHS.map((n, i) => `<label><input type="checkbox" name="months" value="${i + 1}" ${months.includes(i + 1) ? "checked" : ""}><span>${n}</span></label>`).join("")}</fieldset>
+        <label class="check"><input name="other" type="checkbox" ${r && r.other ? "checked" : ""}><span><b>Addebitato a un'altra persona</b><small>Resta in lista, ma non conta nei tuoi totali.</small></span></label>
       </form>`,
       actions: `${r ? `<button type="button" class="btn ghost danger" data-fin-del>Elimina</button>` : ""}<button type="button" class="btn ghost" data-dialog-cancel>Annulla</button><button type="button" class="btn primary" data-dialog-ok>${r ? "Salva" : "Crea"}</button>`,
       init: (box) => {
@@ -323,7 +331,7 @@ const Finance = {
         if (!label) { U.toast("Scrivi un nome per il rinnovo"); return Dialog.KEEP; }
         if (amount == null || Number.isNaN(amount)) { U.toast("Importo non valido: scrivilo così, 12,99"); return Dialog.KEEP; }
         if (!(day >= 1 && day <= 31)) { U.toast("Il giorno va da 1 a 31"); return Dialog.KEEP; }
-        return { label, amount, day, months: f.getAll("months").map(Number) };
+        return { label, amount, day, months: f.getAll("months").map(Number), other: f.get("other") === "on" };
       }
     });
     if (!v) return;
