@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Collega la cartella al tuo progetto Supabase, salva i segreti e pubblica la
-# funzione "integrations" (Raindrop + Notion). Si può rilanciare quando vuoi.
+# funzione "integrations" (Raindrop). Si può rilanciare quando vuoi.
 # Uso:  ./scripts/setup-integrations.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -23,9 +23,7 @@ ENVF="$(umask 077; mktemp)"
 trap 'rm -f "$ENVF"' EXIT
 read -rsp "Token Raindrop (invio per saltare): " RD; echo
 [ -z "$RD" ] || printf 'RAINDROP_TOKEN=%s\n' "$RD" >> "$ENVF"
-read -rsp "Token Notion (invio per saltare): " NT; echo
-[ -z "$NT" ] || printf 'NOTION_TOKEN=%s\n' "$NT" >> "$ENVF"
-unset RD NT
+unset RD
 [ ! -s "$ENVF" ] || supabase secrets set --env-file "$ENVF"
 
 supabase functions deploy integrations

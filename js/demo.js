@@ -45,7 +45,7 @@ const Demo = {
     };
     db.habits = Object.values(h);
     db.habits.forEach((x) => { x.days = x.days || [1, 2, 3, 4, 5, 6, 7]; x.archived = false; x.goal_id = x.goal_id || null; x.unit = x.unit || null; });
-    db.goals.forEach((x) => { x.notion_page_id = null; x.done_at = null; });
+    db.goals.forEach((x) => { x.done_at = null; });
 
     // Log abitudini: buona costanza con qualche buco, più bassa per alcune
     const reliability = { water: 0.82, run: 0.85, read: 0.6, deep: 0.75, course: 0.7, side: 0.55, guitar: 0.6, bed: 0.65 };

@@ -422,6 +422,11 @@ const Shell = {
 
 Actions["look-open"] = () => Shell.openLook();
 Actions["reminders"] = () => Shell.openReminders();
+Actions["sync-now"] = () => {
+  U.toast(navigator.onLine === false ? "Ancora offline: le modifiche sono al sicuro su questo dispositivo" : "Provo a salvare…");
+  Store._retryN = 0;
+  Store.flush();
+};
 Actions["weather-save"] = (form) => {
   Store.setSettings({ weatherCity: (new FormData(form).get("city") || "").trim() });
   U.toast("Città salvata");

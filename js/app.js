@@ -51,7 +51,10 @@ const App = {
     Shell.boot();
     this.buildNav();
     this.bind();
-    Store.on(() => this.render());
+    // Con l'app in secondo piano (altra app, schermo spento) non ridisegno a ogni modifica in arrivo
+    // dagli altri dispositivi: lo faccio una volta sola quando torna visibile.
+    Store.on(() => { if (document.hidden) this._stale = true; else this.render(); });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden && this._stale) { this._stale = false; this.render(); } });
     Auth.init(async () => {
       try {
         await Store.loadAll();

@@ -4,7 +4,7 @@ App web (PWA) personale per gestire la vita: **abitudini** (sì/no e quantitativ
 **obiettivi** a breve (1 mese), medio (4 mesi) e lungo termine (1 anno o più) collegati
 alle abitudini, **statistiche/KPI** con grafici, **timer di focus**, una **Home a widget** spostabili e ridimensionabili,
 **benessere** (umore, energia, sonno, peso, allenamenti), **finanze** (spese del mese per voce e macro area; sezione spenta finché non la attivi da Impostazioni), **lettura** (libri da Goodreads con
-avanzamento a pagine + bookmark di Raindrop.io), sincronizzazione degli obiettivi con Notion, export Excel e CSV.
+avanzamento a pagine + bookmark di Raindrop.io), export Excel e CSV.
 
 HTML/CSS/JS senza framework né build. Backend: Supabase (un solo utente, dati protetti
 da RLS). Stesso approccio di PDTravel.
@@ -35,7 +35,7 @@ demo" ricominci da capo.
 La chiave anon è pubblica per definizione: non dà accesso a nulla senza il tuo login,
 perché ogni tabella ha una policy `user_id = auth.uid()`.
 
-## 2. Integrazioni (Raindrop.io e Notion)
+## 2. Integrazione con Raindrop.io
 
 Le chiavi API **non vanno mai nel browser** (puoi usare lo script `./scripts/setup-integrations.sh`, che fa tutto questo): vivono come segreti di una Edge Function
 ([supabase/functions/integrations](supabase/functions/integrations/index.ts)), che
@@ -45,7 +45,7 @@ controlla che la richiesta arrivi da te.
 npm i -g supabase                       # oppure: brew install supabase/tap/supabase
 supabase login
 supabase link --project-ref <ref-del-progetto>
-supabase secrets set RAINDROP_TOKEN=... NOTION_TOKEN=... ALLOWED_EMAIL=tua@email.it
+supabase secrets set RAINDROP_TOKEN=... ALLOWED_EMAIL=tua@email.it
 supabase functions deploy integrations
 ```
 
@@ -53,16 +53,9 @@ supabase functions deploy integrations
 *Create test token*. In Kurashi: Lettura → pulsante *Raindrop* (importa i nuovi
 bookmark; l'ID collezione si imposta da Impostazioni, 0 = tutte).
 
-**Notion**: notion.so/profile/integrations → nuova integrazione interna → copia il
-segreto. Nel database che vuoi usare: `⋯` → *Connections* → aggiungi l'integrazione.
-Colonne riconosciute (ignora quelle che mancano): titolo, `Area` (select),
-`Orizzonte` (select), `Stato` (select), `Progresso` (numero), `Scadenza` (data),
-`Note` (testo). Incolla l'URL o l'ID del database in Impostazioni; poi "Invia a
-Notion" dal dettaglio di un obiettivo, o tutti insieme.
-
 ### Perché API dirette e non Composio
 
-Sei l'unico utente e le due app usano un token personale: Composio aggiungerebbe un
+Sei l'unico utente e Raindrop usa un token personale: Composio aggiungerebbe un
 servizio (e un costo) senza risolvere nulla. La funzione è già il punto d'accesso
 unico: se un giorno colleghi molte app con OAuth (Google Calendar, Gmail…), si può
 aggiungere Composio dietro la stessa funzione senza toccare l'app.
@@ -149,6 +142,10 @@ Su iPhone: Safari → Condividi → *Aggiungi alla schermata Home*.
   `kurashi-backgrounds` creato da `supabase/schema.sql`). Tema chiaro/scuro dall'interruttore in alto.
 - **Meteo**: in alto, da Open-Meteo (gratis, senza chiave), per la città scelta in Impostazioni.
 - **Tempo reale**: le modifiche sono immediate e si sincronizzano tra i dispositivi.
+- **Senza rete**: le modifiche restano sul dispositivo (in una coda salvata nel browser) e partono da
+  sole quando torna la connessione, anche se nel frattempo chiudi l'app. In alto compare «N modifiche
+  da salvare» (toccala per riprovare subito). Se il server rifiuta una modifica, la coda la scarta e
+  l'app torna ai dati veri. Uscendo dall'account con modifiche in attesa, l'app chiede conferma.
 
 ## Struttura
 
@@ -159,14 +156,18 @@ js/config.js                  Supabase, email, aree e orizzonti
 js/store.js · calc.js         dati (Supabase/demo) e logica dei KPI
 js/charts.js                  grafici SVG (anelli, colonne, linee, heatmap)
 js/shell.js                   cornice: aspetto, tema, barra laterale, testata con meteo
-js/today · habits · goals · focus · body · reading · recall · insights · settings · export
+js/home/kit.js                Home: stato e strumenti comuni dei widget
+js/home/w-*.js                Home: i widget, un file per tema (giornata, obiettivi, studio, benessere, lettura, finanze)
+js/today.js                   Home: disposizione, Modifica Home, Riordina, Aggiungi
+js/habits · goals · focus · body · food · reading · recall · finance · insights · settings · export
 scripts/sync_second_brain.py  vault .md → Supabase (Riscoperte)
 scripts/install-second-brain-sync.sh   Portachiavi + LaunchAgent
 supabase/schema.sql           tabelle, RLS, realtime
-supabase/functions/integrations   Raindrop + Notion
+supabase/functions/integrations   Raindrop
 ```
 
-Quando modifichi i file, incrementa `CACHE_NAME` in [sw.js](sw.js).
+Quando modifichi i file, incrementa `CACHE_NAME` in [sw.js](sw.js). Se aggiungi un file a `index.html`, mettilo anche
+in `APP_SHELL` (stesso file): un test lo controlla.
 
 ## Test
 

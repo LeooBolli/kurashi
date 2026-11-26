@@ -10,7 +10,7 @@ window.APP_CONFIG = {
   // Le email autorizzate, ognuna con il nome mostrato nei saluti. Anche se
   // qualcuno trovasse l'URL, senza uno di questi account (creati a mano su
   // Supabase) non entra. Ogni account vede e scrive solo i propri dati.
-  // "owner" = le integrazioni Raindrop/Notion usano i suoi token: solo lui le vede.
+  // "owner" = le integrazione Raindrop usa il suo token: solo lui le vede.
   // Stesse email di public.kurashi_allowed() in supabase/schema.sql.
   USERS: {
     "leonardobolli@gmail.com":       { name: "Leonardo", owner: true },

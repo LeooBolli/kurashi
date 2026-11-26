@@ -190,3 +190,78 @@ describe("ricarica e realtime", () => {
     assert.equal(renders, 1);
   });
 });
+
+describe("modifiche senza rete (outbox)", () => {
+  const netErr = () => Object.assign(new Error("TypeError: Failed to fetch"), { status: 0, code: "" });
+  const KEY = "kurashi-outbox-user-1";
+
+  test("senza rete la modifica resta in coda, salvata sul dispositivo, e riparte quando torna la rete", async () => {
+    fresh();
+    const be = fakeBackend(); Store.backend = be;
+    let offline = true;
+    const insert = be.insert;
+    be.insert = async (t, row) => { if (offline) throw netErr(); return insert(t, row); };
+    const row = Store.insert("mood_logs", { mood: 4 });
+    await Store.chain;
+    clearTimeout(Store._retryT);
+    assert.equal(Store.outbox.length, 1);
+    assert.equal(Store.d.mood_logs[0].id, row.id, "la riga resta visibile");
+    assert.equal(JSON.parse(ctx.localStorage.getItem(KEY))[0].row.id, row.id);
+    assert.match(toasts[0], /offline/);
+    offline = false;
+    await Store.flush();
+    assert.equal(Store.outbox.length, 0);
+    assert.equal(ctx.localStorage.getItem(KEY), null);
+    assert.equal(be.calls.filter((c) => c[0] === "insert").length, 1);
+    assert.match(toasts.at(-1), /salvate/);
+    assert.equal(Store._pendingT.mood_logs, 0);
+  });
+
+  test("una modifica rifiutata dal server esce dalla coda e non blocca le successive", async () => {
+    fresh();
+    const be = fakeBackend(); Store.backend = be;
+    be.update = async () => { throw Object.assign(new Error("violates check constraint"), { status: 400, code: "23514" }); };
+    Store.d.goals.push({ id: "g1", title: "A" });
+    Store.update("goals", "g1", { manual_progress: 500 });
+    Store.insert("mood_logs", { mood: 2 });
+    await Store.chain;
+    assert.equal(Store.outbox.length, 0);
+    assert.equal(be.calls.filter((c) => c[0] === "insert").length, 1);
+    assert.match(toasts[0], /Non sono riuscito a salvare/);
+  });
+
+  test("alla riapertura le modifiche in coda tornano nei dati e partono", async () => {
+    fresh();
+    const pending = [
+      { kind: "insert", table: "mood_logs", row: { id: "m1", mood: 5 }, tables: ["mood_logs"], ids: ["m1"], tries: 1, at: 0 },
+      { kind: "update", table: "goals", id: "g1", patch: { title: "Nuovo" }, tables: ["goals"], ids: ["g1"], tries: 0, at: 0 },
+      { kind: "remove", table: "habits", id: "h1", tables: ["habits", "habit_logs", "focus_sessions"], ids: ["h1"], tries: 0, at: 0 },
+      { kind: "settings", patch: { sleepTarget: 7 }, tables: [], ids: [], tries: 0, at: 0 }
+    ];
+    ctx.localStorage.setItem(KEY, JSON.stringify(pending));
+    const server = { goals: [{ id: "g1", title: "Vecchio" }], habits: [{ id: "h1" }], habit_logs: [{ id: "l1", habit_id: "h1" }], settings: { sleepTarget: 8 } };
+    const be = fakeBackend(server); Store.backend = be;
+    Store.watchResume = () => {};
+    await Store.loadAll();
+    assert.equal(Store.d.mood_logs[0].id, "m1");
+    assert.equal(Store.d.goals[0].title, "Nuovo");
+    assert.equal(Store.d.habits.length, 0);
+    assert.equal(Store.d.habit_logs.length, 0, "cascata applicata anche qui");
+    assert.equal(Store.settings.sleepTarget, 7);
+    await Store.chain;
+    assert.deepEqual(be.calls.filter((c) => c[0] !== "fetchAll").map((c) => c[0]), ["insert", "update", "remove", "patchSettings"]);
+    assert.equal(Store.outbox.length, 0);
+  });
+
+  test("inserimento già arrivato al tentativo prima (risposta persa): il duplicato conta come fatto", async () => {
+    fresh();
+    const be = fakeBackend(); Store.backend = be;
+    let n = 0;
+    be.insert = async () => { if (n++ === 0) throw netErr(); throw Object.assign(new Error("duplicate key"), { status: 409, code: "23505" }); };
+    Store.insert("mood_logs", { mood: 1 });
+    await Store.chain; clearTimeout(Store._retryT);
+    await Store.flush();
+    assert.equal(Store.outbox.length, 0);
+    assert.ok(!toasts.some((t) => /Non sono riuscito/.test(t)));
+  });
+});

@@ -91,6 +91,11 @@ async function sbRead(query) {
   }
 }
 
+// Errore di una scrittura con lo stato HTTP attaccato (0 = la richiesta non è arrivata al server)
+function fail({ error, status }) {
+  if (error) throw Object.assign(error, { status: status || 0 });
+}
+
 const SbBackend = {
   async fetchAll(table) {
     // Supabase restituisce al massimo 1000 righe per richiesta: pagino.
@@ -104,30 +109,12 @@ const SbBackend = {
       from += 1000;
     }
   },
-  async insert(table, row) {
-    const { error } = await sb.from(table).insert(row);
-    if (error) throw error;
-  },
-  async insertMany(table, rows) {
-    const { error } = await sb.from(table).insert(rows);
-    if (error) throw error;
-  },
-  async removeMany(table, ids) {
-    const { error } = await sb.from(table).delete().in("id", ids);
-    if (error) throw error;
-  },
-  async update(table, id, patch) {
-    const { error } = await sb.from(table).update(patch).eq("id", id);
-    if (error) throw error;
-  },
-  async remove(table, id) {
-    const { error } = await sb.from(table).delete().eq("id", id);
-    if (error) throw error;
-  },
-  async upsert(table, row, onConflict) {
-    const { error } = await sb.from(table).upsert(row, { onConflict });
-    if (error) throw error;
-  },
+  async insert(table, row) { fail(await sb.from(table).insert(row)); },
+  async insertMany(table, rows) { fail(await sb.from(table).insert(rows)); },
+  async removeMany(table, ids) { fail(await sb.from(table).delete().in("id", ids)); },
+  async update(table, id, patch) { fail(await sb.from(table).update(patch).eq("id", id)); },
+  async remove(table, id) { fail(await sb.from(table).delete().eq("id", id)); },
+  async upsert(table, row, onConflict) { fail(await sb.from(table).upsert(row, { onConflict })); },
   async getSettings() {
     const { data, error } = await sbRead(() => sb.from("settings").select("data").maybeSingle());
     if (error) throw error;
@@ -141,14 +128,13 @@ const SbBackend = {
       const { data, error, status } = await sb.rpc("kurashi_settings_patch", { patch });
       if (!error) return data || {};
       if (error.code === "PGRST202" || status === 404) this._rpcMissing = true; // funzione non ancora creata
-      else throw error;
+      else throw Object.assign(error, { status: status || 0 });
     }
     // Ripiego (schema.sql non ancora rieseguito): leggo, unisco qui, salvo
     const current = await this.getSettings();
     const merged = { ...current, ...patch };
-    const { error } = await sb.from("settings")
-      .upsert({ user_id: Auth.uid(), data: merged, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-    if (error) throw error;
+    fail(await sb.from("settings")
+      .upsert({ user_id: Auth.uid(), data: merged, updated_at: new Date().toISOString() }, { onConflict: "user_id" }));
     return merged;
   },
   subscribe(onChange, onSettings, onReconnect) {
@@ -227,6 +213,11 @@ const Store = {
   _settingsPending: 0,
   _settingsDirty: false,
   _emitQueued: false,
+  outbox: [],        // scritture non ancora confermate dal server, in ordine (salvate anche sul dispositivo)
+  _flushing: false,
+  _retryT: null,
+  _retryN: 0,
+  _offline: false,   // ho già avvisato che manca la rete
 
   on(fn) { this.listeners.push(fn); },
 
@@ -261,6 +252,7 @@ const Store = {
       }
     }));
     this.settings = await this.backend.getSettings();
+    this.restoreOutbox();
     this.emit();
     this.backend.subscribe(
       (t, p) => this.applyRemote(t, p),
@@ -268,6 +260,7 @@ const Store = {
       () => this.refreshAll()
     );
     this.watchResume();
+    this.flush();
   },
 
   // ---------- Ricarica dal server ----------
@@ -314,10 +307,11 @@ const Store = {
     let hiddenAt = null;
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") hiddenAt = Date.now();
+      else if (this.outbox.length) { hiddenAt = null; this.flush(); }
       else if (hiddenAt != null && Date.now() - hiddenAt >= 30000) { hiddenAt = null; this.refreshAll(); }
       else hiddenAt = null;
     });
-    window.addEventListener("online", () => this.refreshAll());
+    window.addEventListener("online", () => { this.flush(); this.refreshAll(); });
   },
 
   // ---------- Realtime ----------
@@ -375,33 +369,183 @@ const Store = {
   },
 
   // ---------- Scritture ----------
-  // Partono una alla volta, nell'ordine in cui le fai. "tables" = tabelle che la scrittura tocca,
-  // "ids" = righe scritte (per riconoscere l'eco realtime).
-  enqueue(fn, tables = [], ids = []) {
-    const main = tables[0];
-    this.pending++;
-    tables.forEach((t) => { this._pendingT[t] = (this._pendingT[t] || 0) + 1; this._wseq[t] = (this._wseq[t] || 0) + 1; });
-    if (main) this.markInflight(main, ids);
-    this.chain = this.chain.then(fn).catch((e) => {
-      console.error(e);
-      const msg = String((e && (e.message || e.details)) || "");
-      U.toast(/column|schema cache|does not exist|PGRST/i.test(msg)
-        ? "Manca un aggiornamento del database: esegui di nuovo supabase/schema.sql su Supabase"
-        : "Non sono riuscito a salvare: riprovo a sincronizzare");
-      tables.forEach((t) => this.reloadTable(t));
-    }).finally(() => {
-      this.pending--;
-      tables.forEach((t) => { this._pendingT[t]--; this._wseq[t] = (this._wseq[t] || 0) + 1; });
-      if (main) this.settleInflight(main, ids);
-    });
+  // Ogni modifica diventa un'operazione nella coda "outbox": parte subito, una alla volta e
+  // nell'ordine in cui le fai, ed esce dalla coda solo quando il server l'ha confermata.
+  // Senza rete resta in coda (salvata anche sul dispositivo, così sopravvive alla chiusura
+  // dell'app) e riparte da sola: al ritorno della rete, dell'app in primo piano, o a tempo.
+  // "tables" = tabelle che la scrittura tocca, "ids" = righe scritte (per riconoscere l'eco realtime).
+  OUTBOX_KEY: "kurashi-outbox-",
+  RETRY_S: [2, 5, 10, 20, 30, 60],
+  MAX_SERVER_TRIES: 8, // errori del server (non di rete): dopo tanti tentativi lascio perdere
+
+  outboxKey() { return this.OUTBOX_KEY + Auth.uid(); },
+
+  // Solo col server vero: la demo salva già tutto nel browser e non può restare offline
+  persists() { return this.backend !== LocalBackend; },
+
+  saveOutbox() {
+    if (this.persists()) {
+      try {
+        if (this.outbox.length) localStorage.setItem(this.outboxKey(), JSON.stringify(this.outbox));
+        else localStorage.removeItem(this.outboxKey());
+      } catch (e) { console.error(e); }
+    }
+    this.showSync();
+  },
+
+  // Conta l'operazione fra le scritture in corso (d = +1 entra, -1 esce)
+  track(op, d) {
+    if (op.kind === "settings") { this._settingsPending += d; return; }
+    this.pending += d;
+    op.tables.forEach((t) => { this._pendingT[t] = (this._pendingT[t] || 0) + d; this._wseq[t] = (this._wseq[t] || 0) + 1; });
+    if (d > 0) this.markInflight(op.tables[0], op.ids); else this.settleInflight(op.tables[0], op.ids);
+  },
+
+  enqueue(op, tables = [], ids = []) {
+    Object.assign(op, { tables, ids, tries: 0, at: Date.now() });
+    this.outbox.push(op);
+    this.track(op, +1);
+    this.saveOutbox();
+    this.flush();
+  },
+
+  runOp(op) {
+    const b = this.backend;
+    switch (op.kind) {
+      case "insert": return b.insert(op.table, op.row);
+      case "insertMany": return b.insertMany(op.table, op.rows);
+      case "update": return b.update(op.table, op.id, op.patch);
+      case "remove": return b.remove(op.table, op.id);
+      case "removeMany": return b.removeMany(op.table, op.ids);
+      case "upsert": return b.upsert(op.table, op.row, op.keys);
+      case "settings": return b.patchSettings(op.patch).then((m) => { op.merged = m; });
+      default: return Promise.resolve();
+    }
+  },
+
+  // La richiesta non è arrivata (o il server è momentaneamente giù): si riprova più tardi
+  isTransient(e, op) {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+    const msg = `${(e && e.code) || ""} ${(e && (e.message || e.details)) || e || ""}`;
+    if (/Failed to fetch|NetworkError|Load failed|network|timed? ?out|aborted|fetch failed|ECONN/i.test(msg)) return true;
+    const st = Number(e && e.status) || 0;
+    const server = st >= 500 || st === 408 || st === 429 || st === 401 || /JWT|PGRST30[0-3]/i.test(msg);
+    return server && op.tries < this.MAX_SERVER_TRIES;
+  },
+
+  flush() {
+    if (this._flushing) return this.chain;
+    this._flushing = true;
+    clearTimeout(this._retryT);
+    this.chain = (async () => {
+      while (this.outbox.length) {
+        const op = this.outbox[0];
+        let failed = null;
+        try { await this.runOp(op); } catch (e) { failed = e; }
+        if (failed) {
+          if (this.isTransient(failed, op)) {
+            op.tries++;
+            this.saveOutbox();
+            this.waitForNetwork();
+            return;
+          }
+          // Inserimento già arrivato al tentativo precedente (era andata persa solo la risposta)
+          const dup = op.tries > 0 && /^(insert|insertMany)$/.test(op.kind) && failed.code === "23505";
+          if (!dup) { console.error(failed); this.drop(op, failed); continue; }
+        }
+        this.outbox.shift();
+        this.track(op, -1);
+        this.saveOutbox();
+        if (op.kind === "settings") this.settingsSaved(op.merged);
+      }
+      this._retryN = 0;
+      if (this._offline) { this._offline = false; U.toast("Connessione tornata: modifiche salvate"); }
+    })().finally(() => { this._flushing = false; });
+    return this.chain;
+  },
+
+  // Il server ha rifiutato la modifica: la tolgo dalla coda e riallineo con quello che c'è davvero
+  drop(op, e) {
+    this.outbox.shift();
+    this.track(op, -1);
+    this.saveOutbox();
+    const msg = String((e && (e.message || e.details)) || "");
+    U.toast(/column|schema cache|does not exist|PGRST2/i.test(msg)
+      ? "Manca un aggiornamento del database: esegui di nuovo supabase/schema.sql su Supabase"
+      : op.kind === "settings" ? "Non sono riuscito a salvare le impostazioni: riprovo a sincronizzare"
+      : "Non sono riuscito a salvare: riprovo a sincronizzare");
+    if (op.kind === "settings") { this._settingsDirty = true; this.settingsSaved(null); }
+    else op.tables.forEach((t) => this.reloadTable(t));
+  },
+
+  settingsSaved(merged) {
+    if (this._settingsPending > 0) return;
+    if (this._settingsDirty) { this._settingsDirty = false; this.reloadSettings(); return; }
+    if (merged && JSON.stringify(merged) !== JSON.stringify(this.settings)) { this.settings = merged; this.emit(); }
+  },
+
+  waitForNetwork() {
+    if (!this._offline) {
+      this._offline = true;
+      U.toast("Sei offline: le modifiche restano sul dispositivo e le salvo appena torna la rete");
+    }
+    const s = this.RETRY_S[Math.min(this._retryN++, this.RETRY_S.length - 1)];
+    clearTimeout(this._retryT);
+    this._retryT = setTimeout(() => this.flush(), s * 1000);
+  },
+
+  // Dopo il caricamento: rimetto nei dati le modifiche che non erano ancora arrivate al server
+  restoreOutbox() {
+    if (!this.persists()) return;
+    let ops = [];
+    try { ops = JSON.parse(localStorage.getItem(this.outboxKey()) || "[]"); } catch { ops = []; }
+    if (!Array.isArray(ops) || !ops.length) return;
+    for (const op of ops) {
+      if (!op || !op.kind) continue;
+      if (op.kind !== "settings" && (!op.table || !this.d[op.table])) continue; // tabella non più presente
+      this.applyLocal(op);
+      this.outbox.push(op);
+      this.track(op, +1);
+    }
+    this.saveOutbox();
+  },
+
+  applyLocal(op) {
+    const rows = this.d[op.table];
+    const add = (r) => { if (!rows.some((x) => x.id === r.id)) rows.push(structuredClone(r)); };
+    switch (op.kind) {
+      case "insert": add(op.row); break;
+      case "insertMany": op.rows.forEach(add); break;
+      case "update": { const r = rows.find((x) => x.id === op.id); if (r) Object.assign(r, op.patch); break; }
+      case "remove": cascadeDelete(this.d, op.table, [op.id]); break;
+      case "removeMany": cascadeDelete(this.d, op.table, op.ids); break;
+      case "upsert": {
+        const ks = op.keys.split(",").filter((k) => k !== "user_id");
+        const r = rows.find((x) => x.id === op.row.id) || rows.find((x) => ks.every((k) => x[k] === op.row[k]));
+        if (r) Object.assign(r, op.row); else rows.push({ created_at: new Date().toISOString(), ...structuredClone(op.row) });
+        break;
+      }
+      case "settings": this.settings = { ...this.settings, ...op.patch }; break;
+    }
+  },
+
+  // Etichetta "N modifiche da salvare": compare solo se un salvataggio tarda (più di 2 s) o non riesce
+  showSync() {
+    clearTimeout(this._syncT);
+    const el = typeof document !== "undefined" && document.getElementById("sync-pill");
+    if (!el) return;
+    const n = this.outbox.length;
+    const late = n && this.outbox.some((op) => op.tries > 0 || Date.now() - op.at > 2000);
+    el.hidden = !late;
+    if (late) el.querySelector("b").textContent = n === 1 ? "1 modifica da salvare" : `${n} modifiche da salvare`;
+    else if (n) this._syncT = setTimeout(() => this.showSync(), 2100);
   },
 
   insert(table, row) {
     const full = { id: newId(), created_at: new Date().toISOString(), ...row };
     this.d[table].push(full);
     this.emit();
-    const copy = { ...full };
-    this.enqueue(() => this.backend.insert(table, copy), [table], [full.id]);
+    this.enqueue({ kind: "insert", table, row: { ...full } }, [table], [full.id]);
     return full;
   },
 
@@ -412,8 +556,7 @@ const Store = {
     const full = rows.map((r) => ({ id: newId(), created_at: now, ...r }));
     this.d[table].push(...full);
     this.emit();
-    const copy = full.map((r) => ({ ...r }));
-    this.enqueue(() => this.backend.insertMany(table, copy), [table], full.map((r) => r.id));
+    this.enqueue({ kind: "insertMany", table, rows: full.map((r) => ({ ...r })) }, [table], full.map((r) => r.id));
     return full;
   },
 
@@ -421,21 +564,20 @@ const Store = {
     if (!ids.length) return;
     cascadeDelete(this.d, table, ids);
     this.emit();
-    this.enqueue(() => this.backend.removeMany(table, ids), touchedBy(table), ids);
+    this.enqueue({ kind: "removeMany", table, ids: [...ids] }, touchedBy(table), ids);
   },
 
   update(table, id, patch) {
     const r = this.d[table].find((x) => x.id === id);
     if (r) Object.assign(r, patch);
     this.emit();
-    const copy = { ...patch };
-    this.enqueue(() => this.backend.update(table, id, copy), [table], [id]);
+    this.enqueue({ kind: "update", table, id, patch: { ...patch } }, [table], [id]);
   },
 
   remove(table, id) {
     cascadeDelete(this.d, table, [id]);
     this.emit();
-    this.enqueue(() => this.backend.remove(table, id), touchedBy(table), [id]);
+    this.enqueue({ kind: "remove", table, id }, touchedBy(table), [id]);
   },
 
   // Riga unica per chiave (es. un solo peso al giorno). Mando anche l'id locale:
@@ -448,7 +590,7 @@ const Store = {
     this.emit();
     const payload = { ...row, id: ex.id };
     if (keys.includes("user_id")) payload.user_id = Auth.uid();
-    this.enqueue(() => this.backend.upsert(table, payload, keys), [table], [ex.id]);
+    this.enqueue({ kind: "upsert", table, row: payload, keys }, [table], [ex.id]);
   },
 
   setLog(habitId, date, value) {
@@ -462,25 +604,11 @@ const Store = {
     patch = jsonPatch(patch);
     this.settings = { ...this.settings, ...patch };
     this.emit();
-    this._settingsPending++;
-    let merged = null;
-    this.chain = this.chain
-      .then(async () => { merged = await this.backend.patchSettings(patch); })
-      .catch((e) => {
-        console.error(e);
-        U.toast("Non sono riuscito a salvare le impostazioni: riprovo a sincronizzare");
-        this._settingsDirty = true;
-      })
-      .finally(() => {
-        this._settingsPending--;
-        if (this._settingsPending > 0) return;
-        if (this._settingsDirty) { this._settingsDirty = false; this.reloadSettings(); return; }
-        if (merged && JSON.stringify(merged) !== JSON.stringify(this.settings)) { this.settings = merged; this.emit(); }
-      });
+    this.enqueue({ kind: "settings", patch });
   },
 
   // Impostazioni con valori di default
   cfg() {
-    return { focusWeeklyMin: 600, sleepTarget: 8, weightTarget: null, raindropCollection: 0, notionDb: "", goalBooks: {}, dietGoal: null, dietHabit: null, recallPerDay: 5, focusStrict: true, name: Auth.profile().name || "", ...this.settings };
+    return { focusWeeklyMin: 600, sleepTarget: 8, weightTarget: null, raindropCollection: 0, goalBooks: {}, dietGoal: null, dietHabit: null, recallPerDay: 5, focusStrict: true, name: Auth.profile().name || "", ...this.settings };
   }
 };

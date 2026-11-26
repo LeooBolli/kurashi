@@ -97,7 +97,6 @@ const Goals = {
     const kids = Calc.childGoals(g);
     const parent = g.parent_goal_id ? Store.d.goals.find((x) => x.id === g.parent_goal_id) : null;
     const canHaveKids = g.horizon === "medium" || g.horizon === "long";
-    const cfg = Store.cfg();
     const usesManual = !ms.length && !habits.length && !bk && !kids.length && !g.weight_linked;
     const period = g.horizon === "recurring" ? Calc.periodRange(g.period) : null;
     return `<div class="detail">
@@ -158,7 +157,6 @@ const Goals = {
           ? `<button class="btn ghost" data-act="goal-reopen" data-id="${g.id}">Riapri obiettivo</button>`
           : `<button class="btn primary" data-act="goal-complete" data-id="${g.id}">${Icon.svg("check", 16)} Segna completato</button>`}
         <button class="btn ghost" data-act="goal-edit" data-id="${g.id}">${Icon.svg("edit", 16)} Modifica</button>
-        ${cfg.notionDb ? `<button class="btn ghost" data-act="goal-notion" data-id="${g.id}">${Icon.svg("sync", 16)} ${g.notion_page_id ? "Aggiorna su Notion" : "Invia a Notion"}</button>` : ""}
         <button class="btn ghost danger" data-act="goal-delete" data-id="${g.id}">${Icon.svg("trash", 16)}</button>
       </div>
     </div>`;
@@ -392,7 +390,7 @@ const Goals = {
           const books = Math.max(0, Math.round(Number(f.get("books")) || 0));
           if (g) { Store.update("goals", g.id, row); this.setBooks(g.id, books); Sheet.close(); }
           else {
-            const created = Store.insert("goals", { ...row, manual_progress: 0, status: "active", notion_page_id: null, done_at: null });
+            const created = Store.insert("goals", { ...row, manual_progress: 0, status: "active", done_at: null });
             this.setBooks(created.id, books);
             this.tab = row.horizon;
             Goals.openDetail(created.id);

@@ -72,7 +72,7 @@ const KetoPlan = {
       title: "Chetogenica", area: "salute", horizon: "short", start_date: this.FROM, due_date: this.TO, period: null,
       parent_goal_id: parent ? parent.id : null, weight_linked: false,
       description: "Dieta chetogenica dal 12 ottobre all'8 novembre. Ogni giorno in cui spunti tutti i pasti fa avanzare l'obiettivo.",
-      manual_progress: 0, status: "active", notion_page_id: null, done_at: null
+      manual_progress: 0, status: "active", done_at: null
     });
 
     // L'abitudine che si spunta da sola a giornata completata è la fonte di avanzamento dell'obiettivo

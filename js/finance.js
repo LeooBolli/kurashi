@@ -1,7 +1,7 @@
 // ============================================================
 // Finanze: ogni mese si compila quanto si è speso per ogni voce.
 // Vale per uscite ed entrate: stessa tabella, voci diverse (kind "in").
-// Le voci stanno in macro aree (come il database di Notion); macro aree e
+// Le voci stanno in macro aree; macro aree e
 // voci sono nelle impostazioni (financeGroups, financeCats), gli importi in
 // finance_entries: una riga per mese e voce. Voce senza riga = da compilare,
 // 0 = compilata, nessuna spesa. La sezione parte spenta (App.OPT_IN).

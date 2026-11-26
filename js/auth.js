@@ -80,6 +80,17 @@ const Auth = {
       }
       return;
     }
+    // Modifiche fatte senza rete e non ancora salvate: uscendo andrebbero perse
+    const n = Store.outbox.length;
+    if (n) {
+      const ok = await UI.confirm({
+        title: n === 1 ? "C'è 1 modifica non salvata" : `Ci sono ${n} modifiche non salvate`,
+        text: "Sono su questo dispositivo in attesa della rete. Se esci adesso vanno perse: meglio aspettare di essere online.",
+        confirmLabel: "Esci lo stesso", danger: true
+      });
+      if (!ok) return;
+      try { localStorage.removeItem(Store.outboxKey()); } catch { /* storage bloccato */ }
+    }
     try { await sb.auth.signOut(); } catch (e) { console.error(e); }
     this.clearDeviceData();
     location.reload();
