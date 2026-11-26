@@ -31,7 +31,7 @@ const HomeKit = (() => {
 
   const SIZE_NAMES = { c: "Cerchio", s: "Piccolo", p: "Capsula", mh: "Medio orizzontale", mv: "Medio verticale", lh: "Grande orizzontale", lv: "Grande verticale" };
   const SIZE_ORDER = ["c", "s", "p", "mh", "mv", "lh", "lv"];
-  const NEW_WIDGETS = ["nextHabit", "points", "workouts", "deadline", "clock", "exam", "toRead", "quick", "heat", "finMonth", "finAreas", "finTrend", "finTodo", "finTop", "finBalance", "finYear", "finVsAvg", "finGroup", "finTrips", "finSave", "finCompare", "finBudget", "finRenew", "finSubs", "studyToday"];
+  const NEW_WIDGETS = ["nextHabit", "habit", "points", "workouts", "deadline", "countdown", "clock", "exam", "toRead", "quick", "heat", "finMonth", "finAreas", "finTrend", "finTodo", "finTop", "finBalance", "finYear", "finVsAvg", "finGroup", "finTrips", "finSave", "finCompare", "finBudget", "finRenew", "finSubs", "studyToday", "habit", "countdown"];
   const unseenNew = () => { const seen = Store.cfg().seenWidgets || []; const used = new Set((st.layout || []).map((l) => l.type)); return NEW_WIDGETS.filter((k) => !seen.includes(k) && !used.has(k) && sectionOn(k)); };
   const sizeIcon = (s) => ({ c: '<circle cx="12" cy="9" r="7.5"/>', p: '<rect x="1" y="4.5" width="22" height="9" rx="4.5"/>', s: '<rect x="7" y="4" width="10" height="10" rx="3"/>', mh: '<rect x="2" y="5" width="20" height="9" rx="3"/>', mv: '<rect x="7" y="1" width="10" height="16" rx="3"/>', lh: '<rect x="1" y="2" width="22" height="14" rx="3"/>', lv: '<rect x="4" y="0.5" width="16" height="17" rx="3"/>' })[s];
   // Lo Storico parte compatto: la settimana su telefono, il mese a pallini sugli schermi larghi
@@ -69,8 +69,9 @@ const HomeKit = (() => {
   }
 
   // ---------- Dati ----------
-  const inArea = (o) => (h) => !o || !o.area || h.area === o.area;
-  const areaTitle = (o) => (o && o.area && AREAS[o.area] ? `Abitudini · ${U.esc(AREAS[o.area].label)}` : "Abitudini");
+  // Filtro delle abitudini di un widget: area e/o abitudini scelte in Personalizza
+  const inArea = (o) => (h) => !o || ((!o.area || h.area === o.area) && (!o.habits || !o.habits.length || o.habits.includes(h.id)));
+  const areaTitle = (o) => (o && o.area && AREAS[o.area] ? `Abitudini · ${U.esc(AREAS[o.area].label)}` : o && o.habits && o.habits.length ? "Abitudini scelte" : "Abitudini");
   const pickHabit = (o) => (o && o.habit && Calc.activeHabits().find((h) => h.id === o.habit)) || null;
   const pickGoal = (o) => (o && o.goal && Calc.activeGoals().find((g) => g.id === o.goal)) || null;
   const todayData = (o) => {

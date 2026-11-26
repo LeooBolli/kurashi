@@ -8,22 +8,34 @@
   Object.assign(HomeWidgets, {
     reading: {
       title: "Lettura", icon: "book", sizes: ["c", "p", "mh", "mv"], go: "reading",
-      mini() {
-        const r = Store.d.reading_items.filter((x) => x.kind === "book" && x.status === "reading").sort((a, b) => (b.updated_at || b.created_at || "").localeCompare(a.updated_at || a.created_at || ""))[0];
+      // il libro scelto in Personalizza (finché è in corso), altrimenti l'ultimo aggiornato
+      pick(o) {
+        const books = Store.d.reading_items.filter((x) => x.kind === "book" && x.status === "reading")
+          .sort((a, b) => (b.updated_at || b.created_at || "").localeCompare(a.updated_at || a.created_at || ""));
+        const chosen = o && o.book ? books.find((b) => b.id === o.book) : null;
+        return { r: chosen || books[0] || null, books, fixed: !!chosen };
+      },
+      // +10 pagine direttamente dal widget
+      plus(r, wide) {
+        const lbl = `Aggiungi 10 pagine a ${esc(r.title)}`;
+        return wide ? `<button type="button" class="d-btn deep sm" data-act="book-plus" data-id="${r.id}" data-n="10" aria-label="${lbl}">${ic("plus", 14, 2.4)}10 pag.</button>`
+          : `<button type="button" class="d-cbtn" data-act="book-plus" data-id="${r.id}" data-n="10" aria-label="${lbl}">${ic("plus", 15, 2.4)}</button>`;
+      },
+      // sz: "c" cerchio (sotto il numero c'è solo cap) o "p" capsula (titolo + cap)
+      mini(o, sz) {
+        const { r } = this.pick(o);
         if (!r) return { icon: "book", title: "Sto leggendo", value: "—", cap: "Nessun libro in corso", p: null };
         const p = r.pages ? U.clamp((r.current_page || 0) / r.pages, 0, 1) : null;
-        return { icon: "book", title: esc(r.title), value: p == null ? r.current_page || 0 : Math.round(p * 100), unit: p == null ? "pag." : "%", cap: esc(r.title), p };
+        return { icon: "book", title: esc(r.title), value: p == null ? r.current_page || 0 : Math.round(p * 100), unit: p == null ? "pag." : "%", cap: sz === "p" ? esc(r.pages ? `Pagina ${r.current_page || 0} di ${r.pages}` : r.author || "") : esc(r.title), p, action: this.plus(r) };
       },
-      render(sz) {
-        const books = Store.d.reading_items.filter((r) => r.kind === "book" && r.status === "reading")
-          .sort((a, b) => (b.updated_at || b.created_at || "").localeCompare(a.updated_at || a.created_at || ""));
-        const r = books[0];
+      render(sz, o) {
+        const { r, books, fixed } = this.pick(o);
         if (!r) return { html: head("book", "Sto leggendo", "Nessun libro in corso") + `<div class="d-wb">${empty("Aggiungi il libro che stai leggendo e segna le pagine.", cta("Libro", "book-add"))}</div>` };
         const p = r.pages ? U.clamp(Math.round(((r.current_page || 0) / r.pages) * 100), 0, 100) : null;
         const url = r.cover ? U.safeUrl(r.cover) : "";
         const cover = url ? `<div class="d-cover img"><img src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer"><span>${esc(r.title)}</span></div>` : `<div class="d-cover"><span>${esc(r.title)}</span></div>`;
-        const sub = p == null ? esc(r.author || "") : `${p}%${books.length > 1 ? ` · altri ${books.length - 1} in corso` : ""}`;
-        return { html: head("book", "Sto leggendo", sub) + `<div class="d-wb"><div class="d-book ${sz === "mv" ? "col" : ""}">${cover}<div class="d-info"><b>${esc(r.title)}</b><span class="d-muted">${esc(r.author || "Autore sconosciuto")}</span>${p != null ? `${track(p)}<span class="d-cap tnum">Pagina ${r.current_page || 0} di ${r.pages}</span>` : `<span class="d-cap">Pagine totali da aggiungere</span>`}</div></div></div>` };
+        const sub = p == null ? esc(r.author || "") : `${p}%${!fixed && books.length > 1 ? ` · altri ${books.length - 1} in corso` : ""}`;
+        return { html: head("book", "Sto leggendo", sub, this.plus(r, sz !== "mv")) + `<div class="d-wb"><div class="d-book ${sz === "mv" ? "col" : ""}">${cover}<div class="d-info"><b>${esc(r.title)}</b><span class="d-muted">${esc(r.author || "Autore sconosciuto")}</span>${p != null ? `${track(p)}<span class="d-cap tnum">Pagina ${r.current_page || 0} di ${r.pages}</span>` : `<span class="d-cap">Pagine totali da aggiungere</span>`}</div></div></div>` };
       }
     },
     recall: {

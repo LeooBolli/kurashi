@@ -517,3 +517,15 @@
 .dash .d-frenew span { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dash .d-frenew b { font-variant-numeric: tabular-nums; }
 .dash .d-w .d-tbtns button.d-durbtn { width: auto; height: 44px; padding: 0 16px; border-radius: 999px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+/* Tocco lungo: il widget si abbassa appena prima di aprire Personalizza */
+.dash .d-w.d-press { transform: scale(.96); }
+/* Una sola abitudine: ultimi 30 giorni su due righe */
+.dash .d-heat.d-h30 { --c: 11px; grid-template-columns: repeat(15, var(--c)); gap: 4px; }
+.dash .d-col { display: grid; gap: 2px; }
+.dash .d-cbtn.on { background: var(--d-deep); color: #fff; }
+.dash-sheet .d-field input:not([type="checkbox"]) { font: inherit; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line, rgba(35, 39, 46, .15)); background: var(--solid, #FFFDF9); color: var(--ink, #23272E); width: 100%; box-sizing: border-box; }
+.dash-sheet .d-check { display: flex; align-items: center; gap: 10px; font-size: 14px; min-height: 44px; }
+.dash-sheet .d-check input { width: 20px; height: 20px; accent-color: var(--d-deep, #34689F); }
+
+.dash .d-w:not(.dragging) { -webkit-user-select: none; user-select: none; }

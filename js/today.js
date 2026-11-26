@@ -65,7 +65,7 @@ const Today = (() => {
   function inner(l) {
     const def = W[l.type], sz = l.size, o = optsOf(l);
     let r;
-    try { r = (sz === "c" || sz === "p") && def.mini && !(l.type === "clock" && sz === "c") && l.type !== "quick" ? shapeHTML(sz, def, def.mini(o)) : def.render(sz, o); }
+    try { r = (sz === "c" || sz === "p") && def.mini && !(l.type === "clock" && sz === "c") && l.type !== "quick" ? shapeHTML(sz, def, def.mini(o, sz)) : def.render(sz, o); }
     catch (e) { console.error(e); r = { html: head(def.icon, def.title) + `<div class="d-wb">${empty("Non riesco a mostrare questi dati.")}</div>` }; }
     // colore scelto in Personalizza ("glass" = vetro semplice)
     if (o.tint) r.cls = o.tint === "glass" ? "" : o.tint;
@@ -209,6 +209,8 @@ const Today = (() => {
   // ---------- Foglio "Personalizza": colore e opzioni del singolo widget ----------
   const radios = (name, legend, list, cur) => `<fieldset class="d-field"><legend>${legend}</legend><div class="d-seg">${list.map(([v, t]) => `<label><input type="radio" name="${name}" value="${v}" ${String(v) === String(cur) ? "checked" : ""}><span>${t}</span></label>`).join("")}</div></fieldset>`;
   const select = (name, legend, list, cur) => `<label class="d-field"><span class="d-lg">${legend}</span><select name="${name}">${list.map(([v, t]) => `<option value="${esc(v)}" ${v === (cur || "") ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
+  const checks = (name, legend, note, list, cur) => `<fieldset class="d-field"><legend>${legend}</legend>${note ? `<p class="d-note">${note}</p>` : ""}<div class="d-seg wrap">${list.map(([v, t]) => `<label><input type="checkbox" name="${name}" value="${esc(v)}" ${(cur || []).includes(v) ? "checked" : ""}><span>${esc(t)}</span></label>`).join("")}</div></fieldset>`;
+  const textIn = (name, legend, cur, attrs = "") => `<label class="d-field"><span class="d-lg">${legend}</span><input name="${name}" value="${esc(cur || "")}" ${attrs}></label>`;
   function customFields(l) {
     const o = l.opts || {}, t = l.type;
     const base = inner({ ...l, opts: { ...o, tint: "" } }).cls || "glass";
@@ -217,7 +219,25 @@ const Today = (() => {
     const goals = Calc.activeGoals().map((x) => [x.id, x.title]);
     if (t === "habits") {
       const used = [...new Set(Calc.activeHabits().map((x) => x.area).filter((a) => AREAS[a]))];
-      h += select("area", "Abitudini da mostrare", [["", "Tutte"], ...used.map((a) => [a, `Solo ${AREAS[a].label}`])], o.area);
+      h += select("area", "Area", [["", "Tutte le aree"], ...used.map((a) => [a, `Solo ${AREAS[a].label}`])], o.area);
+      if (habits.length) h += checks("habits", "Abitudini da mostrare", "Nessuna scelta = tutte quelle dell'area.", habits, o.habits);
+    }
+    if (t === "habit") h += select("habit", "Abitudine", [["", "Automatica (la prossima da fare)"], ...habits], o.habit);
+    if (t === "reading") {
+      const books = Store.d.reading_items.filter((x) => x.kind === "book" && x.status === "reading").map((x) => [x.id, x.title + (x.author ? ` · ${x.author}` : "")]);
+      h += select("book", "Libro", [["", "Automatico (l'ultimo che hai aggiornato)"], ...books], o.book);
+      if (!books.length) h += `<p class="d-note">Nessun libro in corso: aggiungine uno in Lettura.</p>`;
+    }
+    if (t === "exam") {
+      const exams = Store.d.milestones.filter((x) => x.is_exam && (Calc.msPct(x) < 100 || x.id === o.exam))
+        .sort((a, b) => (a.exam_date || "9999").localeCompare(b.exam_date || "9999"))
+        .map((x) => [x.id, x.title + (x.exam_date ? ` · ${U.fmtShort(x.exam_date)}` : " · data da fissare")]);
+      h += select("exam", "Esame", [["", "Automatico (il prossimo appello)"], ...exams], o.exam);
+    }
+    if (t === "countdown") {
+      h += textIn("label", "Titolo", o.label, `maxlength="40" placeholder="Es. Viaggio a Kyoto" autocomplete="off"`);
+      h += textIn("date", "Data", o.date, `type="date"`);
+      h += `<label class="d-check"><input type="checkbox" name="yearly" ${o.yearly ? "checked" : ""}><span>Ogni anno (compleanni, anniversari)</span></label>`;
     }
     if (t === "nextHabit" || t === "streak") h += select("habit", "Abitudine", [["", t === "streak" ? "Automatica (la serie più lunga)" : "Automatica (la prossima da fare)"], ...habits], o.habit);
     if (t === "goals" || t === "deadline") h += select("goal", "Obiettivo", [["", t === "goals" ? "Tutti gli obiettivi attivi" : "Automatico (la scadenza più vicina)"], ...goals], o.goal);
@@ -232,15 +252,19 @@ const Today = (() => {
     const l = st.layout[i], def = W[l.type];
     Sheet.open({
       title: `Personalizza · ${def.title}`,
-      body: `<form class="dash-sheet d-form" data-dash-custom-form>${customFields(l)}<p class="d-note">Le modifiche si vedono subito nella Home.</p></form>`,
+      body: `<form class="dash-sheet d-form" data-dash-custom-form>${customFields(l)}<p class="d-note">Le modifiche si vedono subito nella Home. Per tornare qui senza passare da Modifica Home, tieni premuto il widget (sul Mac: clic destro).</p></form>`,
       onMount: (root) => {
         const f = root.querySelector("form");
         f.addEventListener("submit", (e) => e.preventDefault());
         f.addEventListener("change", () => {
           const fd = new FormData(f), o = {};
-          for (const k of ["tint", "area", "habit", "goal", "min", "tab", "finGroup"]) { const v = fd.get(k); if (v) o[k] = k === "min" ? Number(v) : v; }
-          const slots = fd.getAll("slots");
-          if (slots.length) o.slots = slots;
+          for (const k of ["tint", "area", "habit", "goal", "min", "tab", "finGroup", "book", "exam", "date"]) { const v = fd.get(k); if (v) o[k] = k === "min" ? Number(v) : v; }
+          const label = String(fd.get("label") || "").trim().slice(0, 40);
+          if (label) o.label = label;
+          if (fd.get("yearly")) o.yearly = true;
+          // conto alla rovescia: la barra parte dal giorno in cui scegli la data
+          if (o.date) o.since = l.opts && l.opts.date === o.date && l.opts.since ? l.opts.since : U.today();
+          for (const k of ["slots", "habits"]) { const v = fd.getAll(k); if (v.length) o[k] = v; }
           if (o.tint === (inner({ ...l, opts: { ...o, tint: "" } }).cls || "glass")) delete o.tint; // il colore di serie non si salva
           if (Object.keys(o).length) l.opts = o; else delete l.opts;
           if (st.cal[l.id]) st.cal[l.id].tab = o.tab || "habits";
@@ -408,7 +432,38 @@ const Today = (() => {
       if (t && t.tagName === "IMG" && t.closest(".dash, .dash-sheet")) t.remove();
     }, true);
 
+    // Tocco lungo (o clic destro) su un widget: si apre Personalizza, anche fuori da Modifica Home.
+    // Il foglio si apre quando alzi il dito; il clic che segue viene ignorato (non segna l'abitudine).
+    let lp = null;
+    const lpEnd = () => { if (!lp) return; clearTimeout(lp.t); lp.w.classList.remove("d-press"); lp = null; };
+    document.addEventListener("pointerdown", (e) => {
+      st.skipClick = false;
+      if (st.editing || e.pointerType === "mouse" || !inDash(e.target)) return;
+      const w = e.target.closest(".d-w[data-idx]");
+      if (!w) return;
+      lpEnd();
+      lp = { w, x: e.clientX, y: e.clientY, ready: false };
+      lp.t = setTimeout(() => { lp.ready = true; w.classList.add("d-press"); if (navigator.vibrate) navigator.vibrate(12); }, 500);
+    }, true);
+    window.addEventListener("pointermove", (e) => { if (lp && !lp.ready && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10) lpEnd(); });
+    window.addEventListener("pointercancel", lpEnd);
+    window.addEventListener("pointerup", () => {
+      if (!lp) return;
+      const { ready, w } = lp;
+      lpEnd();
+      if (ready && w.isConnected) { st.skipClick = true; openCustom(Number(w.dataset.idx)); }
+    });
+    document.addEventListener("contextmenu", (e) => {
+      if (st.editing || !inDash(e.target)) return;
+      const w = e.target.closest(".d-w[data-idx]");
+      if (!w) return;
+      e.preventDefault(); // su telefono il tocco lungo lo gestisce già pointerup
+      if (e.pointerType === "touch" || lp) return;
+      openCustom(Number(w.dataset.idx));
+    });
+
     document.addEventListener("click", (e) => {
+      if (st.skipClick) { st.skipClick = false; e.preventDefault(); e.stopImmediatePropagation(); return; }
       if (!inDash(e.target)) return;
       const t = e.target.closest("button");
       if (t && t.dataset.dashTool) {

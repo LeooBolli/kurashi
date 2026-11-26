@@ -53,6 +53,38 @@
         return { cls: "orange", html: head("hourglass", "Scadenza", `${x.gi.pct}% fatto`) + `<div class="d-wb end">${big(Math.abs(x.gi.left), x.gi.left < 0 ? "di ritardo" : x.gi.left === 1 ? "giorno" : "giorni")}<span class="d-cap">${esc(x.g.title)}</span></div>` };
       }
     },
+    // Conto alla rovescia verso una data scelta in Personalizza (con titolo, anche ogni anno)
+    countdown: {
+      title: "Conto alla rovescia", icon: "hourglass", sizes: ["c", "s", "p", "mh"],
+      data(o) {
+        if (!o || !/^\d{4}-\d{2}-\d{2}$/.test(o.date || "")) return null;
+        const today = U.today();
+        let date = o.date;
+        if (o.yearly) while (date < today) date = U.addMonths(date, 12);
+        const left = U.diffDays(today, date), label = esc(o.label || "Conto alla rovescia");
+        // barra: dal giorno in cui l'hai impostato (o dall'anno prima, se si ripete) fino alla data
+        const from = o.yearly ? U.addMonths(date, -12) : o.since && o.since < date ? o.since : null;
+        const p = from ? U.clamp(U.diffDays(from, today) / Math.max(1, U.diffDays(from, date)), 0, 1) : null;
+        const v = left > 0 ? left : left === 0 ? "Oggi" : -left;
+        const u = left > 0 ? (left === 1 ? "giorno" : "giorni") : left === 0 ? "" : -left === 1 ? "giorno fa" : "giorni fa";
+        const weeks = left > 60 ? ` · circa ${Math.round(left / 30)} mesi` : left > 13 ? ` · ${Math.floor(left / 7)} settimane` : "";
+        const when = `${U.fmtShort(date)}${left > 0 ? weeks : ""}`;
+        return { date, left, label, p, v, u, when };
+      },
+      choose: (wide) => wide ? `<button type="button" class="d-btn deep sm" data-dash-custom aria-label="Scegli la data del conto alla rovescia">${ic("cal", 14, 2.2)}Scegli la data</button>`
+        : `<button type="button" class="d-cbtn" data-dash-custom aria-label="Scegli la data del conto alla rovescia">${ic("cal", 15, 2.2)}</button>`,
+      mini(o, sz) {
+        const x = this.data(o);
+        if (!x) return { icon: "hourglass", title: "Conto alla rovescia", value: "—", cap: "Scegli la data", p: null, action: this.choose() };
+        return { cls: x.left === 0 ? "orange" : "", icon: "hourglass", title: x.label, value: x.v, unit: x.u, cap: sz === "p" ? (x.left < 0 ? `${x.when} · passato` : x.when) : x.left < 0 ? `${x.label} · passato` : x.label, p: x.p };
+      },
+      render(sz, o) {
+        const x = this.data(o);
+        if (!x) return { html: head("hourglass", "Conto alla rovescia") + `<div class="d-wb">${empty("Un esame, un viaggio, un compleanno: scegli la data.", this.choose(true))}</div>` };
+        const cap = x.left > 0 ? "mancano" : x.left === 0 ? "È oggi!" : "È passato";
+        return { cls: x.left === 0 ? "orange" : "", html: head("hourglass", x.label, x.when) + `<div class="d-wb end" style="gap:8px">${big(x.v, x.u)}<span class="d-cap">${cap}</span>${sz === "mh" && x.p != null ? track(x.p * 100, `${Math.round(x.p * 100)}% del tempo trascorso`) : ""}</div>` };
+      }
+    },
     stats: {
       title: "Costanza", icon: "chart", sizes: ["mh", "lh", "lv"], go: "insights",
       render(sz) {

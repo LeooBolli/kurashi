@@ -48,20 +48,31 @@
     },
     exam: {
       title: "Prossimo esame", icon: "cap", sizes: ["c", "s", "p"], go: "goals",
-      pick() {
+      // l'esame scelto in Personalizza, altrimenti il prossimo appello non ancora pronto
+      pick(o) {
         const today = U.today();
-        const m = Store.d.milestones.filter((x) => x.is_exam && x.exam_date && x.exam_date >= today && Calc.msPct(x) < 100).sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0];
-        return m ? { m, left: U.diffDays(today, m.exam_date), pct: Calc.msPct(m) } : null;
+        const chosen = o && o.exam ? Store.d.milestones.find((x) => x.id === o.exam && x.is_exam) : null;
+        const m = chosen || Store.d.milestones.filter((x) => x.is_exam && x.exam_date && x.exam_date >= today && Calc.msPct(x) < 100).sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0];
+        return m ? { m, left: m.exam_date ? U.diffDays(today, m.exam_date) : null, pct: Calc.msPct(m), fixed: !!chosen } : null;
       },
-      mini() {
-        const x = this.pick();
+      // giorni all'appello: "Oggi", "passato", o senza data
+      when(x) {
+        if (x.left == null) return { v: "—", u: "", cap: "Appello da fissare" };
+        if (x.left < 0) return { v: -x.left, u: -x.left === 1 ? "giorno fa" : "giorni fa", cap: "Appello passato" };
+        if (x.left === 0) return { v: "Oggi", u: "", cap: "È il giorno dell'appello" };
+        return { v: x.left, u: x.left === 1 ? "giorno" : "giorni", cap: "" };
+      },
+      mini(o) {
+        const x = this.pick(o);
         if (!x) return { icon: "cap", title: "Prossimo esame", value: "—", cap: "Nessun esame in programma", p: null };
-        return { icon: "cap", title: esc(x.m.title), value: x.left, unit: x.left === 1 ? "giorno" : "giorni", cap: esc(x.m.title), p: x.pct / 100 };
+        const w = this.when(x);
+        return { icon: "cap", title: esc(x.m.title), value: w.v, unit: w.u, cap: esc(x.m.title), p: x.pct / 100 };
       },
-      render() {
-        const x = this.pick();
+      render(sz, o) {
+        const x = this.pick(o);
         if (!x) return { html: head("cap", "Prossimo esame") + `<div class="d-wb">${empty("Nessun esame con una data d'appello.")}</div>` };
-        return { html: head("cap", "Esame", `${U.fmtShort(x.m.exam_date)} · ${Math.round(x.pct)}% pronto`) + `<div class="d-wb end">${big(x.left, x.left === 1 ? "giorno" : "giorni")}<span class="d-cap">${esc(x.m.title)}</span></div>` };
+        const w = this.when(x);
+        return { html: head("cap", "Esame", `${x.m.exam_date ? U.fmtShort(x.m.exam_date) : w.cap} · ${Math.round(x.pct)}% pronto`) + `<div class="d-wb end">${big(w.v, w.u)}<span class="d-cap">${esc(x.m.title)}</span></div>` };
       }
     },
     studyToday: {

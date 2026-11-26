@@ -137,6 +137,10 @@ Su iPhone: Safari → Condividi → *Aggiungi alla schermata Home*.
 - **Home a widget**: in *Modifica Home* sposti i widget trascinandoli, scegli fra 5 formati
   (piccolo, medio orizzontale/verticale, grande orizzontale/verticale), ne togli o ne aggiungi.
   La disposizione si salva nelle impostazioni ed è la stessa su tutti i dispositivi.
+  **Tieni premuto** un widget (sul Mac: clic destro) per scegliere cosa mostra, senza passare da
+  *Modifica Home*: il libro in Lettura, le abitudini nella lista, l'esame, l'obiettivo, il colore.
+  Due copie dello stesso widget possono mostrare cose diverse. Widget dedicati: **Una sola abitudine**
+  (tasto per segnarla, serie, ultimi 30 giorni) e **Conto alla rovescia** (titolo e data tuoi, anche ogni anno).
 - **Aspetto** (Impostazioni → Aspetto): palette di colori, opacità del vetro, luminosità dello
   sfondo, sfondo morbido a colori o foto in bianco e nero (anche tue: vanno nel bucket privato
   `kurashi-backgrounds` creato da `supabase/schema.sql`). Tema chiaro/scuro dall'interruttore in alto.

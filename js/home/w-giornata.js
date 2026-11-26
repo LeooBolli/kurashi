@@ -90,6 +90,51 @@
         return { html: head("habit", fixed ? "Abitudine" : "Prossima", fixed ? (s ? `${plural(s, "giorno", "giorni")} di fila` : "") : `${d.stats.due - d.stats.done} da fare oggi`) + `<div class="d-wb end"><b class="d-hname">${esc(h.name)}</b><div class="d-row"><span class="d-cap">${info}</span>${due && !done ? nextBtn(h, d.today, true) : ""}</div></div>` };
       }
     },
+    // Una sola abitudine, scelta in Personalizza: tasto per segnarla, serie e ultimi 30 giorni
+    habit: {
+      title: "Una sola abitudine", icon: "habit", sizes: ["c", "s", "p", "mh"], go: "habits",
+      pick(o) {
+        const today = U.today(), chosen = pickHabit(o);
+        const h = chosen || Calc.habitsDueOn(today).find((x) => !Calc.isDone(x, today)) || Calc.activeHabits()[0];
+        if (!h) return null;
+        const qty = h.kind !== "check", target = qty ? Number(h.target) || 1 : 1, v = Calc.value(h, today);
+        const done = Calc.isDone(h, today), due = Calc.isDue(h, today);
+        const status = qty ? `${U.num(v)} su ${U.num(target)} ${esc(h.unit || "")}`.trim() : done ? "Fatta oggi" : due ? "Da fare oggi" : "Oggi riposo";
+        return { h, today, qty, v, target, done, due, status, p: U.clamp(v / target, 0, 1), s: Calc.streak(h), fixed: !!chosen };
+      },
+      // spunta (sì/no) o +passo (quantitative); su una sì/no già fatta lo stesso tasto la annulla
+      btn(x, wide) {
+        const { h, qty, done } = x;
+        const act = qty ? `data-act="habit-inc" data-id="${h.id}" data-dir="1"` : `data-act="habit-toggle" data-id="${h.id}"`;
+        const lbl = qty ? `Aggiungi ${U.num(h.step || 1)} ${esc(h.unit || "")} a ${esc(h.name)}` : done ? `${esc(h.name)}: fatta, tocca per annullare` : `Segna ${esc(h.name)} come fatta`;
+        const icon = qty ? "plus" : "check";
+        if (!wide) return `<button type="button" class="d-cbtn ${done && !qty ? "on" : ""}" ${act} aria-pressed="${!qty && done}" aria-label="${lbl}">${ic(icon, 15, 2.6)}</button>`;
+        return `<button type="button" class="d-btn ${done && !qty ? "glassy" : "deep"} sm" ${act} aria-pressed="${!qty && done}" aria-label="${lbl}">${ic(icon, 14, 2.6)}${qty ? `+${U.num(h.step || 1)}` : done ? "Fatta" : "Segna"}</button>`;
+      },
+      // ultimi 30 giorni: pieno = fatta, vuoto = mancata, sbiadito = non prevista
+      dots(x) {
+        let h = "";
+        for (let i = 29; i >= 0; i--) {
+          const d = U.addDays(x.today, -i), due = Calc.isDue(x.h, d), ok = Calc.isDone(x.h, d);
+          h += `<i class="${ok ? "l4" : due ? "" : "fut"} ${d === x.today ? "today" : ""}" title="${U.fmtShort(d)}: ${ok ? "fatta" : due ? (d === x.today ? "da fare" : "mancata") : "non prevista"}"></i>`;
+        }
+        const n = U.range(U.addDays(x.today, -29), x.today).filter((d) => Calc.isDone(x.h, d)).length;
+        return `<div class="d-heat d-h30" role="img" aria-label="${esc(x.h.name)}: fatta ${n} giorni su 30">${h}</div>`;
+      },
+      mini(o, sz) {
+        const x = this.pick(o);
+        if (!x) return { icon: "habit", title: "Una sola abitudine", value: "—", cap: "Nessuna abitudine", p: null };
+        return { cls: x.done ? "blue" : "", icon: x.done ? "check" : "habit", title: esc(x.h.name), value: x.s, unit: x.s === 1 ? "giorno" : "giorni", cap: sz === "p" ? x.status : `${esc(x.h.name)} · ${x.status}`, p: x.p, action: this.btn(x) };
+      },
+      render(sz, o) {
+        const x = this.pick(o);
+        if (!x) return { html: head("habit", "Una sola abitudine") + `<div class="d-wb">${empty("Crea un'abitudine e sceglila qui.", cta("Nuova abitudine", "habit-new"))}</div>` };
+        const rec = Calc.bestStreak(x.h);
+        const streak = `${big(x.s, x.s === 1 ? "giorno" : "giorni")}<span class="d-cap">${x.s ? "di fila" : "Serie da iniziare"}${rec > x.s ? ` · record ${rec}` : ""}</span>`;
+        if (sz === "s") return { cls: x.done ? "blue" : "", html: head(x.done ? "check" : "habit", esc(x.h.name), x.status) + `<div class="d-wb end" style="gap:8px">${streak}${this.btn(x, true)}</div>` };
+        return { cls: x.done ? "blue" : "", html: head(x.done ? "check" : "habit", esc(x.h.name), x.status, this.btn(x, true)) + `<div class="d-wb"><div class="d-row"><div class="d-col">${streak}</div>${this.dots(x)}</div></div>` };
+      }
+    },
     points: {
       title: "Punteggio", icon: "star", sizes: ["c", "s", "p"], go: "insights",
       mini() {
